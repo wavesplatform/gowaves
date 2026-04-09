@@ -101,6 +101,7 @@ func GenerateObjects(configPath, fn string) {
 	for _, obj := range s.Objects {
 		for _, act := range obj.Actions {
 			// Struct Implementation
+			cd.Line("//betteralign:check")
 			cd.Line("type ride%s struct {", act.StructName)
 			for _, field := range act.Fields {
 				ft := stdlib.ParseRuntimeType(field.Type)

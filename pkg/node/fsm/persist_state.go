@@ -83,6 +83,7 @@ func initPersistStateInFSM(state *StateData, fsm *stateless.StateMachine, info B
 	}
 	fsm.Configure(PersistStateName).
 		Ignore(BlockEvent).
+		Ignore(BlockEndorsementEvent).
 		Ignore(MinedBlockEvent).
 		Ignore(BlockIDsEvent).
 		Ignore(MicroBlockEvent).

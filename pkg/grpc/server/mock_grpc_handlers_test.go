@@ -10,6 +10,7 @@ import (
 	mock "github.com/stretchr/testify/mock"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
+	grpc0 "google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -178,16 +179,16 @@ func (_c *MockGrpcHandlers_GetActivationStatus_Call) RunAndReturn(run func(conte
 }
 
 // GetActiveLeases provides a mock function for the type MockGrpcHandlers
-func (_mock *MockGrpcHandlers) GetActiveLeases(accountRequest *grpc.AccountRequest, accountsApi_GetActiveLeasesServer grpc.AccountsApi_GetActiveLeasesServer) error {
-	ret := _mock.Called(accountRequest, accountsApi_GetActiveLeasesServer)
+func (_mock *MockGrpcHandlers) GetActiveLeases(accountRequest *grpc.AccountRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.LeaseResponse]) error {
+	ret := _mock.Called(accountRequest, serverStreamingServer)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetActiveLeases")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(*grpc.AccountRequest, grpc.AccountsApi_GetActiveLeasesServer) error); ok {
-		r0 = returnFunc(accountRequest, accountsApi_GetActiveLeasesServer)
+	if returnFunc, ok := ret.Get(0).(func(*grpc.AccountRequest, grpc0.ServerStreamingServer[grpc.LeaseResponse]) error); ok {
+		r0 = returnFunc(accountRequest, serverStreamingServer)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -201,20 +202,20 @@ type MockGrpcHandlers_GetActiveLeases_Call struct {
 
 // GetActiveLeases is a helper method to define mock.On call
 //   - accountRequest *grpc.AccountRequest
-//   - accountsApi_GetActiveLeasesServer grpc.AccountsApi_GetActiveLeasesServer
-func (_e *MockGrpcHandlers_Expecter) GetActiveLeases(accountRequest interface{}, accountsApi_GetActiveLeasesServer interface{}) *MockGrpcHandlers_GetActiveLeases_Call {
-	return &MockGrpcHandlers_GetActiveLeases_Call{Call: _e.mock.On("GetActiveLeases", accountRequest, accountsApi_GetActiveLeasesServer)}
+//   - serverStreamingServer grpc0.ServerStreamingServer[grpc.LeaseResponse]
+func (_e *MockGrpcHandlers_Expecter) GetActiveLeases(accountRequest interface{}, serverStreamingServer interface{}) *MockGrpcHandlers_GetActiveLeases_Call {
+	return &MockGrpcHandlers_GetActiveLeases_Call{Call: _e.mock.On("GetActiveLeases", accountRequest, serverStreamingServer)}
 }
 
-func (_c *MockGrpcHandlers_GetActiveLeases_Call) Run(run func(accountRequest *grpc.AccountRequest, accountsApi_GetActiveLeasesServer grpc.AccountsApi_GetActiveLeasesServer)) *MockGrpcHandlers_GetActiveLeases_Call {
+func (_c *MockGrpcHandlers_GetActiveLeases_Call) Run(run func(accountRequest *grpc.AccountRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.LeaseResponse])) *MockGrpcHandlers_GetActiveLeases_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 *grpc.AccountRequest
 		if args[0] != nil {
 			arg0 = args[0].(*grpc.AccountRequest)
 		}
-		var arg1 grpc.AccountsApi_GetActiveLeasesServer
+		var arg1 grpc0.ServerStreamingServer[grpc.LeaseResponse]
 		if args[1] != nil {
-			arg1 = args[1].(grpc.AccountsApi_GetActiveLeasesServer)
+			arg1 = args[1].(grpc0.ServerStreamingServer[grpc.LeaseResponse])
 		}
 		run(
 			arg0,
@@ -229,22 +230,22 @@ func (_c *MockGrpcHandlers_GetActiveLeases_Call) Return(err error) *MockGrpcHand
 	return _c
 }
 
-func (_c *MockGrpcHandlers_GetActiveLeases_Call) RunAndReturn(run func(accountRequest *grpc.AccountRequest, accountsApi_GetActiveLeasesServer grpc.AccountsApi_GetActiveLeasesServer) error) *MockGrpcHandlers_GetActiveLeases_Call {
+func (_c *MockGrpcHandlers_GetActiveLeases_Call) RunAndReturn(run func(accountRequest *grpc.AccountRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.LeaseResponse]) error) *MockGrpcHandlers_GetActiveLeases_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetBalances provides a mock function for the type MockGrpcHandlers
-func (_mock *MockGrpcHandlers) GetBalances(balancesRequest *grpc.BalancesRequest, accountsApi_GetBalancesServer grpc.AccountsApi_GetBalancesServer) error {
-	ret := _mock.Called(balancesRequest, accountsApi_GetBalancesServer)
+func (_mock *MockGrpcHandlers) GetBalances(balancesRequest *grpc.BalancesRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.BalanceResponse]) error {
+	ret := _mock.Called(balancesRequest, serverStreamingServer)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetBalances")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(*grpc.BalancesRequest, grpc.AccountsApi_GetBalancesServer) error); ok {
-		r0 = returnFunc(balancesRequest, accountsApi_GetBalancesServer)
+	if returnFunc, ok := ret.Get(0).(func(*grpc.BalancesRequest, grpc0.ServerStreamingServer[grpc.BalanceResponse]) error); ok {
+		r0 = returnFunc(balancesRequest, serverStreamingServer)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -258,20 +259,20 @@ type MockGrpcHandlers_GetBalances_Call struct {
 
 // GetBalances is a helper method to define mock.On call
 //   - balancesRequest *grpc.BalancesRequest
-//   - accountsApi_GetBalancesServer grpc.AccountsApi_GetBalancesServer
-func (_e *MockGrpcHandlers_Expecter) GetBalances(balancesRequest interface{}, accountsApi_GetBalancesServer interface{}) *MockGrpcHandlers_GetBalances_Call {
-	return &MockGrpcHandlers_GetBalances_Call{Call: _e.mock.On("GetBalances", balancesRequest, accountsApi_GetBalancesServer)}
+//   - serverStreamingServer grpc0.ServerStreamingServer[grpc.BalanceResponse]
+func (_e *MockGrpcHandlers_Expecter) GetBalances(balancesRequest interface{}, serverStreamingServer interface{}) *MockGrpcHandlers_GetBalances_Call {
+	return &MockGrpcHandlers_GetBalances_Call{Call: _e.mock.On("GetBalances", balancesRequest, serverStreamingServer)}
 }
 
-func (_c *MockGrpcHandlers_GetBalances_Call) Run(run func(balancesRequest *grpc.BalancesRequest, accountsApi_GetBalancesServer grpc.AccountsApi_GetBalancesServer)) *MockGrpcHandlers_GetBalances_Call {
+func (_c *MockGrpcHandlers_GetBalances_Call) Run(run func(balancesRequest *grpc.BalancesRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.BalanceResponse])) *MockGrpcHandlers_GetBalances_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 *grpc.BalancesRequest
 		if args[0] != nil {
 			arg0 = args[0].(*grpc.BalancesRequest)
 		}
-		var arg1 grpc.AccountsApi_GetBalancesServer
+		var arg1 grpc0.ServerStreamingServer[grpc.BalanceResponse]
 		if args[1] != nil {
-			arg1 = args[1].(grpc.AccountsApi_GetBalancesServer)
+			arg1 = args[1].(grpc0.ServerStreamingServer[grpc.BalanceResponse])
 		}
 		run(
 			arg0,
@@ -286,7 +287,7 @@ func (_c *MockGrpcHandlers_GetBalances_Call) Return(err error) *MockGrpcHandlers
 	return _c
 }
 
-func (_c *MockGrpcHandlers_GetBalances_Call) RunAndReturn(run func(balancesRequest *grpc.BalancesRequest, accountsApi_GetBalancesServer grpc.AccountsApi_GetBalancesServer) error) *MockGrpcHandlers_GetBalances_Call {
+func (_c *MockGrpcHandlers_GetBalances_Call) RunAndReturn(run func(balancesRequest *grpc.BalancesRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.BalanceResponse]) error) *MockGrpcHandlers_GetBalances_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -428,16 +429,16 @@ func (_c *MockGrpcHandlers_GetBlock_Call) RunAndReturn(run func(context1 context
 }
 
 // GetBlockRange provides a mock function for the type MockGrpcHandlers
-func (_mock *MockGrpcHandlers) GetBlockRange(blockRangeRequest *grpc.BlockRangeRequest, blocksApi_GetBlockRangeServer grpc.BlocksApi_GetBlockRangeServer) error {
-	ret := _mock.Called(blockRangeRequest, blocksApi_GetBlockRangeServer)
+func (_mock *MockGrpcHandlers) GetBlockRange(blockRangeRequest *grpc.BlockRangeRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.BlockWithHeight]) error {
+	ret := _mock.Called(blockRangeRequest, serverStreamingServer)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetBlockRange")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(*grpc.BlockRangeRequest, grpc.BlocksApi_GetBlockRangeServer) error); ok {
-		r0 = returnFunc(blockRangeRequest, blocksApi_GetBlockRangeServer)
+	if returnFunc, ok := ret.Get(0).(func(*grpc.BlockRangeRequest, grpc0.ServerStreamingServer[grpc.BlockWithHeight]) error); ok {
+		r0 = returnFunc(blockRangeRequest, serverStreamingServer)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -451,20 +452,20 @@ type MockGrpcHandlers_GetBlockRange_Call struct {
 
 // GetBlockRange is a helper method to define mock.On call
 //   - blockRangeRequest *grpc.BlockRangeRequest
-//   - blocksApi_GetBlockRangeServer grpc.BlocksApi_GetBlockRangeServer
-func (_e *MockGrpcHandlers_Expecter) GetBlockRange(blockRangeRequest interface{}, blocksApi_GetBlockRangeServer interface{}) *MockGrpcHandlers_GetBlockRange_Call {
-	return &MockGrpcHandlers_GetBlockRange_Call{Call: _e.mock.On("GetBlockRange", blockRangeRequest, blocksApi_GetBlockRangeServer)}
+//   - serverStreamingServer grpc0.ServerStreamingServer[grpc.BlockWithHeight]
+func (_e *MockGrpcHandlers_Expecter) GetBlockRange(blockRangeRequest interface{}, serverStreamingServer interface{}) *MockGrpcHandlers_GetBlockRange_Call {
+	return &MockGrpcHandlers_GetBlockRange_Call{Call: _e.mock.On("GetBlockRange", blockRangeRequest, serverStreamingServer)}
 }
 
-func (_c *MockGrpcHandlers_GetBlockRange_Call) Run(run func(blockRangeRequest *grpc.BlockRangeRequest, blocksApi_GetBlockRangeServer grpc.BlocksApi_GetBlockRangeServer)) *MockGrpcHandlers_GetBlockRange_Call {
+func (_c *MockGrpcHandlers_GetBlockRange_Call) Run(run func(blockRangeRequest *grpc.BlockRangeRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.BlockWithHeight])) *MockGrpcHandlers_GetBlockRange_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 *grpc.BlockRangeRequest
 		if args[0] != nil {
 			arg0 = args[0].(*grpc.BlockRangeRequest)
 		}
-		var arg1 grpc.BlocksApi_GetBlockRangeServer
+		var arg1 grpc0.ServerStreamingServer[grpc.BlockWithHeight]
 		if args[1] != nil {
-			arg1 = args[1].(grpc.BlocksApi_GetBlockRangeServer)
+			arg1 = args[1].(grpc0.ServerStreamingServer[grpc.BlockWithHeight])
 		}
 		run(
 			arg0,
@@ -479,7 +480,7 @@ func (_c *MockGrpcHandlers_GetBlockRange_Call) Return(err error) *MockGrpcHandle
 	return _c
 }
 
-func (_c *MockGrpcHandlers_GetBlockRange_Call) RunAndReturn(run func(blockRangeRequest *grpc.BlockRangeRequest, blocksApi_GetBlockRangeServer grpc.BlocksApi_GetBlockRangeServer) error) *MockGrpcHandlers_GetBlockRange_Call {
+func (_c *MockGrpcHandlers_GetBlockRange_Call) RunAndReturn(run func(blockRangeRequest *grpc.BlockRangeRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.BlockWithHeight]) error) *MockGrpcHandlers_GetBlockRange_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -621,16 +622,16 @@ func (_c *MockGrpcHandlers_GetCurrentHeight_Call) RunAndReturn(run func(context1
 }
 
 // GetDataEntries provides a mock function for the type MockGrpcHandlers
-func (_mock *MockGrpcHandlers) GetDataEntries(dataRequest *grpc.DataRequest, accountsApi_GetDataEntriesServer grpc.AccountsApi_GetDataEntriesServer) error {
-	ret := _mock.Called(dataRequest, accountsApi_GetDataEntriesServer)
+func (_mock *MockGrpcHandlers) GetDataEntries(dataRequest *grpc.DataRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.DataEntryResponse]) error {
+	ret := _mock.Called(dataRequest, serverStreamingServer)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetDataEntries")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(*grpc.DataRequest, grpc.AccountsApi_GetDataEntriesServer) error); ok {
-		r0 = returnFunc(dataRequest, accountsApi_GetDataEntriesServer)
+	if returnFunc, ok := ret.Get(0).(func(*grpc.DataRequest, grpc0.ServerStreamingServer[grpc.DataEntryResponse]) error); ok {
+		r0 = returnFunc(dataRequest, serverStreamingServer)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -644,20 +645,20 @@ type MockGrpcHandlers_GetDataEntries_Call struct {
 
 // GetDataEntries is a helper method to define mock.On call
 //   - dataRequest *grpc.DataRequest
-//   - accountsApi_GetDataEntriesServer grpc.AccountsApi_GetDataEntriesServer
-func (_e *MockGrpcHandlers_Expecter) GetDataEntries(dataRequest interface{}, accountsApi_GetDataEntriesServer interface{}) *MockGrpcHandlers_GetDataEntries_Call {
-	return &MockGrpcHandlers_GetDataEntries_Call{Call: _e.mock.On("GetDataEntries", dataRequest, accountsApi_GetDataEntriesServer)}
+//   - serverStreamingServer grpc0.ServerStreamingServer[grpc.DataEntryResponse]
+func (_e *MockGrpcHandlers_Expecter) GetDataEntries(dataRequest interface{}, serverStreamingServer interface{}) *MockGrpcHandlers_GetDataEntries_Call {
+	return &MockGrpcHandlers_GetDataEntries_Call{Call: _e.mock.On("GetDataEntries", dataRequest, serverStreamingServer)}
 }
 
-func (_c *MockGrpcHandlers_GetDataEntries_Call) Run(run func(dataRequest *grpc.DataRequest, accountsApi_GetDataEntriesServer grpc.AccountsApi_GetDataEntriesServer)) *MockGrpcHandlers_GetDataEntries_Call {
+func (_c *MockGrpcHandlers_GetDataEntries_Call) Run(run func(dataRequest *grpc.DataRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.DataEntryResponse])) *MockGrpcHandlers_GetDataEntries_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 *grpc.DataRequest
 		if args[0] != nil {
 			arg0 = args[0].(*grpc.DataRequest)
 		}
-		var arg1 grpc.AccountsApi_GetDataEntriesServer
+		var arg1 grpc0.ServerStreamingServer[grpc.DataEntryResponse]
 		if args[1] != nil {
-			arg1 = args[1].(grpc.AccountsApi_GetDataEntriesServer)
+			arg1 = args[1].(grpc0.ServerStreamingServer[grpc.DataEntryResponse])
 		}
 		run(
 			arg0,
@@ -672,7 +673,7 @@ func (_c *MockGrpcHandlers_GetDataEntries_Call) Return(err error) *MockGrpcHandl
 	return _c
 }
 
-func (_c *MockGrpcHandlers_GetDataEntries_Call) RunAndReturn(run func(dataRequest *grpc.DataRequest, accountsApi_GetDataEntriesServer grpc.AccountsApi_GetDataEntriesServer) error) *MockGrpcHandlers_GetDataEntries_Call {
+func (_c *MockGrpcHandlers_GetDataEntries_Call) RunAndReturn(run func(dataRequest *grpc.DataRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.DataEntryResponse]) error) *MockGrpcHandlers_GetDataEntries_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -746,16 +747,16 @@ func (_c *MockGrpcHandlers_GetInfo_Call) RunAndReturn(run func(context1 context.
 }
 
 // GetNFTList provides a mock function for the type MockGrpcHandlers
-func (_mock *MockGrpcHandlers) GetNFTList(nFTRequest *grpc.NFTRequest, assetsApi_GetNFTListServer grpc.AssetsApi_GetNFTListServer) error {
-	ret := _mock.Called(nFTRequest, assetsApi_GetNFTListServer)
+func (_mock *MockGrpcHandlers) GetNFTList(nFTRequest *grpc.NFTRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.NFTResponse]) error {
+	ret := _mock.Called(nFTRequest, serverStreamingServer)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetNFTList")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(*grpc.NFTRequest, grpc.AssetsApi_GetNFTListServer) error); ok {
-		r0 = returnFunc(nFTRequest, assetsApi_GetNFTListServer)
+	if returnFunc, ok := ret.Get(0).(func(*grpc.NFTRequest, grpc0.ServerStreamingServer[grpc.NFTResponse]) error); ok {
+		r0 = returnFunc(nFTRequest, serverStreamingServer)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -769,20 +770,20 @@ type MockGrpcHandlers_GetNFTList_Call struct {
 
 // GetNFTList is a helper method to define mock.On call
 //   - nFTRequest *grpc.NFTRequest
-//   - assetsApi_GetNFTListServer grpc.AssetsApi_GetNFTListServer
-func (_e *MockGrpcHandlers_Expecter) GetNFTList(nFTRequest interface{}, assetsApi_GetNFTListServer interface{}) *MockGrpcHandlers_GetNFTList_Call {
-	return &MockGrpcHandlers_GetNFTList_Call{Call: _e.mock.On("GetNFTList", nFTRequest, assetsApi_GetNFTListServer)}
+//   - serverStreamingServer grpc0.ServerStreamingServer[grpc.NFTResponse]
+func (_e *MockGrpcHandlers_Expecter) GetNFTList(nFTRequest interface{}, serverStreamingServer interface{}) *MockGrpcHandlers_GetNFTList_Call {
+	return &MockGrpcHandlers_GetNFTList_Call{Call: _e.mock.On("GetNFTList", nFTRequest, serverStreamingServer)}
 }
 
-func (_c *MockGrpcHandlers_GetNFTList_Call) Run(run func(nFTRequest *grpc.NFTRequest, assetsApi_GetNFTListServer grpc.AssetsApi_GetNFTListServer)) *MockGrpcHandlers_GetNFTList_Call {
+func (_c *MockGrpcHandlers_GetNFTList_Call) Run(run func(nFTRequest *grpc.NFTRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.NFTResponse])) *MockGrpcHandlers_GetNFTList_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 *grpc.NFTRequest
 		if args[0] != nil {
 			arg0 = args[0].(*grpc.NFTRequest)
 		}
-		var arg1 grpc.AssetsApi_GetNFTListServer
+		var arg1 grpc0.ServerStreamingServer[grpc.NFTResponse]
 		if args[1] != nil {
-			arg1 = args[1].(grpc.AssetsApi_GetNFTListServer)
+			arg1 = args[1].(grpc0.ServerStreamingServer[grpc.NFTResponse])
 		}
 		run(
 			arg0,
@@ -797,7 +798,7 @@ func (_c *MockGrpcHandlers_GetNFTList_Call) Return(err error) *MockGrpcHandlers_
 	return _c
 }
 
-func (_c *MockGrpcHandlers_GetNFTList_Call) RunAndReturn(run func(nFTRequest *grpc.NFTRequest, assetsApi_GetNFTListServer grpc.AssetsApi_GetNFTListServer) error) *MockGrpcHandlers_GetNFTList_Call {
+func (_c *MockGrpcHandlers_GetNFTList_Call) RunAndReturn(run func(nFTRequest *grpc.NFTRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.NFTResponse]) error) *MockGrpcHandlers_GetNFTList_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -871,16 +872,16 @@ func (_c *MockGrpcHandlers_GetScript_Call) RunAndReturn(run func(context1 contex
 }
 
 // GetStateChanges provides a mock function for the type MockGrpcHandlers
-func (_mock *MockGrpcHandlers) GetStateChanges(transactionsRequest *grpc.TransactionsRequest, transactionsApi_GetStateChangesServer grpc.TransactionsApi_GetStateChangesServer) error {
-	ret := _mock.Called(transactionsRequest, transactionsApi_GetStateChangesServer)
+func (_mock *MockGrpcHandlers) GetStateChanges(transactionsRequest *grpc.TransactionsRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.InvokeScriptResultResponse]) error {
+	ret := _mock.Called(transactionsRequest, serverStreamingServer)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetStateChanges")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(*grpc.TransactionsRequest, grpc.TransactionsApi_GetStateChangesServer) error); ok {
-		r0 = returnFunc(transactionsRequest, transactionsApi_GetStateChangesServer)
+	if returnFunc, ok := ret.Get(0).(func(*grpc.TransactionsRequest, grpc0.ServerStreamingServer[grpc.InvokeScriptResultResponse]) error); ok {
+		r0 = returnFunc(transactionsRequest, serverStreamingServer)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -894,20 +895,20 @@ type MockGrpcHandlers_GetStateChanges_Call struct {
 
 // GetStateChanges is a helper method to define mock.On call
 //   - transactionsRequest *grpc.TransactionsRequest
-//   - transactionsApi_GetStateChangesServer grpc.TransactionsApi_GetStateChangesServer
-func (_e *MockGrpcHandlers_Expecter) GetStateChanges(transactionsRequest interface{}, transactionsApi_GetStateChangesServer interface{}) *MockGrpcHandlers_GetStateChanges_Call {
-	return &MockGrpcHandlers_GetStateChanges_Call{Call: _e.mock.On("GetStateChanges", transactionsRequest, transactionsApi_GetStateChangesServer)}
+//   - serverStreamingServer grpc0.ServerStreamingServer[grpc.InvokeScriptResultResponse]
+func (_e *MockGrpcHandlers_Expecter) GetStateChanges(transactionsRequest interface{}, serverStreamingServer interface{}) *MockGrpcHandlers_GetStateChanges_Call {
+	return &MockGrpcHandlers_GetStateChanges_Call{Call: _e.mock.On("GetStateChanges", transactionsRequest, serverStreamingServer)}
 }
 
-func (_c *MockGrpcHandlers_GetStateChanges_Call) Run(run func(transactionsRequest *grpc.TransactionsRequest, transactionsApi_GetStateChangesServer grpc.TransactionsApi_GetStateChangesServer)) *MockGrpcHandlers_GetStateChanges_Call {
+func (_c *MockGrpcHandlers_GetStateChanges_Call) Run(run func(transactionsRequest *grpc.TransactionsRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.InvokeScriptResultResponse])) *MockGrpcHandlers_GetStateChanges_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 *grpc.TransactionsRequest
 		if args[0] != nil {
 			arg0 = args[0].(*grpc.TransactionsRequest)
 		}
-		var arg1 grpc.TransactionsApi_GetStateChangesServer
+		var arg1 grpc0.ServerStreamingServer[grpc.InvokeScriptResultResponse]
 		if args[1] != nil {
-			arg1 = args[1].(grpc.TransactionsApi_GetStateChangesServer)
+			arg1 = args[1].(grpc0.ServerStreamingServer[grpc.InvokeScriptResultResponse])
 		}
 		run(
 			arg0,
@@ -922,22 +923,22 @@ func (_c *MockGrpcHandlers_GetStateChanges_Call) Return(err error) *MockGrpcHand
 	return _c
 }
 
-func (_c *MockGrpcHandlers_GetStateChanges_Call) RunAndReturn(run func(transactionsRequest *grpc.TransactionsRequest, transactionsApi_GetStateChangesServer grpc.TransactionsApi_GetStateChangesServer) error) *MockGrpcHandlers_GetStateChanges_Call {
+func (_c *MockGrpcHandlers_GetStateChanges_Call) RunAndReturn(run func(transactionsRequest *grpc.TransactionsRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.InvokeScriptResultResponse]) error) *MockGrpcHandlers_GetStateChanges_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetStatuses provides a mock function for the type MockGrpcHandlers
-func (_mock *MockGrpcHandlers) GetStatuses(transactionsByIdRequest *grpc.TransactionsByIdRequest, transactionsApi_GetStatusesServer grpc.TransactionsApi_GetStatusesServer) error {
-	ret := _mock.Called(transactionsByIdRequest, transactionsApi_GetStatusesServer)
+func (_mock *MockGrpcHandlers) GetStatuses(transactionsByIdRequest *grpc.TransactionsByIdRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.TransactionStatus]) error {
+	ret := _mock.Called(transactionsByIdRequest, serverStreamingServer)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetStatuses")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(*grpc.TransactionsByIdRequest, grpc.TransactionsApi_GetStatusesServer) error); ok {
-		r0 = returnFunc(transactionsByIdRequest, transactionsApi_GetStatusesServer)
+	if returnFunc, ok := ret.Get(0).(func(*grpc.TransactionsByIdRequest, grpc0.ServerStreamingServer[grpc.TransactionStatus]) error); ok {
+		r0 = returnFunc(transactionsByIdRequest, serverStreamingServer)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -951,20 +952,20 @@ type MockGrpcHandlers_GetStatuses_Call struct {
 
 // GetStatuses is a helper method to define mock.On call
 //   - transactionsByIdRequest *grpc.TransactionsByIdRequest
-//   - transactionsApi_GetStatusesServer grpc.TransactionsApi_GetStatusesServer
-func (_e *MockGrpcHandlers_Expecter) GetStatuses(transactionsByIdRequest interface{}, transactionsApi_GetStatusesServer interface{}) *MockGrpcHandlers_GetStatuses_Call {
-	return &MockGrpcHandlers_GetStatuses_Call{Call: _e.mock.On("GetStatuses", transactionsByIdRequest, transactionsApi_GetStatusesServer)}
+//   - serverStreamingServer grpc0.ServerStreamingServer[grpc.TransactionStatus]
+func (_e *MockGrpcHandlers_Expecter) GetStatuses(transactionsByIdRequest interface{}, serverStreamingServer interface{}) *MockGrpcHandlers_GetStatuses_Call {
+	return &MockGrpcHandlers_GetStatuses_Call{Call: _e.mock.On("GetStatuses", transactionsByIdRequest, serverStreamingServer)}
 }
 
-func (_c *MockGrpcHandlers_GetStatuses_Call) Run(run func(transactionsByIdRequest *grpc.TransactionsByIdRequest, transactionsApi_GetStatusesServer grpc.TransactionsApi_GetStatusesServer)) *MockGrpcHandlers_GetStatuses_Call {
+func (_c *MockGrpcHandlers_GetStatuses_Call) Run(run func(transactionsByIdRequest *grpc.TransactionsByIdRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.TransactionStatus])) *MockGrpcHandlers_GetStatuses_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 *grpc.TransactionsByIdRequest
 		if args[0] != nil {
 			arg0 = args[0].(*grpc.TransactionsByIdRequest)
 		}
-		var arg1 grpc.TransactionsApi_GetStatusesServer
+		var arg1 grpc0.ServerStreamingServer[grpc.TransactionStatus]
 		if args[1] != nil {
-			arg1 = args[1].(grpc.TransactionsApi_GetStatusesServer)
+			arg1 = args[1].(grpc0.ServerStreamingServer[grpc.TransactionStatus])
 		}
 		run(
 			arg0,
@@ -979,22 +980,22 @@ func (_c *MockGrpcHandlers_GetStatuses_Call) Return(err error) *MockGrpcHandlers
 	return _c
 }
 
-func (_c *MockGrpcHandlers_GetStatuses_Call) RunAndReturn(run func(transactionsByIdRequest *grpc.TransactionsByIdRequest, transactionsApi_GetStatusesServer grpc.TransactionsApi_GetStatusesServer) error) *MockGrpcHandlers_GetStatuses_Call {
+func (_c *MockGrpcHandlers_GetStatuses_Call) RunAndReturn(run func(transactionsByIdRequest *grpc.TransactionsByIdRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.TransactionStatus]) error) *MockGrpcHandlers_GetStatuses_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetTransactionSnapshots provides a mock function for the type MockGrpcHandlers
-func (_mock *MockGrpcHandlers) GetTransactionSnapshots(transactionSnapshotsRequest *grpc.TransactionSnapshotsRequest, transactionsApi_GetTransactionSnapshotsServer grpc.TransactionsApi_GetTransactionSnapshotsServer) error {
-	ret := _mock.Called(transactionSnapshotsRequest, transactionsApi_GetTransactionSnapshotsServer)
+func (_mock *MockGrpcHandlers) GetTransactionSnapshots(transactionSnapshotsRequest *grpc.TransactionSnapshotsRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.TransactionSnapshotResponse]) error {
+	ret := _mock.Called(transactionSnapshotsRequest, serverStreamingServer)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetTransactionSnapshots")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(*grpc.TransactionSnapshotsRequest, grpc.TransactionsApi_GetTransactionSnapshotsServer) error); ok {
-		r0 = returnFunc(transactionSnapshotsRequest, transactionsApi_GetTransactionSnapshotsServer)
+	if returnFunc, ok := ret.Get(0).(func(*grpc.TransactionSnapshotsRequest, grpc0.ServerStreamingServer[grpc.TransactionSnapshotResponse]) error); ok {
+		r0 = returnFunc(transactionSnapshotsRequest, serverStreamingServer)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1008,20 +1009,20 @@ type MockGrpcHandlers_GetTransactionSnapshots_Call struct {
 
 // GetTransactionSnapshots is a helper method to define mock.On call
 //   - transactionSnapshotsRequest *grpc.TransactionSnapshotsRequest
-//   - transactionsApi_GetTransactionSnapshotsServer grpc.TransactionsApi_GetTransactionSnapshotsServer
-func (_e *MockGrpcHandlers_Expecter) GetTransactionSnapshots(transactionSnapshotsRequest interface{}, transactionsApi_GetTransactionSnapshotsServer interface{}) *MockGrpcHandlers_GetTransactionSnapshots_Call {
-	return &MockGrpcHandlers_GetTransactionSnapshots_Call{Call: _e.mock.On("GetTransactionSnapshots", transactionSnapshotsRequest, transactionsApi_GetTransactionSnapshotsServer)}
+//   - serverStreamingServer grpc0.ServerStreamingServer[grpc.TransactionSnapshotResponse]
+func (_e *MockGrpcHandlers_Expecter) GetTransactionSnapshots(transactionSnapshotsRequest interface{}, serverStreamingServer interface{}) *MockGrpcHandlers_GetTransactionSnapshots_Call {
+	return &MockGrpcHandlers_GetTransactionSnapshots_Call{Call: _e.mock.On("GetTransactionSnapshots", transactionSnapshotsRequest, serverStreamingServer)}
 }
 
-func (_c *MockGrpcHandlers_GetTransactionSnapshots_Call) Run(run func(transactionSnapshotsRequest *grpc.TransactionSnapshotsRequest, transactionsApi_GetTransactionSnapshotsServer grpc.TransactionsApi_GetTransactionSnapshotsServer)) *MockGrpcHandlers_GetTransactionSnapshots_Call {
+func (_c *MockGrpcHandlers_GetTransactionSnapshots_Call) Run(run func(transactionSnapshotsRequest *grpc.TransactionSnapshotsRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.TransactionSnapshotResponse])) *MockGrpcHandlers_GetTransactionSnapshots_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 *grpc.TransactionSnapshotsRequest
 		if args[0] != nil {
 			arg0 = args[0].(*grpc.TransactionSnapshotsRequest)
 		}
-		var arg1 grpc.TransactionsApi_GetTransactionSnapshotsServer
+		var arg1 grpc0.ServerStreamingServer[grpc.TransactionSnapshotResponse]
 		if args[1] != nil {
-			arg1 = args[1].(grpc.TransactionsApi_GetTransactionSnapshotsServer)
+			arg1 = args[1].(grpc0.ServerStreamingServer[grpc.TransactionSnapshotResponse])
 		}
 		run(
 			arg0,
@@ -1036,22 +1037,22 @@ func (_c *MockGrpcHandlers_GetTransactionSnapshots_Call) Return(err error) *Mock
 	return _c
 }
 
-func (_c *MockGrpcHandlers_GetTransactionSnapshots_Call) RunAndReturn(run func(transactionSnapshotsRequest *grpc.TransactionSnapshotsRequest, transactionsApi_GetTransactionSnapshotsServer grpc.TransactionsApi_GetTransactionSnapshotsServer) error) *MockGrpcHandlers_GetTransactionSnapshots_Call {
+func (_c *MockGrpcHandlers_GetTransactionSnapshots_Call) RunAndReturn(run func(transactionSnapshotsRequest *grpc.TransactionSnapshotsRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.TransactionSnapshotResponse]) error) *MockGrpcHandlers_GetTransactionSnapshots_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetTransactions provides a mock function for the type MockGrpcHandlers
-func (_mock *MockGrpcHandlers) GetTransactions(transactionsRequest *grpc.TransactionsRequest, transactionsApi_GetTransactionsServer grpc.TransactionsApi_GetTransactionsServer) error {
-	ret := _mock.Called(transactionsRequest, transactionsApi_GetTransactionsServer)
+func (_mock *MockGrpcHandlers) GetTransactions(transactionsRequest *grpc.TransactionsRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.TransactionResponse]) error {
+	ret := _mock.Called(transactionsRequest, serverStreamingServer)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetTransactions")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(*grpc.TransactionsRequest, grpc.TransactionsApi_GetTransactionsServer) error); ok {
-		r0 = returnFunc(transactionsRequest, transactionsApi_GetTransactionsServer)
+	if returnFunc, ok := ret.Get(0).(func(*grpc.TransactionsRequest, grpc0.ServerStreamingServer[grpc.TransactionResponse]) error); ok {
+		r0 = returnFunc(transactionsRequest, serverStreamingServer)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1065,20 +1066,20 @@ type MockGrpcHandlers_GetTransactions_Call struct {
 
 // GetTransactions is a helper method to define mock.On call
 //   - transactionsRequest *grpc.TransactionsRequest
-//   - transactionsApi_GetTransactionsServer grpc.TransactionsApi_GetTransactionsServer
-func (_e *MockGrpcHandlers_Expecter) GetTransactions(transactionsRequest interface{}, transactionsApi_GetTransactionsServer interface{}) *MockGrpcHandlers_GetTransactions_Call {
-	return &MockGrpcHandlers_GetTransactions_Call{Call: _e.mock.On("GetTransactions", transactionsRequest, transactionsApi_GetTransactionsServer)}
+//   - serverStreamingServer grpc0.ServerStreamingServer[grpc.TransactionResponse]
+func (_e *MockGrpcHandlers_Expecter) GetTransactions(transactionsRequest interface{}, serverStreamingServer interface{}) *MockGrpcHandlers_GetTransactions_Call {
+	return &MockGrpcHandlers_GetTransactions_Call{Call: _e.mock.On("GetTransactions", transactionsRequest, serverStreamingServer)}
 }
 
-func (_c *MockGrpcHandlers_GetTransactions_Call) Run(run func(transactionsRequest *grpc.TransactionsRequest, transactionsApi_GetTransactionsServer grpc.TransactionsApi_GetTransactionsServer)) *MockGrpcHandlers_GetTransactions_Call {
+func (_c *MockGrpcHandlers_GetTransactions_Call) Run(run func(transactionsRequest *grpc.TransactionsRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.TransactionResponse])) *MockGrpcHandlers_GetTransactions_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 *grpc.TransactionsRequest
 		if args[0] != nil {
 			arg0 = args[0].(*grpc.TransactionsRequest)
 		}
-		var arg1 grpc.TransactionsApi_GetTransactionsServer
+		var arg1 grpc0.ServerStreamingServer[grpc.TransactionResponse]
 		if args[1] != nil {
-			arg1 = args[1].(grpc.TransactionsApi_GetTransactionsServer)
+			arg1 = args[1].(grpc0.ServerStreamingServer[grpc.TransactionResponse])
 		}
 		run(
 			arg0,
@@ -1093,22 +1094,22 @@ func (_c *MockGrpcHandlers_GetTransactions_Call) Return(err error) *MockGrpcHand
 	return _c
 }
 
-func (_c *MockGrpcHandlers_GetTransactions_Call) RunAndReturn(run func(transactionsRequest *grpc.TransactionsRequest, transactionsApi_GetTransactionsServer grpc.TransactionsApi_GetTransactionsServer) error) *MockGrpcHandlers_GetTransactions_Call {
+func (_c *MockGrpcHandlers_GetTransactions_Call) RunAndReturn(run func(transactionsRequest *grpc.TransactionsRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.TransactionResponse]) error) *MockGrpcHandlers_GetTransactions_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetUnconfirmed provides a mock function for the type MockGrpcHandlers
-func (_mock *MockGrpcHandlers) GetUnconfirmed(transactionsRequest *grpc.TransactionsRequest, transactionsApi_GetUnconfirmedServer grpc.TransactionsApi_GetUnconfirmedServer) error {
-	ret := _mock.Called(transactionsRequest, transactionsApi_GetUnconfirmedServer)
+func (_mock *MockGrpcHandlers) GetUnconfirmed(transactionsRequest *grpc.TransactionsRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.TransactionResponse]) error {
+	ret := _mock.Called(transactionsRequest, serverStreamingServer)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetUnconfirmed")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(*grpc.TransactionsRequest, grpc.TransactionsApi_GetUnconfirmedServer) error); ok {
-		r0 = returnFunc(transactionsRequest, transactionsApi_GetUnconfirmedServer)
+	if returnFunc, ok := ret.Get(0).(func(*grpc.TransactionsRequest, grpc0.ServerStreamingServer[grpc.TransactionResponse]) error); ok {
+		r0 = returnFunc(transactionsRequest, serverStreamingServer)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1122,20 +1123,20 @@ type MockGrpcHandlers_GetUnconfirmed_Call struct {
 
 // GetUnconfirmed is a helper method to define mock.On call
 //   - transactionsRequest *grpc.TransactionsRequest
-//   - transactionsApi_GetUnconfirmedServer grpc.TransactionsApi_GetUnconfirmedServer
-func (_e *MockGrpcHandlers_Expecter) GetUnconfirmed(transactionsRequest interface{}, transactionsApi_GetUnconfirmedServer interface{}) *MockGrpcHandlers_GetUnconfirmed_Call {
-	return &MockGrpcHandlers_GetUnconfirmed_Call{Call: _e.mock.On("GetUnconfirmed", transactionsRequest, transactionsApi_GetUnconfirmedServer)}
+//   - serverStreamingServer grpc0.ServerStreamingServer[grpc.TransactionResponse]
+func (_e *MockGrpcHandlers_Expecter) GetUnconfirmed(transactionsRequest interface{}, serverStreamingServer interface{}) *MockGrpcHandlers_GetUnconfirmed_Call {
+	return &MockGrpcHandlers_GetUnconfirmed_Call{Call: _e.mock.On("GetUnconfirmed", transactionsRequest, serverStreamingServer)}
 }
 
-func (_c *MockGrpcHandlers_GetUnconfirmed_Call) Run(run func(transactionsRequest *grpc.TransactionsRequest, transactionsApi_GetUnconfirmedServer grpc.TransactionsApi_GetUnconfirmedServer)) *MockGrpcHandlers_GetUnconfirmed_Call {
+func (_c *MockGrpcHandlers_GetUnconfirmed_Call) Run(run func(transactionsRequest *grpc.TransactionsRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.TransactionResponse])) *MockGrpcHandlers_GetUnconfirmed_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 *grpc.TransactionsRequest
 		if args[0] != nil {
 			arg0 = args[0].(*grpc.TransactionsRequest)
 		}
-		var arg1 grpc.TransactionsApi_GetUnconfirmedServer
+		var arg1 grpc0.ServerStreamingServer[grpc.TransactionResponse]
 		if args[1] != nil {
-			arg1 = args[1].(grpc.TransactionsApi_GetUnconfirmedServer)
+			arg1 = args[1].(grpc0.ServerStreamingServer[grpc.TransactionResponse])
 		}
 		run(
 			arg0,
@@ -1150,7 +1151,7 @@ func (_c *MockGrpcHandlers_GetUnconfirmed_Call) Return(err error) *MockGrpcHandl
 	return _c
 }
 
-func (_c *MockGrpcHandlers_GetUnconfirmed_Call) RunAndReturn(run func(transactionsRequest *grpc.TransactionsRequest, transactionsApi_GetUnconfirmedServer grpc.TransactionsApi_GetUnconfirmedServer) error) *MockGrpcHandlers_GetUnconfirmed_Call {
+func (_c *MockGrpcHandlers_GetUnconfirmed_Call) RunAndReturn(run func(transactionsRequest *grpc.TransactionsRequest, serverStreamingServer grpc0.ServerStreamingServer[grpc.TransactionResponse]) error) *MockGrpcHandlers_GetUnconfirmed_Call {
 	_c.Call.Return(run)
 	return _c
 }

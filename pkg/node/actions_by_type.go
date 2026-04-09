@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"reflect"
 
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/logging"
@@ -68,9 +69,17 @@ func BlockAction(services services.Services, mess peer.ProtoMessage, fsm *fsm.FS
 
 func GetBlockAction(services services.Services, mess peer.ProtoMessage, _ *fsm.FSM, _ *slog.Logger) (fsm.Async, error) {
 	metricGetBlockMessage.Inc()
-	block, err := services.State.Block(mess.Message.(*proto.GetBlockMessage).BlockID)
+	gbm, ok := mess.Message.(*proto.GetBlockMessage)
+	if !ok {
+		return nil, errors.Errorf(
+			"unexpected message type %T, expected *proto.GetBlockMessage",
+			mess.Message,
+		)
+	}
+	blockID := gbm.BlockID
+	block, err := services.State.Block(blockID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to retrieve block from state with block ID, %s", blockID)
 	}
 	bm, err := proto.MessageByBlock(block, services.Scheme)
 	if err != nil {
@@ -362,6 +371,27 @@ func MicroBlockSnapshotAction(
 	return fsm.MicroBlockSnapshot(mess.ID, blockID, blockSnapshot)
 }
 
+func EndorseBlockAction(
+	_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM, nl *slog.Logger,
+) (fsm.Async, error) {
+	protoMess := g.EndorseBlock{}
+	endorseMsg, ok := mess.Message.(*proto.EndorseBlockMessage)
+	if !ok {
+		nl.Debug("unexpected message type", slog.String("type", fmt.Sprintf("%T", mess.Message)))
+		return nil, fmt.Errorf("unexpected message type %T, expected *proto.EndorseBlockMessage", mess.Message)
+	}
+	err := protoMess.UnmarshalVT(endorseMsg.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	var c proto.ProtobufConverter
+	endorseBlock, err := c.EndorseBlock(&protoMess)
+	if err != nil {
+		return nil, err
+	}
+	return fsm.BlockEndorsement(&endorseBlock)
+}
+
 func createActions() map[reflect.Type]Action {
 	return map[reflect.Type]Action{
 		reflect.TypeFor[*proto.ScoreMessage]():                     ScoreAction,
@@ -384,5 +414,6 @@ func createActions() map[reflect.Type]Action {
 		reflect.TypeFor[*proto.MicroBlockSnapshotRequestMessage](): MicroSnapshotRequestAction,
 		reflect.TypeFor[*proto.BlockSnapshotMessage]():             BlockSnapshotAction,
 		reflect.TypeFor[*proto.MicroBlockSnapshotMessage]():        MicroBlockSnapshotAction,
+		reflect.TypeFor[*proto.EndorseBlockMessage]():              EndorseBlockAction,
 	}
 }
