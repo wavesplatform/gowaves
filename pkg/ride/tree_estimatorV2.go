@@ -1,6 +1,8 @@
 package ride
 
 import (
+	"slices"
+
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
@@ -31,9 +33,9 @@ func (s *estimationScopeV2) setValue(id string, n ast.Node) {
 }
 
 func (s *estimationScopeV2) value(id string) (ast.Node, error) {
-	for i := len(s.values) - 1; i >= 0; i-- {
-		if s.values[i].id == id {
-			return s.values[i].n, nil
+	for _, v := range slices.Backward(s.values) {
+		if v.id == id {
+			return v.n, nil
 		}
 	}
 	return nil, errors.Errorf("value '%s' not found", id)
@@ -52,9 +54,9 @@ func (s *estimationScopeV2) setFunction(n *ast.FunctionDeclarationNode) {
 }
 
 func (s *estimationScopeV2) function(id string) (*ast.FunctionDeclarationNode, error) {
-	for i := len(s.functions) - 1; i >= 0; i-- {
-		if s.functions[i].Name == id {
-			return s.functions[i], nil
+	for _, v := range slices.Backward(s.functions) {
+		if v.Name == id {
+			return v, nil
 		}
 	}
 	return nil, errors.Errorf("function '%s' not found", id)
@@ -168,9 +170,9 @@ func (e *treeEstimatorV2) wrapFunction(node *ast.FunctionDeclarationNode) ast.No
 	node.SetBlock(ast.NewFunctionCallNode(ast.UserFunction(node.Name), args))
 	var block ast.Node
 	block = ast.NewAssignmentNode(node.InvocationParameter, ast.NewBooleanNode(true), node)
-	for i := len(e.tree.Declarations) - 1; i >= 0; i-- {
-		e.tree.Declarations[i].SetBlock(block)
-		block = e.tree.Declarations[i]
+	for _, v := range slices.Backward(e.tree.Declarations) {
+		v.SetBlock(block)
+		block = v
 	}
 	return block
 }

@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/wavesplatform/gowaves/pkg/ride/compiler/stdlib"
@@ -50,27 +51,27 @@ func (s *stack) pushFunc(f stdlib.FunctionParams) {
 }
 
 func (s *stack) variable(name string) (stdlib.Variable, bool) {
-	for i := len(s.vars) - 1; i >= 0; i-- {
-		if name == s.vars[i].Name {
-			return s.vars[i], true
+	for _, v := range slices.Backward(s.vars) {
+		if name == v.Name {
+			return v, true
 		}
 	}
 	return stdlib.Variable{}, false
 }
 
 func (s *stack) topMatchName() (string, bool) {
-	for i := len(s.vars) - 1; i >= 0; i-- {
-		if strings.HasPrefix(s.vars[i].Name, "$match") {
-			return s.vars[i].Name, true
+	for _, v := range slices.Backward(s.vars) {
+		if strings.HasPrefix(v.Name, "$match") {
+			return v.Name, true
 		}
 	}
 	return "", false
 }
 
 func (s *stack) function(name string) (stdlib.FunctionParams, bool) {
-	for i := len(s.funcs) - 1; i >= 0; i-- {
-		if name == s.funcs[i].ID.Name() {
-			return s.funcs[i], true
+	for _, v := range slices.Backward(s.funcs) {
+		if name == v.ID.Name() {
+			return v, true
 		}
 	}
 	return stdlib.FunctionParams{}, false

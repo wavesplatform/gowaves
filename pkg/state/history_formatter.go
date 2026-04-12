@@ -1,6 +1,8 @@
 package state
 
 import (
+	"slices"
+
 	"github.com/pkg/errors"
 )
 
@@ -28,8 +30,8 @@ func (hfmt *historyFormatter) filter(history *historyRecord) (bool, error) {
 		return false, nil
 	}
 	changed := false
-	for i := len(history.entries) - 1; i >= 0; i-- {
-		entry := history.entries[i]
+	for i, v := range slices.Backward(history.entries) {
+		entry := v
 		valid, err := hfmt.db.isValidBlock(entry.blockNum)
 		if err != nil {
 			return false, err

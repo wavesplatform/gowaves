@@ -1,6 +1,8 @@
 package ride
 
 import (
+	"slices"
+
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
@@ -34,9 +36,9 @@ func (s *estimationScopeV1) setValue(id string, n ast.Node) {
 }
 
 func (s *estimationScopeV1) value(id string) (ast.Node, error) {
-	for i := len(s.values) - 1; i >= 0; i-- {
-		if s.values[i].id == id {
-			return s.values[i].n, nil
+	for _, v := range slices.Backward(s.values) {
+		if v.id == id {
+			return v.n, nil
 		}
 	}
 	return nil, errors.Errorf("value '%s' not found", id)
@@ -164,9 +166,9 @@ func (e *treeEstimatorV1) wrapFunction(node *ast.FunctionDeclarationNode) ast.No
 	node.SetBlock(ast.NewFunctionCallNode(ast.UserFunction(node.Name), args))
 	var block ast.Node
 	block = ast.NewAssignmentNode(node.InvocationParameter, ast.NewBooleanNode(true), node)
-	for i := len(e.tree.Declarations) - 1; i >= 0; i-- {
-		e.tree.Declarations[i].SetBlock(block)
-		block = e.tree.Declarations[i]
+	for _, v := range slices.Backward(e.tree.Declarations) {
+		v.SetBlock(block)
+		block = v
 	}
 	return block
 }

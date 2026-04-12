@@ -1196,8 +1196,8 @@ func rebuildMerkleRoot(_ environment, args ...rideType) (rideType, error) {
 		return nil, errors.New("rebuildMerkleRoot: no more than 16 proofs is allowed")
 	}
 	proofsRootToLeafsOrder := make([]crypto.Digest, 0, len(proofsLeafsToRootOrder))
-	for i := len(proofsLeafsToRootOrder) - 1; i >= 0; i-- { // reverse order
-		x := proofsLeafsToRootOrder[i]
+	for i, v := range slices.Backward(proofsLeafsToRootOrder) { // reverse order
+		x := v
 		b, ok := x.(rideByteVector)
 		if !ok {
 			return nil, errors.Errorf("rebuildMerkleRoot: unexpected proof type '%s' at position %d", x.instanceOf(), i)

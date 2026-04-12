@@ -2,6 +2,7 @@ package ride
 
 import (
 	"encoding/binary"
+	"slices"
 
 	"github.com/pkg/errors"
 )
@@ -130,7 +131,7 @@ func (m *vm) run() (Result, error) {
 			m.ip = pos // Continue to expression
 		case OpLoadLocal:
 			n := m.arg16()
-			for i := len(m.calls) - 1; i >= 0; i-- {
+			for i, v := range slices.Backward(m.calls) {
 
 			}
 			l := len(m.calls)
