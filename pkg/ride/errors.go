@@ -2,6 +2,7 @@ package ride
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/pkg/errors"
 )
@@ -52,8 +53,8 @@ func (e *implEvaluationError) ErrorType() EvaluationError { return e.errorType }
 
 func (e *implEvaluationError) CallStack() []string {
 	callStack := make([]string, 0, len(e.reverseCallStack))
-	for i := len(e.reverseCallStack) - 1; i >= 0; i-- {
-		callStack = append(callStack, e.reverseCallStack[i])
+	for _, v := range slices.Backward(e.reverseCallStack) {
+		callStack = append(callStack, v)
 	}
 	return callStack
 }

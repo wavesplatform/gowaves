@@ -1,6 +1,8 @@
 package ride
 
 import (
+	"slices"
+
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -77,8 +79,8 @@ func (s *evaluationScope) constant(id string) (rideType, bool) {
 }
 
 func lookup(s []esValue, id string) (esValue, bool, int) {
-	for i := len(s) - 1; i >= 0; i-- {
-		if v := s[i]; v.id == id {
+	for i, v := range slices.Backward(s) {
+		if v := v; v.id == id {
 			return v, true, i
 		}
 	}
@@ -115,8 +117,8 @@ func (s *evaluationScope) popUserFunction() error {
 }
 
 func (s *evaluationScope) userFunction(id string) (*ast.FunctionDeclarationNode, int, bool) {
-	for i := len(s.user) - 1; i >= 0; i-- {
-		uf := s.user[i]
+	for _, v := range slices.Backward(s.user) {
+		uf := v
 		if uf.fn.Name == id {
 			return uf.fn, uf.sp, true
 		}

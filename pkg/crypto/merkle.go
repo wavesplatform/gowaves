@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"hash"
+	"slices"
 
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/blake2b"
@@ -66,11 +67,11 @@ func (t *MerkleTree) Root() Digest {
 
 func (t *MerkleTree) RebuildRoot(leaf Digest, proofsRootToLeafsOrder []Digest, index uint64) Digest {
 	digest := leaf
-	for i := len(proofsRootToLeafsOrder) - 1; i >= 0; i-- { // Iterate from leafs to root, i.e. in reverse order
+	for _, v := range slices.Backward(proofsRootToLeafsOrder) { // Iterate from leafs to root, i.e. in reverse order
 		if index%2 == 0 { // Left
-			digest = t.nodeDigest(digest, proofsRootToLeafsOrder[i])
+			digest = t.nodeDigest(digest, v)
 		} else { // Right
-			digest = t.nodeDigest(proofsRootToLeafsOrder[i], digest)
+			digest = t.nodeDigest(v, digest)
 		}
 		index = index / 2
 	}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -1957,8 +1958,8 @@ func (p *astParser) ruleMatchHandler(node *node32) (ast.Node, s.Type) {
 		defaultCase = ast.NewFunctionCallNode(ast.NativeFunction("2"), []ast.Node{ast.NewStringNode("Match error")})
 	}
 	falseState := defaultCase
-	for i := len(conds) - 1; i >= 0; i-- {
-		falseState = ast.NewConditionalNode(conds[i], trueStates[i], falseState)
+	for i, v := range slices.Backward(conds) {
+		falseState = ast.NewConditionalNode(v, trueStates[i], falseState)
 	}
 	p.stack.dropFrame()
 	return ast.NewAssignmentNode(matchName, expr, falseState), unionRetType.Simplify()
@@ -1986,9 +1987,9 @@ func (p *astParser) ruleCaseHandle(node *node32, matchName string, possibleTypes
 		if decls == nil {
 			trueState = block
 		} else {
-			for i := len(decls) - 1; i >= 0; i-- {
-				decls[i].SetBlock(block)
-				block = decls[i]
+			for _, v := range slices.Backward(decls) {
+				v.SetBlock(block)
+				block = v
 			}
 			trueState = block
 		}
@@ -2002,9 +2003,9 @@ func (p *astParser) ruleCaseHandle(node *node32, matchName string, possibleTypes
 		if decls == nil {
 			trueState = block
 		} else {
-			for i := len(decls) - 1; i >= 0; i-- {
-				decls[i].SetBlock(block)
-				block = decls[i]
+			for _, v := range slices.Backward(decls) {
+				v.SetBlock(block)
+				block = v
 			}
 			trueState = block
 		}
@@ -2134,23 +2135,23 @@ func (p *astParser) ruleObjectPatternHandler(node *node32, matchName string, pos
 
 	var resExpr ast.Node
 
-	for i := len(exprs) - 1; i >= 0; i-- {
-		if exprs[i] == nil {
+	for i, v := range slices.Backward(exprs) {
+		if v == nil {
 			continue
 		}
 		if i == len(exprs)-1 && i != 0 {
-			resExpr = exprs[i]
+			resExpr = v
 			continue
 		}
 		if i == 0 {
-			resExpr = ast.NewConditionalNode(exprs[i], ast.NewAssignmentNode(
+			resExpr = ast.NewConditionalNode(v, ast.NewAssignmentNode(
 				matchName,
 				ast.NewReferenceNode(matchName),
 				resExpr,
 			), ast.NewBooleanNode(false))
 			continue
 		}
-		resExpr = ast.NewConditionalNode(exprs[i], resExpr, ast.NewBooleanNode(false))
+		resExpr = ast.NewConditionalNode(v, resExpr, ast.NewBooleanNode(false))
 	}
 
 	return resExpr, shadowDeclarations
@@ -2255,17 +2256,17 @@ func (p *astParser) ruleTuplePatternHandler(node *node32, matchName string, poss
 	var cond ast.Node
 	setLast := false
 	setPlaceHolder := false
-	for i := len(exprs) - 1; i >= 0; i-- {
-		if exprs[i] == nil {
+	for _, v := range slices.Backward(exprs) {
+		if v == nil {
 			setPlaceHolder = true
 			continue
 		}
 		if !setLast {
-			cond = exprs[i]
+			cond = v
 			setLast = true
 			continue
 		}
-		cond = ast.NewConditionalNode(exprs[i], cond, ast.NewBooleanNode(false))
+		cond = ast.NewConditionalNode(v, cond, ast.NewBooleanNode(false))
 	}
 	if cond == nil {
 		cond = ast.NewBooleanNode(true)
@@ -2417,8 +2418,8 @@ func (p *astParser) ruleFoldMacroHandler(node *node32) (ast.Node, s.Type) {
 	decls = append(decls, fcall)
 
 	var expr, block ast.Node
-	for i := len(decls) - 1; i >= 0; i-- {
-		expr = decls[i]
+	for _, v := range slices.Backward(decls) {
+		expr = v
 		expr.SetBlock(block)
 		block = expr
 	}
