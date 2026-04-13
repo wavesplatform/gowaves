@@ -6,8 +6,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"math"
+	"slices"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
@@ -417,9 +419,9 @@ func (c *compiler) peekValue() error {
 }
 
 func (c *compiler) lookupValue(name string) (rideValue, error) {
-	for i := len(c.values) - 1; i >= 0; i-- {
-		if c.values[i].id() == name {
-			return c.values[i], nil
+	for _, v := range slices.Backward(c.values) {
+		if v.id() == name {
+			return v, nil
 		}
 	}
 	return nil, errors.Errorf("value '%s' is not declared", name)
@@ -467,9 +469,9 @@ func (c *compiler) peekFunction() error {
 }
 
 func (c *compiler) lookupFunction(name string) (*localFunction, error) {
-	for i := len(c.functions) - 1; i >= 0; i-- {
-		if c.functions[i].name == name {
-			return c.functions[i], nil
+	for _, f := range slices.Backward(c.functions) {
+		if f.name == name {
+			return f, nil
 		}
 	}
 	return nil, errors.Errorf("function '%s' is not declared", name)

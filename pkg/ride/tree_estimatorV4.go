@@ -1,6 +1,8 @@
 package ride
 
 import (
+	"slices"
+
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
@@ -100,7 +102,7 @@ func (e *treeEstimatorV4) wrapFunction(node *ast.FunctionDeclarationNode) ast.No
 	node.SetBlock(ast.NewFunctionCallNode(ast.UserFunction(node.Name), args))
 	var block ast.Node
 	block = ast.NewAssignmentNode(node.InvocationParameter, ast.NewBooleanNode(true), node)
-	for i := len(e.tree.Declarations) - 1; i >= 0; i-- {
+	for i := range slices.Backward(e.tree.Declarations) {
 		e.tree.Declarations[i].SetBlock(block)
 		block = e.tree.Declarations[i]
 	}
