@@ -1,6 +1,8 @@
 package ride
 
 import (
+	"slices"
+
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
@@ -102,8 +104,8 @@ func (s *estimationScopeV3) function(function ast.Function) (functionDescriptor,
 
 func (s *estimationScopeV3) used(id string) bool {
 	if l := len(s.usages); l > 0 {
-		for i := len(s.usages[l-1]) - 1; i >= 0; i-- {
-			if s.usages[l-1][i] == id {
+		for _, u := range slices.Backward(s.usages[l-1]) {
+			if u == id {
 				return true
 			}
 		}
@@ -113,7 +115,7 @@ func (s *estimationScopeV3) used(id string) bool {
 
 func (s *estimationScopeV3) remove(id string) {
 	if l := len(s.usages); l > 0 {
-		for i := len(s.usages[l-1]) - 1; i >= 0; i-- {
+		for i := range slices.Backward(s.usages[l-1]) {
 			if s.usages[l-1][i] == id {
 				s.usages[l-1] = append(s.usages[l-1][:i], s.usages[l-1][i+1:]...)
 			}
@@ -233,7 +235,7 @@ func (e *treeEstimatorV3) wrapFunction(node *ast.FunctionDeclarationNode) ast.No
 	node.SetBlock(ast.NewFunctionCallNode(ast.UserFunction(node.Name), args))
 	var block ast.Node
 	block = ast.NewAssignmentNode(node.InvocationParameter, ast.NewBooleanNode(true), node)
-	for i := len(e.tree.Declarations) - 1; i >= 0; i-- {
+	for i := range slices.Backward(e.tree.Declarations) {
 		e.tree.Declarations[i].SetBlock(block)
 		block = e.tree.Declarations[i]
 	}

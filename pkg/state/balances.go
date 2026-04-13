@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"math"
+	"slices"
 	"sort"
 
 	"github.com/ccoveille/go-safecast/v2"
@@ -722,8 +723,7 @@ func isChallengedAddressInRangeCommon(
 		return false, errors.Wrapf(ubErr, "failed to unmarshal entry data to %T", r)
 	}
 	// assume that heights are sorted in ascending order
-	for i := len(r.Heights) - 1; i >= 0; i-- { // iterate in reverse order
-		h := r.Heights[i]
+	for _, h := range slices.Backward(r.Heights) { // iterate in reverse order
 		if h < startHeight { // fast path: if h < startHeight, then all other heights are also less than startHeight
 			return false, nil
 		}

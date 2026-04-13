@@ -130,9 +130,6 @@ func (m *vm) run() (Result, error) {
 			m.ip = pos // Continue to expression
 		case OpLoadLocal:
 			n := m.arg16()
-			for i := len(m.calls) - 1; i >= 0; i-- {
-
-			}
 			l := len(m.calls)
 			if l == 0 {
 				return nil, errors.New("failed to load argument on stack")
