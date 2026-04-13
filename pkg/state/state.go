@@ -1143,7 +1143,7 @@ func (s *stateManager) GeneratingBalance(account proto.Recipient, height proto.H
 // NewestMinerGeneratingBalance returns the generating balance of the miner at the given height.
 // This method includes the challenger bonus if the block has a challenged header.
 // After activation of Deterministic Finality feature, the method also checks presence of the block generator in
-// the generators set and returns 0 if the block generator is not in the set or was excluded from it.
+// the generators set and returns 0 together with an error if the block generator is not in the generators set.
 func (s *stateManager) NewestMinerGeneratingBalance(header *proto.BlockHeader, height proto.Height) (uint64, error) {
 	minerAddr, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, header.GeneratorPublicKey)
 	if err != nil {
@@ -1151,7 +1151,7 @@ func (s *stateManager) NewestMinerGeneratingBalance(header *proto.BlockHeader, h
 			header.GeneratorPublicKey,
 		))
 	}
-	// Get miner's balance form the generators set.
+	// Get miner's balance from the generators set.
 	minerGB, err := s.stor.generators.newestGeneratingBalance(minerAddr.ID(), height)
 	if err != nil {
 		return 0, wrapErr(stateerr.RetrievalError, errors.Wrapf(err, "failed to get generating balance for addr %s",

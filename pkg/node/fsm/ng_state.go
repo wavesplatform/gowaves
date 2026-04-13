@@ -280,10 +280,12 @@ func (a *NGState) endorseParentWithEachKey(
 
 		g, gErr := a.baseInfo.storage.FindGenerator(state.ByBLSPublicKey(pk))
 		if gErr != nil {
-			return a.Errorf(fmt.Errorf("failed to find generator for BLS PK '%s': %w", pk.String(), gErr))
+			slog.Warn("Wallet's BLS public key is not in the generators set",
+				slog.String("BLS PublicKey", pk.String()), logging.Error(gErr))
+			continue
 		}
-		if g.GenerationBalance() > 0 {
-			slog.Debug("Wallet's BLS public key is not in the generators set",
+		if g.GenerationBalance() == 0 {
+			slog.Debug("Wallet's BLS public key has insufficient generation balance",
 				slog.Int("SeedIndex", i), slog.String("BLS PublicKey", pk.String()),
 				slog.Any("BlockID", block.BlockID()), slog.Any("GenerationPeriodStart", periodStart))
 			continue
@@ -321,7 +323,7 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.BlockEndorsement) (St
 	}
 	gi, err := a.baseInfo.storage.FindGenerator(state.ByIndex(generatorIndex))
 	if err != nil {
-		return a, nil, a.Errorf(errors.Wrapf(err, "failed to find endorser PK by index"))
+		return a, nil, a.Errorf(errors.Wrapf(err, "failed to find generator by index"))
 	}
 	localFinalizedHeight, err := a.baseInfo.storage.LastFinalizedHeight()
 	if err != nil {
@@ -388,7 +390,7 @@ func (a *NGState) tryGetCurrentFinalizationVoting(height proto.Height) (*proto.F
 
 	generators, err := a.baseInfo.storage.CommittedGenerators(height)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get commited generators at height %d: %w", height, err)
+		return nil, fmt.Errorf("failed to get committed generators at height %d: %w", height, err)
 	}
 	if len(generators) == 0 {
 		slog.Debug("No committed generators found, skipping finalization voting")

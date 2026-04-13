@@ -929,8 +929,8 @@ func (a *NodeApi) GeneratorsAt(w http.ResponseWriter, r *http.Request) error {
 
 	// TODO: This would work only for height still present in history, once the height fell out of history, no
 	//  result will be returned.
-	//  Consider to create a separate storage for this date that will persist data for any block.
-	//  Consider moving this API under the `-build-exteded-api` and `-serve-extended-api` keys.
+	//  Consider to create a separate storage for historical data that will persist data for any block.
+	//  Consider moving this API under the `-build-extended-api` and `-serve-extended-api` keys.
 	gs, err := a.state.CommittedGenerators(height)
 	if err != nil {
 		return err

@@ -119,7 +119,7 @@ type FinalizationVoting struct {
 	ConflictEndorsements           []BlockEndorsement `json:"conflictEndorsements"`
 }
 
-// Validate checks that FinalizationVotin doesn't have any duplicate endorsers indexes.
+// Validate checks that FinalizationVoting doesn't have any duplicate endorsers indexes.
 func (f *FinalizationVoting) Validate() error {
 	indexes := make(map[uint32]struct{})
 	for _, ce := range f.ConflictEndorsements {
