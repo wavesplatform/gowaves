@@ -133,13 +133,6 @@ func (r *generatorsBalancesRecordForStateHashes) less(other stateComponent) bool
 	return len(r.balances) < len(otherRecord.balances)
 }
 
-// ByAddress lookup functions allows to find generator by Waves AddressID.
-func ByAddress(addr proto.AddressID) func(GeneratorInfo) bool {
-	return func(info GeneratorInfo) bool {
-		return info.address.ID() == addr
-	}
-}
-
 // ByBLSPublicKey returns a lookup function that checks if a generator's BLS public key matches the provided one.
 func ByBLSPublicKey(pk bls.PublicKey) func(GeneratorInfo) bool {
 	return func(info GeneratorInfo) bool {
@@ -167,9 +160,9 @@ type generators struct {
 	settings    *settings.BlockchainSettings
 
 	set                   []GeneratorInfo
-	activationHeight      proto.Height
 	generationPeriodStart uint32
-	blockGenerator        *GeneratorInfo // Current block generator info.
+	blockGeneratorIndex   int    // Current block generator info.
+	blockHeight           uint64 // Current block height.
 
 	calculateHashes bool
 	hasher          *stateHasher
@@ -195,6 +188,13 @@ func newGenerators(
 	}
 }
 
+func (g *generators) wipe() {
+	g.set = nil
+	g.generationPeriodStart = 0
+	g.blockGeneratorIndex = -1
+	g.blockHeight = 0
+}
+
 // initialize populates the generator set based on the provided commitments and balances.
 // This method should be called upon block header processing.
 // Parameters:
@@ -204,16 +204,16 @@ func newGenerators(
 func (g *generators) initialize(
 	blockchainHeight proto.Height, blockID proto.BlockID, generator crypto.PublicKey, ts uint64,
 ) error {
-	var err error
-	g.activationHeight, err = g.fs.newestActivationHeight(int16(settings.DeterministicFinality))
+	g.wipe()
+	activationHeight, err := g.fs.newestActivationHeight(int16(settings.DeterministicFinality))
 	if err != nil {
 		if errors.Is(err, keyvalue.ErrNotFound) { // DeterministicFinality feature is not approved or activated.
 			return nil
 		}
 		return fmt.Errorf("failed to get activation height for Deterministic Finality feature: %w", err)
 	}
-	blockHeight := blockchainHeight + 1
-	g.generationPeriodStart, err = CurrentGenerationPeriodStart(g.activationHeight, blockHeight,
+	g.blockHeight = blockchainHeight + 1
+	g.generationPeriodStart, err = CurrentGenerationPeriodStart(activationHeight, g.blockHeight,
 		g.settings.GenerationPeriod)
 	if err != nil {
 		return fmt.Errorf("failed to calculate current generation period start: %w", err)
@@ -228,13 +228,13 @@ func (g *generators) initialize(
 		return fmt.Errorf("failed to retrieve banned generators for the current generation period: %w", err)
 	}
 	// Calculate minimal generation balance fot the current height and timestamp.
-	threshold := g.fs.minimalGeneratingBalanceAtHeight(blockHeight, ts)
+	threshold := g.fs.minimalGeneratingBalanceAtHeight(g.blockHeight, ts)
 	g.set = make([]GeneratorInfo, 0, len(cms))
 	generatorsBalancesLSHRecord := newGeneratorsBalancesRecordForStateHashes(len(cms))
 	for i, cm := range cms {
 		a, aErr := proto.NewAddressFromPublicKey(g.settings.AddressSchemeCharacter, cm.GeneratorPK)
 		if aErr != nil {
-			return fmt.Errorf("failed to derive address from generator public key at index %d: %w", i, err)
+			return fmt.Errorf("failed to derive address from generator public key at index %d: %w", i, aErr)
 		}
 		// The initialization happens at the very beginning of the block, so the generation balance is queried at
 		// the height of the last applied block (blockchainHeight).
@@ -255,13 +255,13 @@ func (g *generators) initialize(
 		}
 		g.set = append(g.set, gi)
 		if cm.GeneratorPK == generator {
-			g.blockGenerator = &gi // Save reference to block generator info.
+			g.blockGeneratorIndex = i // Save index of the current block generator.
 		}
 		if g.calculateHashes {
 			generatorsBalancesLSHRecord.append(b)
 		}
 	}
-	if len(cms) > 0 && g.blockGenerator == nil {
+	if len(cms) > 0 && g.blockGeneratorIndex == -1 {
 		// The block generator was not initialized, which means it is not part of the committed generators.
 		// This serves as an additional safety check, since the generator has already been validated by its
 		// generation balance.
@@ -412,10 +412,20 @@ func (g *generators) totalGenerationBalance() uint64 {
 	return total
 }
 
-func (g *generators) generatorsByHeight(_ proto.Height) ([]GeneratorInfo, error) {
-	//TODO: Implement. The implementation is possible for extended API only, when the generators are stored for
-	// every height.
-	return nil, errors.New("not implemented")
+func (g *generators) blockGenerator() *GeneratorInfo {
+	if g.blockGeneratorIndex < 0 || g.blockGeneratorIndex >= len(g.set) {
+		panic("invalid generator set state: blockGeneratorIndex is out of bounds")
+	}
+	return &g.set[g.blockGeneratorIndex]
+}
+
+func (g *generators) generatorsByHeight(height proto.Height) ([]GeneratorInfo, error) {
+	if height != g.blockHeight {
+		//TODO: Implement. The implementation is possible for extended API only, when the generators are stored for
+		// every height.
+		return nil, errors.New("not implemented")
+	}
+	return slices.Clone(g.set), nil
 }
 
 func (g *generators) prepareHashes() error {

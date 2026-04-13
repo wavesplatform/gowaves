@@ -51,7 +51,7 @@ func (f *finalizer) processBlockFinalization(
 	}
 	// Check that other endorsers are valid to endorse the parent block.
 	var endorsersBalance uint64 = 0
-	blockGeneratorIndex := f.generators.blockGenerator.index
+	blockGeneratorIndex := f.generators.blockGenerator().index
 	pks := make([]bls.PublicKey, 0, f.generators.size())
 	for _, ei := range finalizationVoting.EndorserIndexes {
 		g, err := f.generators.generator(ei)
@@ -63,7 +63,7 @@ func (f *finalizer) processBlockFinalization(
 		}
 		if blockGeneratorIndex == ei {
 			return fmt.Errorf("block generator '%s' found in finalization voting",
-				f.generators.blockGenerator.Address())
+				f.generators.blockGenerator().Address())
 		}
 		balance := g.GenerationBalance()
 		if balance == 0 {
@@ -74,7 +74,7 @@ func (f *finalizer) processBlockFinalization(
 		endorsersBalance += balance
 	}
 	// Add block generator's balance to endorsers balance.
-	endorsersBalance += f.generators.blockGenerator.GenerationBalance() // Balance of block generator already checked.
+	endorsersBalance += f.generators.blockGenerator().GenerationBalance() // Balance of block generator already checked.
 	// Check aggregate signature.
 	msg, err := f.finality.buildLocalEndorsementMessage(height, block.Parent)
 	if err != nil {
