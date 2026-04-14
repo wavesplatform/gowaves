@@ -223,6 +223,11 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		needToCut:    true,
 		fixedSize:    false,
 	},
+	bannedGenerators: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
+	},
 }
 
 type historyEntry struct {

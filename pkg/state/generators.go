@@ -412,11 +412,12 @@ func (g *generators) totalGenerationBalance() uint64 {
 	return total
 }
 
-func (g *generators) blockGenerator() *GeneratorInfo {
+func (g *generators) blockGenerator() (*GeneratorInfo, error) {
 	if g.blockGeneratorIndex < 0 || g.blockGeneratorIndex >= len(g.set) {
-		panic("invalid generator set state: blockGeneratorIndex is out of bounds")
+		return nil, fmt.Errorf("invalid block generator index %d", g.blockGeneratorIndex)
 	}
-	return &g.set[g.blockGeneratorIndex]
+	r := g.set[g.blockGeneratorIndex]
+	return &r, nil
 }
 
 func (g *generators) generatorsByHeight(height proto.Height) ([]GeneratorInfo, error) {
