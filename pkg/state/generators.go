@@ -13,7 +13,6 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
-	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -108,8 +107,8 @@ func (r *generatorsBalancesRecordForStateHashes) append(balance uint64) {
 }
 
 func (r *generatorsBalancesRecordForStateHashes) writeTo(w io.Writer) error {
+	balanceBytes := make([]byte, uint64Size)
 	for _, balance := range r.balances {
-		balanceBytes := make([]byte, uint64Size)
 		binary.BigEndian.PutUint64(balanceBytes, balance)
 		if _, err := w.Write(balanceBytes); err != nil {
 			return fmt.Errorf("failed to write balance to state hash writer: %w", err)
@@ -123,7 +122,7 @@ func (r *generatorsBalancesRecordForStateHashes) less(other stateComponent) bool
 	if !ok {
 		panic("generatorsBalancesRecordForStateHashes: invalid type assertion")
 	}
-	for i := 0; i < len(r.balances) && i < len(otherRecord.balances); i++ {
+	for i := 0; i < min(len(r.balances), len(otherRecord.balances)); i++ {
 		if r.balances[i] < otherRecord.balances[i] {
 			return true
 		} else if r.balances[i] > otherRecord.balances[i] {
@@ -207,7 +206,7 @@ func (g *generators) initialize(
 	g.wipe()
 	activationHeight, err := g.fs.newestActivationHeight(int16(settings.DeterministicFinality))
 	if err != nil {
-		if errors.Is(err, keyvalue.ErrNotFound) { // DeterministicFinality feature is not approved or activated.
+		if isNotFoundInHistoryOrDBErr(err) { // DeterministicFinality feature is not approved or activated.
 			return nil
 		}
 		return fmt.Errorf("failed to get activation height for Deterministic Finality feature: %w", err)
@@ -227,7 +226,7 @@ func (g *generators) initialize(
 	if err != nil {
 		return fmt.Errorf("failed to retrieve banned generators for the current generation period: %w", err)
 	}
-	// Calculate minimal generation balance fot the current height and timestamp.
+	// Calculate minimal generation balance for the current height and timestamp.
 	threshold := g.fs.minimalGeneratingBalanceAtHeight(g.blockHeight, ts)
 	g.set = make([]GeneratorInfo, 0, len(cms))
 	generatorsBalancesLSHRecord := newGeneratorsBalancesRecordForStateHashes(len(cms))
@@ -402,12 +401,7 @@ func (g *generators) totalGenerationBalance() uint64 {
 	}
 	total := uint64(0)
 	for _, gen := range g.set {
-		// Only exclude banned generators, generators with insufficient balance return 0 balance,
-		// so they will be not included in total generation balance value.
-		if gen.ban {
-			continue
-		}
-		total += gen.GenerationBalance()
+		total += gen.GenerationBalance() // Banned generators or generators with insufficient balance return 0 here.
 	}
 	return total
 }

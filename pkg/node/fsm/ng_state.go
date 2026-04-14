@@ -241,7 +241,7 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	}
 
 	if a.baseInfo.embeddedWallet != nil && finalityActivated {
-		sks, wErr := a.baseInfo.embeddedWallet.KeyPairsBLS()
+		sks, wErr := a.baseInfo.embeddedWallet.BLSSecretKeys()
 		if wErr != nil {
 			return a, nil, a.Errorf(fmt.Errorf("failed to retrieve BLS keys from wallet: %w", wErr))
 		}

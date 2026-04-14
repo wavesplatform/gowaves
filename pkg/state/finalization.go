@@ -140,10 +140,7 @@ func (f *finality) lastFinalizedHeight(height proto.Height) (proto.Height, error
 		}
 		return 0, fmt.Errorf("failed to retrieve last finalized height: %w", err)
 	}
-	if stored >= calculated {
-		return stored, nil
-	}
-	return calculated, nil
+	return max(stored, calculated), nil
 }
 
 func (f *finality) buildLocalEndorsementMessage(

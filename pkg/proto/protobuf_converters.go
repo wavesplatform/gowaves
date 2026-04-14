@@ -1759,19 +1759,19 @@ func (c *ProtobufConverter) EndorseBlock(endorsement *g.EndorseBlock) (BlockEndo
 	}
 	finalizedBlockID, err := NewBlockIDFromBytes(endorsement.FinalizedBlockId)
 	if err != nil {
-		return BlockEndorsement{}, errors.Errorf("failed to parse finalized block ID: %v", err)
+		return BlockEndorsement{}, fmt.Errorf("failed to parse finalized block ID: %w", err)
 	}
 	endorsedBlockID, err := NewBlockIDFromBytes(endorsement.EndorsedBlockId)
 	if err != nil {
-		return BlockEndorsement{}, errors.Errorf("failed to parse endorsed block ID: %v", err)
+		return BlockEndorsement{}, fmt.Errorf("failed to parse endorsed block ID: %w", err)
 	}
 	sig, err := bls.NewSignatureFromBytes(endorsement.Signature)
 	if err != nil {
-		return BlockEndorsement{}, errors.Errorf("failed to parse bls signature: %v", err)
+		return BlockEndorsement{}, fmt.Errorf("failed to parse bls signature: %w", err)
 	}
 	idx, err := safecast.Convert[uint32](endorsement.EndorserIndex)
 	if err != nil {
-		return BlockEndorsement{}, errors.Errorf("failed to convert endorsement index: %v", err)
+		return BlockEndorsement{}, fmt.Errorf("failed to convert endorsement index: %w", err)
 	}
 	return BlockEndorsement{
 		EndorserIndex:        idx,

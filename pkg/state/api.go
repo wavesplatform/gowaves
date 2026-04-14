@@ -156,6 +156,8 @@ type StateInfo interface {
 	// SnapshotsAtHeight returns block snapshots at the given height.
 	SnapshotsAtHeight(height proto.Height) (proto.BlockSnapshot, error)
 
+	// FindGenerator returns the first generator for which the lookup function returns true.
+	// The lookup function receives a copy of GeneratorInfo, so it cannot modify the stored data.
 	FindGenerator(func(GeneratorInfo) bool) (GeneratorInfo, error)
 	CommittedGenerators(height proto.Height) ([]GeneratorInfo, error)
 	LastFinalizedHeight() (proto.Height, error)

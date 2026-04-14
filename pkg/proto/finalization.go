@@ -43,10 +43,7 @@ func (msg *EndorsementCryptoMessage) WriteTo(w io.Writer) (int64, error) {
 	}
 	n2, err := msg.EndorsedBlockID.WriteTo(w)
 	n += n2
-	if err != nil {
-		return n, err
-	}
-	return n, nil
+	return n, err
 }
 
 func (msg *EndorsementCryptoMessage) Bytes() ([]byte, error) {
@@ -121,7 +118,7 @@ type FinalizationVoting struct {
 
 // Validate checks that FinalizationVoting doesn't have any duplicate endorsers indexes.
 func (f *FinalizationVoting) Validate() error {
-	indexes := make(map[uint32]struct{})
+	indexes := make(map[uint32]struct{}, len(f.ConflictEndorsements)+len(f.EndorserIndexes))
 	for _, ce := range f.ConflictEndorsements {
 		if _, seen := indexes[ce.EndorserIndex]; seen {
 			return fmt.Errorf(

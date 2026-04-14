@@ -183,6 +183,11 @@ func (c *commitments) newestGenerators(periodStart uint32) ([]crypto.PublicKey, 
 	return gs, nil
 }
 
+// checkCommitments verifies that the generator public key is not already committed for the given period.
+// Commitment considered existing independent of commited BLS PK value.
+// Additionally, function checks that the BLS PK was not used by another commited generator.
+// If no Waves PK was used in existing commitments all BLS keys are checked for uniqueness.
+// Updating of BLS PK is prohibited.
 func checkCommitments(data []byte, generatorPK crypto.PublicKey, endorserPK bls.PublicKey) (bool, error) {
 	var rec commitmentsRecord
 	if umErr := rec.unmarshalBinary(data); umErr != nil {
@@ -192,7 +197,7 @@ func checkCommitments(data []byte, generatorPK crypto.PublicKey, endorserPK bls.
 	ekb := endorserPK.Bytes()
 	for _, cm := range rec.Commitments {
 		if bytes.Equal(pkb, cm.GeneratorPK.Bytes()) {
-			return true, nil
+			return true, nil // Commitment exist, no matter the BLS PK value, no second commitment is possible.
 		}
 		if bytes.Equal(ekb, cm.EndorserPK.Bytes()) {
 			return false, fmt.Errorf("endorser public key is already used by another generator")

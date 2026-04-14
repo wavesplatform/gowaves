@@ -56,7 +56,7 @@ func (f *finalizer) processBlockFinalization(
 		return fmt.Errorf("failed to get block generator: %w", err)
 	}
 	blockGeneratorIndex := bg.index
-	pks := make([]bls.PublicKey, 0, f.generators.size())
+	pks := make([]bls.PublicKey, 0, len(finalizationVoting.EndorserIndexes))
 	for _, ei := range finalizationVoting.EndorserIndexes {
 		g, gErr := f.generators.generator(ei)
 		if gErr != nil {
@@ -91,7 +91,8 @@ func (f *finalizer) processBlockFinalization(
 		return errors.New("invalid aggregated signature of finalization voting")
 	}
 
-	// Check that the block is finalized.
+	// A block is considered finalized if the total endorsers' balance is at least 2/3 of the committed
+	// generators' total balance.
 	if 3*endorsersBalance >= 2*f.generators.totalGenerationBalance() {
 		if fErr := f.finality.updatePendingFinalization(height-1, blockID); fErr != nil {
 			return fmt.Errorf("failed to update pending finalization: %w", fErr)
@@ -107,23 +108,27 @@ func (f *finalizer) processConflictingEndorsements(
 		// Check the signature of conflicting endorsement.
 		cmb, err := ce.CryptoMessage().Bytes()
 		if err != nil {
-			return fmt.Errorf("failed to check conflicting endorsement: %w", err)
+			return fmt.Errorf("failed to build crypto message for conflicting endorsement with index %d: %w",
+				ce.EndorserIndex, err)
 		}
 		gi, err := f.generators.generator(ce.EndorserIndex)
 		if err != nil {
-			return fmt.Errorf("failed to get generator of conflicting endorsement by index %d: %w",
+			return fmt.Errorf("failed to get generator for conflicting endorsement with index %d: %w",
 				ce.EndorserIndex, err)
 		}
 		valid, err := bls.Verify(gi.BLSPublicKey(), cmb, ce.Signature)
 		if err != nil {
-			return fmt.Errorf("failed to verify conflicting endorsement signature: %w", err)
+			return fmt.Errorf("failed to verify signature of conflicting endorsement with index %d: %w",
+				ce.EndorserIndex, err)
 		}
 		if !valid {
-			return fmt.Errorf("conflicting endorsement signature is invalid")
+			return fmt.Errorf("invalid signature of conflicting endorsement with index %d",
+				ce.EndorserIndex)
 		}
 		// Ban generator of conflicting endorsement.
 		if bErr := f.generators.banGenerator(ce.EndorserIndex, blockID); bErr != nil {
-			return fmt.Errorf("failed to ban generator of conflicting endorsement: %w", bErr)
+			return fmt.Errorf("failed to ban generator of conflicting endorsement with index %d: %w",
+				ce.EndorserIndex, bErr)
 		}
 	}
 	return nil

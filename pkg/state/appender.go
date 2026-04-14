@@ -830,16 +830,18 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	defer hasher.Release()
 
 	// Process block finalization.
-	// The challenged blocks are not finalized, so we don't need to process finalization for them.
-	// Also, we can't process finalization of a block without parent (genesis).
 	_, challenged := params.block.GetChallengedHeader()
-	if hasParent && !challenged {
-		f := newFinalizer(a.stor.generators, a.stor.finality)
-		if voting, ok := params.block.GetFinalizationVoting(); ok {
-			if fErr := f.processBlockFinalization(voting, params.block, currentBlockHeight); fErr != nil {
-				return fmt.Errorf("failed to process finalization for block '%s' at %d: %w",
-					params.block.BlockID().String(), currentBlockHeight, fErr)
-			}
+	voting, hasFinalizationVoting := params.block.GetFinalizationVoting()
+	// Challenged blocks must not contain finalization voting, so treat this as an error.
+	if challenged && hasFinalizationVoting {
+		return fmt.Errorf("block '%s' at height %d has finalization voting but is challenged, which is invalid",
+			params.block.BlockID().String(), currentBlockHeight)
+	}
+	// Skip finalization processing for the genesis block, which has no parent.
+	if hasParent && hasFinalizationVoting {
+		if fErr := a.finalizer.processBlockFinalization(voting, params.block, currentBlockHeight); fErr != nil {
+			return fmt.Errorf("failed to process finalization for block '%s' at %d: %w",
+				params.block.BlockID().String(), currentBlockHeight, fErr)
 		}
 	}
 
