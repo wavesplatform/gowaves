@@ -3,6 +3,7 @@ package state
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -94,7 +95,10 @@ func (f *finalizer) processBlockFinalization(
 	// A block is considered finalized if the total endorsers' balance is at least 2/3 of the committed
 	// generators' total balance.
 	if 3*endorsersBalance >= 2*f.generators.totalGenerationBalance() {
-		if fErr := f.finality.updatePendingFinalization(height-1, blockID); fErr != nil {
+		finalizedHeight := height - 1
+		slog.Info("Block finalization achieved", slog.Uint64("finalizedHeight", finalizedHeight),
+			slog.Uint64("blockHeigh", height), slog.String("blockID", blockID.String()))
+		if fErr := f.finality.updatePendingFinalization(finalizedHeight, blockID); fErr != nil {
 			return fmt.Errorf("failed to update pending finalization: %w", fErr)
 		}
 	}

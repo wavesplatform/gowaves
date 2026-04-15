@@ -65,7 +65,6 @@ func (f *finality) writeRecord(rec *finalizationRecord, currentBlockID proto.Blo
 
 // updateFinalization promotes pending finalization value to regular if pending value is set (i.e. not zero).
 // Must be executed without conditions before new block applying.
-// TODO: what block ID should be provided: applying one or its parent?
 func (f *finality) updateFinalization(applyingBlockID proto.BlockID) error {
 	rec, err := f.newestRecord()
 	if err != nil {
@@ -77,6 +76,8 @@ func (f *finality) updateFinalization(applyingBlockID proto.BlockID) error {
 	if rec.PendingBlockHeight == 0 {
 		return nil // nothing to do if no pending value has been stored before
 	}
+	slog.Debug("Promoting pending finalization to finalized",
+		slog.Uint64("finalizedBlockHeight", rec.PendingBlockHeight))
 	rec = &finalizationRecord{
 		FinalizedBlockHeight: rec.PendingBlockHeight, // promote pending value to finalized
 		PendingBlockHeight:   0,
