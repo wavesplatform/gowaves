@@ -50,6 +50,14 @@ func testsSetup() error {
 		keepDangling     = mustBoolEnv(keepDanglingEnvKey)
 		withRaceDetector = mustBoolEnv(withRaceDetectorEnvKey)
 	)
+	// Set environment variables to enforce docker client connection with a required API version.
+	// Non-empty DOCKER_MACHINE_NAME allows to create client with DOCKER_API_VERSION.
+	if envErr := os.Setenv("DOCKER_MACHINE_NAME", "local"); envErr != nil {
+		return envErr
+	}
+	if envErr := os.Setenv("DOCKER_API_VERSION", "1.45"); envErr != nil {
+		return envErr
+	}
 	pool, err := dockertest.NewPool("")
 	if err != nil {
 		return fmt.Errorf("failed to connect to docker: %w", err)

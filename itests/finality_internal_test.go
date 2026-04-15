@@ -17,9 +17,9 @@ import (
 )
 
 const (
-	deposit       int64 = 100_0000_0000 // 100 WAVES
-	fee           int64 = 1000_0000     // 0.1 WAVES
-	walletAddress       = "3Jy49E8GFuUQ7urTuVR2md3TmHDZQMLEmAY"
+	deposit         int64 = 100_0000_0000 // 100 WAVES
+	fee             int64 = 1000_0000     // 0.1 WAVES
+	goWalletAddress       = "3Jy49E8GFuUQ7urTuVR2md3TmHDZQMLEmAY"
 )
 
 type IsolatedFinalitySuite struct {
@@ -34,7 +34,7 @@ func (s *IsolatedFinalitySuite) SetupSuite() {
 }
 
 func (s *IsolatedFinalitySuite) TestDepositsReset() {
-	miner, err := s.Cfg.GetAccount(walletAddress)
+	miner, err := s.Cfg.GetAccount(goWalletAddress)
 	require.NoError(s.T(), err)
 
 	acc := s.Cfg.GetRichestAccount()
@@ -96,7 +96,7 @@ func (s *IsolatedFinalitySuite) TestDepositsReset() {
 
 func (s *IsolatedFinalitySuite) TestDepositRollback() {
 	// Get the miner account (the same as in wallet) to create commitment transactions for generation.
-	miner, err := s.Cfg.GetAccount(walletAddress)
+	miner, err := s.Cfg.GetAccount(goWalletAddress)
 	require.NoError(s.T(), err)
 	// Get the richest account to check balance changes, because it's easier to check on balance unaffected by mining.
 	acc := s.Cfg.GetRichestAccount()
