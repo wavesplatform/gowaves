@@ -1459,7 +1459,7 @@ func (s *stateManager) handleFinalizationUpdate(
 	if err != nil {
 		return fmt.Errorf("failed to build local endorsement message: %w", err)
 	}
-	slog.Debug("Finalization", slog.Uint64("finalizedHeight", finalizedHeight),
+	slog.Info("Current finalization state", slog.Uint64("finalizedHeight", finalizedHeight),
 		slog.Uint64("blockHeight", blockHeight), slog.String("blockID", blockID.String()))
 	return nil
 }
