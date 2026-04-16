@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/wavesplatform/gowaves/itests/clients"
 	"github.com/wavesplatform/gowaves/itests/config"
 	"github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/utilities"
@@ -25,6 +24,8 @@ const period = 4
 
 type SmokeFinalitySuite struct {
 	fixtures.BaseSuite
+	goMiner    config.AccountInfo
+	scalaMiner config.AccountInfo
 }
 
 func (s *SmokeFinalitySuite) SetupSuite() {
@@ -32,38 +33,53 @@ func (s *SmokeFinalitySuite) SetupSuite() {
 		config.WithFeatureSettingFromFile("feature_settings", "finality_supported_setting.json"),
 		config.WithGenerationPeriod(period),
 	)
+	var err error
+	s.goMiner, err = s.Cfg.GetAccount(goWalletAddress)
+	require.NoError(s.T(), err)
+	s.scalaMiner, err = s.Cfg.GetAccount(scalaWalletAddress)
+	require.NoError(s.T(), err)
 }
 
 func (s *SmokeFinalitySuite) TestFinalization() {
-	miner, err := s.Cfg.GetAccount(goWalletAddress)
-	require.NoError(s.T(), err)
-
 	// Wait for feature activation.
 	h := s.Clients.GetMinNodesHeight(s.T())
 	activationHeight := utilities.WaitForFeatureActivation(&s.BaseSuite, settings.DeterministicFinality, h)
 
-	// Create first commitment transaction and broadcast it.
-	s0 := s.nextPeriodStart(activationHeight)
-	tx1 := s.commitmentTransaction(miner, safecast.MustConvert[uint32](s0))
-	_, errGo, _, errScala := s.Clients.BroadcastToNodes(s.T(), tx1, []clients.Implementation{clients.NodeGo, clients.NodeScala})
-	require.NoError(s.T(), errGo)
-	require.NoError(s.T(), errScala)
-
-	goErr, scalaErr := s.Clients.WaitForTransaction(*tx1.ID, 30*time.Second)
-	require.NoError(s.T(), goErr)
-	require.NoError(s.T(), scalaErr)
+	// Commit for the second generation period.
+	s0 := s.commitToGeneration(activationHeight)
 
 	// Wait for second generation period to start.
-	s.Clients.WaitForHeight(s.T(), s0, config.WaitWithContext(s.MainCtx), config.WaitWithTimeoutInBlocks(4))
+	s.Clients.WaitForHeight(s.T(), s0, config.WaitWithContext(s.MainCtx), config.WaitWithTimeoutInBlocks(period))
 
-	// Create second commitment transaction and broadcast it.
-	s1 := s.nextPeriodStart(activationHeight)
-	tx2 := s.commitmentTransaction(miner, safecast.MustConvert[uint32](s1))
-	_, err = s.Clients.BroadcastToScalaNode(s.T(), tx2)
-	require.NoError(s.T(), err)
+	// Commit for second generation period.
+	s1 := s.commitToGeneration(activationHeight)
 
 	// Wait for third generation period to start.
-	s.Clients.WaitForHeight(s.T(), s1, config.WaitWithContext(s.MainCtx), config.WaitWithTimeoutInBlocks(4))
+	s.Clients.WaitForHeight(s.T(), s1, config.WaitWithContext(s.MainCtx), config.WaitWithTimeoutInBlocks(period))
+}
+
+func (s *SmokeFinalitySuite) commitToGeneration(activationHeight uint64) uint64 {
+	const txTimeout = time.Second * 30
+	gps := s.nextPeriodStart(activationHeight)
+	s.T().Logf("Committing for generation period starting at %d", gps)
+
+	goTx := s.commitmentTransaction(s.goMiner, safecast.MustConvert[uint32](gps))
+	_, err := s.Clients.BroadcastToGoNode(s.T(), goTx)
+	require.NoError(s.T(), err)
+	scalaTx := s.commitmentTransaction(s.scalaMiner, safecast.MustConvert[uint32](gps))
+	_, err = s.Clients.BroadcastToScalaNode(s.T(), scalaTx)
+	require.NoError(s.T(), err)
+
+	goErr, scalaErr := s.Clients.WaitForTransaction(*goTx.ID, txTimeout)
+	require.NoError(s.T(), goErr)
+	require.NoError(s.T(), scalaErr)
+	s.T().Logf("Go commitment transaction ID: %s", *goTx.ID)
+
+	goErr, scalaErr = s.Clients.WaitForTransaction(*scalaTx.ID, txTimeout)
+	require.NoError(s.T(), goErr)
+	require.NoError(s.T(), scalaErr)
+	s.T().Logf("Scala commitment transaction ID: %s", *scalaTx.ID)
+	return gps
 }
 
 func (s *SmokeFinalitySuite) nextPeriodStart(activationHeight proto.Height) proto.Height {

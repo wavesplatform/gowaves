@@ -784,3 +784,17 @@ func (k *commitmentKey) bytes() []byte {
 	binary.BigEndian.PutUint32(buf[1:], k.periodStart)
 	return buf
 }
+
+// commitmentStateHashKey is used only to correctly order legacy state hash record.
+// WARNING! Do not use the key for any storage operations.
+type commitmentStateHashKey struct {
+	periodStart uint32
+	index       uint32
+}
+
+func (k *commitmentStateHashKey) string() string {
+	buf := make([]byte, uint32Size*2)
+	binary.BigEndian.PutUint32(buf, k.periodStart)
+	binary.BigEndian.PutUint32(buf[uint32Size:], k.index)
+	return string(buf)
+}

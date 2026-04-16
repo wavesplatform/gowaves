@@ -17,9 +17,10 @@ import (
 )
 
 const (
-	deposit         int64 = 100_0000_0000 // 100 WAVES
-	fee             int64 = 1000_0000     // 0.1 WAVES
-	goWalletAddress       = "3Jy49E8GFuUQ7urTuVR2md3TmHDZQMLEmAY"
+	deposit            int64 = 100_0000_0000 // 100 WAVES
+	fee                int64 = 1000_0000     // 0.1 WAVES
+	goWalletAddress          = "3Jy49E8GFuUQ7urTuVR2md3TmHDZQMLEmAY"
+	scalaWalletAddress       = "3JbGqxNqwBfwnCbzLbo4HwjA9NR1wDjrRTr"
 )
 
 type IsolatedFinalitySuite struct {
