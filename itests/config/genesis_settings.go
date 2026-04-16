@@ -128,17 +128,12 @@ func makeTransactionAndKeyPairs(settings *GenesisSettings, timestamp uint64) ([]
 			return nil, nil, errors.Wrapf(err, "failed to generate address from seed '%s'", string(seed))
 		}
 		var bsk bls.SecretKey
-		var bpk bls.PublicKey
 		switch dist.MiningType {
-		case GoMining:
+		case GoMining, NoMining:
 			bsk, err = bls.GenerateSecretKey(h[:])
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to generate Go BLS secret key from seed '%s': %w",
 					hex.EncodeToString(h[:]), err)
-			}
-			bpk, err = bsk.PublicKey()
-			if err != nil {
-				return nil, nil, fmt.Errorf("failed to generate BLS public key from seed '%s': %w", string(seed), err)
 			}
 		case ScalaMining:
 			bsk, err = bls.GenerateSecretKey(sk.Bytes(), bls.WithNoPreHash())
@@ -146,12 +141,10 @@ func makeTransactionAndKeyPairs(settings *GenesisSettings, timestamp uint64) ([]
 				return nil, nil, fmt.Errorf("failed to generate Scala BLS secret key from seed '%s': %w",
 					hex.EncodeToString(sk.Bytes()), err)
 			}
-			bpk, err = bsk.PublicKey()
-			if err != nil {
-				return nil, nil, fmt.Errorf("failed to generate BLS public key from seed '%s': %w", string(seed), err)
-			}
-		case NoMining:
-			// No-op here.
+		}
+		bpk, err := bsk.PublicKey()
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to generate BLS public key from seed '%s': %w", string(seed), err)
 		}
 		r = append(r, genesis_generator.GenesisTransactionInfo{Address: addr, Amount: dist.Amount, Timestamp: timestamp})
 		acc := AccountInfo{
