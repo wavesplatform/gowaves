@@ -47,6 +47,7 @@ const (
 	challengedAddress
 	commitment
 	finalization
+	bannedGenerators
 )
 
 type blockchainEntityProperties struct {
@@ -218,6 +219,11 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		fixedSize:    false,
 	},
 	finalization: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
+	},
+	bannedGenerators: {
 		needToFilter: true,
 		needToCut:    true,
 		fixedSize:    false,

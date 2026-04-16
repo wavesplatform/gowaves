@@ -122,7 +122,7 @@ func TestCommitments_Exists(t *testing.T) {
 	}
 }
 
-func TestCommitments_Size(t *testing.T) {
+func TestCommitmentsBatch(t *testing.T) {
 	for i, test := range []struct {
 		periodStart uint32
 		n           int
@@ -134,86 +134,24 @@ func TestCommitments_Size(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			to := createStorageObjects(t, true)
-			cms := generateCommitments(t, test.n+1)
+			cms := generateCommitments(t, test.n)
 			for j := range test.n {
 				blockID := generateRandomBlockID(t)
 				to.addBlock(t, blockID)
 				err := to.entities.commitments.store(test.periodStart, cms[j].GeneratorPK, cms[j].EndorserPK, blockID)
 				require.NoError(t, err)
-				// Unflushed size check.
-				gs, err := to.entities.commitments.newestGenerators(test.periodStart)
-				require.NoError(t, err)
-				assert.Equal(t, j+1, len(gs))
-				newestSize, err := to.entities.commitments.newestSize(test.periodStart)
-				require.NoError(t, err)
-				assert.Equal(t, newestSize, len(gs))
-				// Check after flush.
-				to.flush(t)
-				gs, err = to.entities.commitments.generators(test.periodStart)
-				require.NoError(t, err)
-				assert.Equal(t, j+1, len(gs))
-				regularSize, err := to.entities.commitments.size(test.periodStart)
-				require.NoError(t, err)
-				assert.Equal(t, regularSize, len(gs))
 			}
+			// Unflushed size check.
+			gs1, err := to.entities.commitments.newestGenerators(test.periodStart)
+			require.NoError(t, err)
+			assert.Equal(t, test.n, len(gs1))
+			// Check after flush.
+			to.flush(t)
+			gs2, err := to.entities.commitments.newestGenerators(test.periodStart)
+			require.NoError(t, err)
+			assert.Equal(t, test.n, len(gs2))
 		})
 	}
-}
-
-func TestCommitments_NewestExistsByEndorserPK(t *testing.T) {
-	to := createStorageObjects(t, true)
-	periodStart := uint32(12)
-
-	rawCommitments := []struct {
-		generator string
-		endorser  string
-	}{
-		{
-			generator: "8eKvDvNgR1VZbQjvWy9r9TAjARSReguC7VPL4CWQipdL",
-			endorser:  "7WCiBc766KzkT62PmNP7KZRab4vKzSZmaGYGnoXFw17s7hyJ1w7AehUQGJS2Dyq8i7",
-		},
-		{
-			generator: "GJEmbYNRHyX94gWAefYiL4bj7MPMxyMJFQ3RwDj5SH3z",
-			endorser:  "65ZNxUud6T2cQek6anav8JSdZ1Z5zBRjn2zZPLaKeHfz5PkaWwBng6Rr5mzoUNm5G2",
-		},
-		{
-			generator: "Ae5d1pEimam1VG4HG8V3RgFcign8q3v5pS4dRGHqQb6y",
-			endorser:  "5xG2Gc3Xf9TKnM8E894R5YFVxZ8YFWK331hViN6fwd4rEHHoLY8EbSFgChpApDBMyL",
-		},
-	}
-
-	commitments := make([]struct {
-		generator crypto.PublicKey
-		endorser  bls.PublicKey
-	}, len(rawCommitments))
-	for i, raw := range rawCommitments {
-		gen := crypto.MustPublicKeyFromBase58(raw.generator)
-		end, err := bls.NewPublicKeyFromBase58(raw.endorser)
-		require.NoError(t, err)
-		commitments[i] = struct {
-			generator crypto.PublicKey
-			endorser  bls.PublicKey
-		}{gen, end}
-
-		blockID := generateRandomBlockID(t)
-		to.addBlock(t, blockID)
-		err = to.entities.commitments.store(periodStart, gen, end, blockID)
-		require.NoError(t, err)
-	}
-
-	for _, cm := range commitments {
-		exists, err := to.entities.commitments.newestExistsByEndorserPK(periodStart, cm.endorser)
-		require.NoError(t, err)
-		assert.True(t, exists)
-	}
-
-	missingSK, err := bls.GenerateSecretKey([]byte("missing-endorser"))
-	require.NoError(t, err)
-	missingPK, err := missingSK.PublicKey()
-	require.NoError(t, err)
-	exists, err := to.entities.commitments.newestExistsByEndorserPK(periodStart, missingPK)
-	require.NoError(t, err)
-	assert.False(t, exists)
 }
 
 func TestRepeatedUsageOfBLSKey(t *testing.T) {

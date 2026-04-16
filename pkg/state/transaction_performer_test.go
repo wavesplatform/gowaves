@@ -755,7 +755,7 @@ func TestCommitToGenerationWithProofs(t *testing.T) {
 
 	to.stor.flush(t)
 
-	gs, err := to.stor.entities.commitments.generators(10_002)
+	gs, err := to.stor.entities.commitments.newestGenerators(10_002)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(gs))
 

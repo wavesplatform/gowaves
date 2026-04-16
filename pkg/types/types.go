@@ -224,15 +224,15 @@ type EmbeddedWallet interface {
 	BLSPairByWavesPK(publicKey crypto.PublicKey) (bls.SecretKey, bls.PublicKey, error)
 	Load(password []byte) error
 	AccountSeeds() [][]byte
-	KeyPairsBLS() ([]bls.PublicKey, []bls.SecretKey, error)
+	BLSSecretKeys() ([]bls.SecretKey, error)
 }
 
 // EndorsementPool storage interface.
 type EndorsementPool interface {
-	Add(e *proto.EndorseBlock, endorserPublicKey bls.PublicKey,
+	Add(e *proto.BlockEndorsement, endorserPublicKey bls.PublicKey,
 		lastFinalizedHeight proto.Height, lastFinalizedBlockID proto.BlockID, balance uint64,
 		parentBlockID proto.BlockID) (bool, error)
-	GetAll() []proto.EndorseBlock
+	GetAll() []proto.BlockEndorsement
 	GetEndorsers() []bls.PublicKey
 	SaveBlockGenerator(blockGenerator *crypto.PublicKey)
 	BlockGenerator() (crypto.PublicKey, error)

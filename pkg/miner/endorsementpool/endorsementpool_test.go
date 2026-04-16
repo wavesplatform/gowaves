@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/miner/endorsementpool"
@@ -25,11 +26,11 @@ func dummyBLSPK(t *testing.T) bls.PublicKey {
 	return pk
 }
 
-func newDummyEndorsement(t *testing.T, idx int32, _ string) *proto.EndorseBlock {
+func newDummyEndorsement(t *testing.T, idx uint32, _ string) *proto.BlockEndorsement {
 	d, err := crypto.FastHash([]byte("dummy-endorsed-block"))
 	require.NoError(t, err)
 	id := proto.NewBlockIDFromDigest(d)
-	e := &proto.EndorseBlock{
+	e := &proto.BlockEndorsement{
 		EndorserIndex:        idx,
 		EndorsedBlockID:      id,
 		FinalizedBlockHeight: 1,
@@ -50,9 +51,9 @@ const sigFour = "2F4sw8YzXpSf93ACAngoTnNxCaYWoGL4vY88RYgEs3BeSsnAmMGmVSfe8h6hybk
 
 const finalizedHeightEndorsement = 1
 
-func signEndorsement(t *testing.T, e *proto.EndorseBlock, sk bls.SecretKey) {
+func signEndorsement(t *testing.T, e *proto.BlockEndorsement, sk bls.SecretKey) {
 	t.Helper()
-	msg, err := e.EndorsementMessage()
+	msg, err := e.CryptoMessage().Bytes()
 	require.NoError(t, err)
 	sig, err := bls.Sign(sk, msg)
 	require.NoError(t, err)
@@ -61,14 +62,14 @@ func signEndorsement(t *testing.T, e *proto.EndorseBlock, sk bls.SecretKey) {
 
 func newSignedEndorsement(
 	t *testing.T,
-	endorserIndex int32,
+	endorserIndex uint32,
 	finalizedID proto.BlockID,
 	finalizedHeight uint32,
 	endorsedID proto.BlockID,
 	sk bls.SecretKey,
-) *proto.EndorseBlock {
+) *proto.BlockEndorsement {
 	t.Helper()
-	e := &proto.EndorseBlock{
+	e := &proto.BlockEndorsement{
 		EndorserIndex:        endorserIndex,
 		FinalizedBlockID:     finalizedID,
 		FinalizedBlockHeight: finalizedHeight,
@@ -81,7 +82,7 @@ func newSignedEndorsement(
 func addToPool(
 	t *testing.T,
 	pool *endorsementpool.EndorsementPool,
-	e *proto.EndorseBlock,
+	e *proto.BlockEndorsement,
 	pk bls.PublicKey,
 	balance uint64,
 ) {

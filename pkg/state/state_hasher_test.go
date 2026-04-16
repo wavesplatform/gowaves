@@ -386,7 +386,7 @@ func TestScalaCompatibility(t *testing.T) {
 }
 
 func TestCalculateCommittedGeneratorsBalancesStateHash(t *testing.T) {
-	so := createStorageObjects(t, true)
+	so := createStorageObjectsWithOptions(t, testStorageObjectsOptions{Amend: true, CalculateHashes: true})
 	so.activateFeature(t, int16(settings.DeterministicFinality)) // add first block
 	featureActivationHeight, err := so.entities.features.newestActivationHeight(int16(settings.DeterministicFinality))
 	require.NoError(t, err)
@@ -396,24 +396,30 @@ func TestCalculateCommittedGeneratorsBalancesStateHash(t *testing.T) {
 	addr, err := proto.NewAddressFromPublicKey(so.settings.AddressSchemeCharacter, pk)
 	require.NoError(t, err)
 
-	bID := proto.NewBlockIDFromDigest(crypto.Digest{42})
+	bID1 := proto.NewBlockIDFromDigest(crypto.Digest{41})
+	bID2 := proto.NewBlockIDFromDigest(crypto.Digest{42})
 	const initialBalance = 3000
-	so.prepareAndStartBlock(t, bID) // prepare and start second block
+	so.entities.calculateHashes = true
+	so.prepareAndStartBlock(t, bID1) // Prepare and start block with the balance update.
+	so.setWavesBalance(t, addr, balanceProfile{initialBalance, 0, 0, 0}, bID1)
+	so.finishBlock(t, bID1)
 
+	so.prepareAndStartBlock(t, bID2) // Prepare and start block with state hash calculation.
+	blockchainHeight := so.rw.recentHeight()
 	blockHeight := so.rw.addingBlockHeight()
 	periodStart, err := CurrentGenerationPeriodStart(
 		featureActivationHeight, blockHeight, so.settings.GenerationPeriod,
 	)
 	require.NoError(t, err)
-	so.setWavesBalance(t, addr, balanceProfile{initialBalance, 0, 0, 0}, bID)
-	err = so.entities.commitments.store(periodStart, pk, bls.PublicKey{1, 2, 3, 4, 5}, bID)
+	err = so.entities.commitments.store(periodStart, pk, bls.PublicKey{1, 2, 3, 4, 5}, bID2)
 	require.NoError(t, err)
-
-	so.finishBlock(t, bID) // finish second block
+	err = so.entities.generators.initialize(blockchainHeight, bID2, pk, 0)
+	require.NoError(t, err)
+	so.finishBlock(t, bID2) // finish second block
 	// no flush, should be possible to calculate SH for unflushed data
-	sh, err := calculateCommittedGeneratorsBalancesStateHash(so.entities, true, blockHeight)
+	err = so.entities.generators.hasher.stop()
 	require.NoError(t, err)
 	// "EUKq8xDt8hyATpY6mmPev2bVjVmJAFQzXdTVyky34CEr" —> value below
 	expectedSH := crypto.MustFastHash(binary.BigEndian.AppendUint64(nil, initialBalance))
-	assert.Equal(t, expectedSH, sh)
+	assert.Equal(t, expectedSH, so.entities.generators.hasher.stateHashAt(bID2))
 }

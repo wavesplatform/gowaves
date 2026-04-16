@@ -2,7 +2,9 @@ package state
 
 import (
 	"fmt"
+	"log/slog"
 
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
 
@@ -26,15 +28,16 @@ func (fr *finalizationRecord) unmarshalBinary(data []byte) error {
 	return cbor.Unmarshal(data, fr)
 }
 
-type finalizations struct {
+type finality struct {
 	hs *historyStorage
+	rw *blockReadWriter
 }
 
-func newFinalizations(hs *historyStorage) *finalizations {
-	return &finalizations{hs: hs}
+func newFinality(hs *historyStorage, rw *blockReadWriter) *finality {
+	return &finality{hs: hs, rw: rw}
 }
 
-func (f *finalizations) newestRecord() (*finalizationRecord, error) {
+func (f *finality) newestRecord() (*finalizationRecord, error) {
 	data, err := f.hs.newestTopEntryData([]byte{finalizationKeyPrefix})
 	if err != nil {
 		if isNotFoundInHistoryOrDBErr(err) {
@@ -49,7 +52,7 @@ func (f *finalizations) newestRecord() (*finalizationRecord, error) {
 	return &rec, nil
 }
 
-func (f *finalizations) writeRecord(rec *finalizationRecord, currentBlockID proto.BlockID) error {
+func (f *finality) writeRecord(rec *finalizationRecord, currentBlockID proto.BlockID) error {
 	newData, err := rec.marshalBinary()
 	if err != nil {
 		return fmt.Errorf("failed to marshal finalization record: %w", err)
@@ -62,8 +65,7 @@ func (f *finalizations) writeRecord(rec *finalizationRecord, currentBlockID prot
 
 // updateFinalization promotes pending finalization value to regular if pending value is set (i.e. not zero).
 // Must be executed without conditions before new block applying.
-// TODO: what block ID should be provided: applying one or its parent?
-func (f *finalizations) updateFinalization(applyingBlockID proto.BlockID) error {
+func (f *finality) updateFinalization(applyingBlockID proto.BlockID) error {
 	rec, err := f.newestRecord()
 	if err != nil {
 		if !errors.Is(err, ErrNoFinalization) && !errors.Is(err, ErrNoFinalizationHistory) {
@@ -74,6 +76,8 @@ func (f *finalizations) updateFinalization(applyingBlockID proto.BlockID) error 
 	if rec.PendingBlockHeight == 0 {
 		return nil // nothing to do if no pending value has been stored before
 	}
+	slog.Debug("Promoting pending finalization to finalized",
+		slog.Uint64("finalizedBlockHeight", rec.PendingBlockHeight))
 	rec = &finalizationRecord{
 		FinalizedBlockHeight: rec.PendingBlockHeight, // promote pending value to finalized
 		PendingBlockHeight:   0,
@@ -83,7 +87,7 @@ func (f *finalizations) updateFinalization(applyingBlockID proto.BlockID) error 
 
 // updatePendingFinalization sets pending finalization value for the current block's parent height.
 // Must be executed after new block applying ONLY if current block applying has finalized its parent.
-func (f *finalizations) updatePendingFinalization(
+func (f *finality) updatePendingFinalization(
 	parentHeight proto.Height, // i.e. finalized block height
 	applyingBlockID proto.BlockID,
 ) error {
@@ -106,7 +110,7 @@ func (f *finalizations) updatePendingFinalization(
 
 // forceWrite writes finalization record with provided
 // finalized block height and zero pending height, without any checks.
-func (f *finalizations) forceWrite(finalizedBlockHeight proto.Height, currentBlockID proto.BlockID) error {
+func (f *finality) forceWrite(finalizedBlockHeight proto.Height, currentBlockID proto.BlockID) error {
 	rec := &finalizationRecord{
 		FinalizedBlockHeight: finalizedBlockHeight,
 		PendingBlockHeight:   0, // no pending
@@ -115,7 +119,7 @@ func (f *finalizations) forceWrite(finalizedBlockHeight proto.Height, currentBlo
 }
 
 // newestHeight returns last finalized height value.
-func (f *finalizations) newestHeight() (proto.Height, error) {
+func (f *finality) newestHeight() (proto.Height, error) {
 	rec, err := f.newestRecord()
 	if err != nil {
 		return 0, err
@@ -125,4 +129,52 @@ func (f *finalizations) newestHeight() (proto.Height, error) {
 		return 0, ErrNoFinalization
 	}
 	return finH, nil
+}
+
+// lastFinalizedHeight returns stored or calculated height of last finalized block.
+func (f *finality) lastFinalizedHeight(height proto.Height) (proto.Height, error) {
+	calculated := calculateLastFinalizedHeight(height)
+	stored, err := f.newestHeight()
+	if err != nil {
+		if errors.Is(err, ErrNoFinalization) || errors.Is(err, ErrNoFinalizationHistory) {
+			return calculated, nil
+		}
+		return 0, fmt.Errorf("failed to retrieve last finalized height: %w", err)
+	}
+	return max(stored, calculated), nil
+}
+
+func (f *finality) buildLocalEndorsementMessage(
+	height proto.Height, parentID proto.BlockID,
+) (proto.EndorsementCryptoMessage, error) {
+	finalizedHeight, err := f.lastFinalizedHeight(height)
+	if err != nil {
+		return proto.EndorsementCryptoMessage{}, fmt.Errorf("failed to build local endorsement message: %w", err)
+	}
+	finalizedBlockID, err := f.rw.newestBlockIDByHeight(finalizedHeight)
+	if err != nil {
+		return proto.EndorsementCryptoMessage{}, fmt.Errorf("failed to build local endorsement message: %w", err)
+	}
+	slog.Debug("Local finalization state",
+		slog.Uint64("finalizedHeight", finalizedHeight),
+		slog.String("finalizedBlockID", finalizedBlockID.String()),
+	)
+	fh, err := safecast.Convert[uint32](finalizedHeight)
+	if err != nil {
+		return proto.EndorsementCryptoMessage{}, fmt.Errorf("failed to build local endorsement message: %w", err)
+	}
+	return proto.EndorsementCryptoMessage{
+		FinalizedBlockID:     finalizedBlockID,
+		FinalizedBlockHeight: fh,
+		EndorsedBlockID:      parentID,
+	}, nil
+}
+
+func calculateLastFinalizedHeight(height proto.Height) proto.Height {
+	const genesisHeight uint64 = 1
+	const maxRollbackDeltaHeight uint64 = 100
+	if height <= maxRollbackDeltaHeight {
+		return genesisHeight
+	}
+	return height - maxRollbackDeltaHeight
 }

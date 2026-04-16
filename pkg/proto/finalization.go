@@ -1,7 +1,9 @@
 package proto
 
 import (
-	"encoding/binary"
+	"bytes"
+	"fmt"
+	"io"
 	"slices"
 
 	"github.com/ccoveille/go-safecast/v2"
@@ -11,67 +13,73 @@ import (
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
-type EndorseBlock struct {
-	EndorserIndex        int32         `json:"endorserIndex"`
+// EndorsementCryptoMessage is used to calculate and validate signatures of block endorsements.
+// Only one-way serialization is implemented. The structure is never intended for deserialization from bytes.
+type EndorsementCryptoMessage struct {
+	FinalizedBlockID     BlockID
+	FinalizedBlockHeight uint32
+	EndorsedBlockID      BlockID
+}
+
+func NewEndorsementCryptoMessage(
+	finalizedBlockID, endorsedBlockID BlockID, finalizedBlockHeight uint32,
+) *EndorsementCryptoMessage {
+	return &EndorsementCryptoMessage{
+		FinalizedBlockID:     finalizedBlockID,
+		FinalizedBlockHeight: finalizedBlockHeight,
+		EndorsedBlockID:      endorsedBlockID,
+	}
+}
+
+func (msg *EndorsementCryptoMessage) WriteTo(w io.Writer) (int64, error) {
+	n, err := msg.FinalizedBlockID.WriteTo(w)
+	if err != nil {
+		return n, err
+	}
+	n1, err := U32(msg.FinalizedBlockHeight).WriteTo(w)
+	n += n1
+	if err != nil {
+		return n, err
+	}
+	n2, err := msg.EndorsedBlockID.WriteTo(w)
+	n += n2
+	return n, err
+}
+
+func (msg *EndorsementCryptoMessage) Bytes() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	_, err := msg.WriteTo(buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// BlockEndorsement represents an endorsement of a block by a validator.
+type BlockEndorsement struct {
+	EndorserIndex        uint32        `json:"endorserIndex"`
 	FinalizedBlockID     BlockID       `json:"finalizedBlockID"`
 	FinalizedBlockHeight uint32        `json:"finalizedBlockHeight"`
 	EndorsedBlockID      BlockID       `json:"endorsedBlockId"`
 	Signature            bls.Signature `json:"signature"`
 }
 
-func (e *EndorseBlock) Marshal() ([]byte, error) {
-	endBlockProto := e.ToProtobuf()
+func (e *BlockEndorsement) Marshal() ([]byte, error) {
+	endBlockProto, err := e.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
 	return endBlockProto.MarshalVTStrict()
 }
 
-func (e *EndorseBlock) EndorsementMessage() ([]byte, error) {
-	const heightSize = uint32Size
-
-	finalizedID := e.FinalizedBlockID.Bytes()
-	endorsedID := e.EndorsedBlockID.Bytes()
-
-	size := len(finalizedID) + heightSize + len(endorsedID)
-	buf := make([]byte, size)
-
-	// finalizedBlockId
-	copy(buf[0:len(finalizedID)], finalizedID)
-
-	// finalizedBlockHeight (4 bytes big-endian, same as Scala Ints.toByteArray)
-	binary.BigEndian.PutUint32(buf[len(finalizedID):len(finalizedID)+heightSize], e.FinalizedBlockHeight)
-
-	// endorsedBlockId
-	copy(buf[len(finalizedID)+heightSize:], endorsedID)
-
-	return buf, nil
-}
-
-func EndorsementMessage(finalizedBlockID BlockID, endorsedBlockID BlockID,
-	finalizedBlockHeight Height) ([]byte, error) {
-	const heightSize = uint32Size
-
-	finalizedID := finalizedBlockID.Bytes()
-	endorsedID := endorsedBlockID.Bytes()
-
-	size := len(finalizedID) + heightSize + len(endorsedID)
-	buf := make([]byte, size)
-
-	// finalizedBlockId
-	copy(buf[0:len(finalizedID)], finalizedID)
-
-	finalizedBlockHeightUint, err := safecast.Convert[uint32](finalizedBlockHeight)
-	if err != nil {
-		return nil, errors.Errorf("finalized block height conversion error: %v", err)
+func (e *BlockEndorsement) CryptoMessage() *EndorsementCryptoMessage {
+	return &EndorsementCryptoMessage{
+		FinalizedBlockID:     e.FinalizedBlockID,
+		FinalizedBlockHeight: e.FinalizedBlockHeight,
+		EndorsedBlockID:      e.EndorsedBlockID,
 	}
-	// finalizedBlockHeight (4 bytes big-endian, same as Scala Ints.toByteArray)
-	binary.BigEndian.PutUint32(buf[len(finalizedID):len(finalizedID)+heightSize], finalizedBlockHeightUint)
-
-	// endorsedBlockId
-	copy(buf[len(finalizedID)+heightSize:], endorsedID)
-
-	return buf, nil
 }
-
-func (e *EndorseBlock) UnmarshalFromProtobuf(data []byte) error {
+func (e *BlockEndorsement) UnmarshalFromProtobuf(data []byte) error {
 	var pbEndorsement = &g.EndorseBlock{}
 	err := pbEndorsement.UnmarshalVT(data)
 	if err != nil {
@@ -86,22 +94,47 @@ func (e *EndorseBlock) UnmarshalFromProtobuf(data []byte) error {
 	return nil
 }
 
-func (e *EndorseBlock) ToProtobuf() *g.EndorseBlock {
-	endBlockProto := g.EndorseBlock{
-		EndorserIndex:        e.EndorserIndex,
+func (e *BlockEndorsement) ToProtobuf() (*g.EndorseBlock, error) {
+	idx, err := safecast.Convert[int32](e.EndorserIndex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert block endorsement: %w", err)
+	}
+	eb := &g.EndorseBlock{
+		EndorserIndex:        idx,
 		FinalizedBlockId:     e.FinalizedBlockID.Bytes(),
 		FinalizedBlockHeight: e.FinalizedBlockHeight,
 		EndorsedBlockId:      e.EndorsedBlockID.Bytes(),
 		Signature:            e.Signature.Bytes(),
 	}
-	return &endBlockProto
+	return eb, nil
 }
 
 type FinalizationVoting struct {
-	EndorserIndexes                []int32        `json:"endorserIndexes"`
-	FinalizedBlockHeight           Height         `json:"finalizedBlockHeight"`
-	AggregatedEndorsementSignature bls.Signature  `json:"aggregatedEndorsementSignature"`
-	ConflictEndorsements           []EndorseBlock `json:"conflictEndorsements"`
+	EndorserIndexes                []uint32           `json:"endorserIndexes"`
+	FinalizedBlockHeight           Height             `json:"finalizedBlockHeight"`
+	AggregatedEndorsementSignature bls.Signature      `json:"aggregatedEndorsementSignature"`
+	ConflictEndorsements           []BlockEndorsement `json:"conflictEndorsements"`
+}
+
+// Validate checks that FinalizationVoting doesn't have any duplicate endorsers indexes.
+func (f *FinalizationVoting) Validate() error {
+	indexes := make(map[uint32]struct{}, len(f.ConflictEndorsements)+len(f.EndorserIndexes))
+	for _, ce := range f.ConflictEndorsements {
+		if _, seen := indexes[ce.EndorserIndex]; seen {
+			return fmt.Errorf(
+				"invalid finalization voting: duplicate conflicting endorsement with endorser index %d",
+				ce.EndorserIndex,
+			)
+		}
+		indexes[ce.EndorserIndex] = struct{}{}
+	}
+	for _, idx := range f.EndorserIndexes {
+		if _, seen := indexes[idx]; seen {
+			return fmt.Errorf("invalid finalization voting: duplicate endorser index %d", idx)
+		}
+		indexes[idx] = struct{}{}
+	}
+	return nil
 }
 
 func (f *FinalizationVoting) Marshal() ([]byte, error) {
@@ -128,17 +161,28 @@ func (f *FinalizationVoting) UnmarshalFromProtobuf(data []byte) error {
 }
 
 func (f *FinalizationVoting) ToProtobuf() (*g.FinalizationVoting, error) {
+	indexes := make([]int32, len(f.EndorserIndexes))
+	for i, v := range f.EndorserIndexes {
+		idx, err := safecast.Convert[int32](v)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert finalization voting to protobuf: %w", err)
+		}
+		indexes[i] = idx
+	}
 	conflictEndorsements := make([]*g.EndorseBlock, len(f.ConflictEndorsements))
 	for i, ce := range f.ConflictEndorsements {
-		conflictEndorsements[i] = ce.ToProtobuf()
+		var err error
+		conflictEndorsements[i], err = ce.ToProtobuf()
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert finalization voting to protobuf: %w", err)
+		}
 	}
-
 	finalizedBlockHeight, err := safecast.Convert[int32](f.FinalizedBlockHeight)
 	if err != nil {
 		return nil, errors.Errorf("finalized block height conversion error: %v", err)
 	}
 	finalizationVoting := g.FinalizationVoting{
-		EndorserIndexes:                f.EndorserIndexes,
+		EndorserIndexes:                indexes,
 		FinalizedBlockHeight:           finalizedBlockHeight,
 		AggregatedEndorsementSignature: f.AggregatedEndorsementSignature.Bytes(),
 		ConflictEndorsements:           conflictEndorsements,
@@ -159,13 +203,4 @@ func CombineFinalizationVoting(voting1, voting2 *FinalizationVoting) *Finalizati
 		res.ConflictEndorsements = slices.Concat(voting1.ConflictEndorsements, voting2.ConflictEndorsements)
 		return &res
 	}
-}
-
-func CalculateLastFinalizedHeight(currentHeight Height) Height {
-	var genesisHeight uint64 = 1
-	var maxRollbackDeltaHeight uint64 = 100
-	if currentHeight <= maxRollbackDeltaHeight {
-		return genesisHeight
-	}
-	return currentHeight - maxRollbackDeltaHeight
 }

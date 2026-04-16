@@ -250,6 +250,6 @@ func (w *testWallet) AccountSeeds() [][]byte {
 	return nil
 }
 
-func (w *testWallet) KeyPairsBLS() ([]bls.PublicKey, []bls.SecretKey, error) {
-	return []bls.PublicKey{w.blsPk}, []bls.SecretKey{w.blsSk}, nil
+func (w *testWallet) BLSSecretKeys() ([]bls.SecretKey, error) {
+	return []bls.SecretKey{w.blsSk}, nil
 }

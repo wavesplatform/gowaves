@@ -17,8 +17,9 @@ import (
 )
 
 const (
-	deposit = 100_0000_0000 // 100 WAVES
-	fee     = 1000_0000     // 0.1 WAVES
+	deposit       int64 = 100_0000_0000 // 100 WAVES
+	fee           int64 = 1000_0000     // 0.1 WAVES
+	walletAddress       = "3Jy49E8GFuUQ7urTuVR2md3TmHDZQMLEmAY"
 )
 
 type IsolatedFinalitySuite struct {
@@ -33,6 +34,9 @@ func (s *IsolatedFinalitySuite) SetupSuite() {
 }
 
 func (s *IsolatedFinalitySuite) TestDepositsReset() {
+	miner, err := s.Cfg.GetAccount(walletAddress)
+	require.NoError(s.T(), err)
+
 	acc := s.Cfg.GetRichestAccount()
 
 	// Ensure that the height is at least 2 (to avoid activation block).
@@ -44,20 +48,23 @@ func (s *IsolatedFinalitySuite) TestDepositsReset() {
 
 	// Create first commitment transaction and broadcast it.
 	s0 := s.nextPeriodStart()
-	s.T().Logf("s0=%d", s0)
 	tx1 := s.commitmentTransaction(acc, safecast.MustConvert[uint32](s0))
-	_, err := s.Client.HTTPClient.TransactionBroadcast(tx1)
+	_, err = s.Client.HTTPClient.TransactionBroadcast(tx1)
 	require.NoError(s.T(), err)
 	s.Client.WaitForTransaction(s.T(), *tx1.ID, config.WaitWithContext(s.MainCtx))
 	b1 := s.Client.GRPCClient.GetWavesBalance(s.T(), acc.Address)
 	assert.Equal(s.T(), ab0-deposit-fee, b1.GetAvailable())
+
+	// Commit miner for generation.
+	tx := s.commitmentTransaction(miner, safecast.MustConvert[uint32](s0))
+	_, err = s.Client.HTTPClient.TransactionBroadcast(tx)
+	require.NoError(s.T(), err)
 
 	// Wait for second generation period to start.
 	s.Client.WaitForHeight(s.T(), s0, config.WaitWithContext(s.MainCtx), config.WaitWithTimeoutInBlocks(4))
 
 	// Create second commitment transaction and broadcast it.
 	s1 := s.nextPeriodStart()
-	s.T().Logf("s1=%d", s1)
 	tx2 := s.commitmentTransaction(acc, safecast.MustConvert[uint32](s1))
 	_, err = s.Client.HTTPClient.TransactionBroadcast(tx2)
 	require.NoError(s.T(), err)
@@ -65,12 +72,21 @@ func (s *IsolatedFinalitySuite) TestDepositsReset() {
 	b2 := s.Client.GRPCClient.GetWavesBalance(s.T(), acc.Address)
 	assert.Equal(s.T(), ab0-deposit-fee-deposit-fee, b2.GetAvailable())
 
+	// Commit miner for generation.
+	tx = s.commitmentTransaction(miner, safecast.MustConvert[uint32](s1))
+	_, err = s.Client.HTTPClient.TransactionBroadcast(tx)
+	require.NoError(s.T(), err)
+
 	// Wait for third generation period to start, first deposit should be returned.
 	s.Client.WaitForHeight(s.T(), s1, config.WaitWithContext(s.MainCtx), config.WaitWithTimeoutInBlocks(4))
 	s2 := s.nextPeriodStart()
-	s.T().Logf("s2=%d", s2)
 	b3 := s.Client.GRPCClient.GetWavesBalance(s.T(), acc.Address)
 	assert.Equal(s.T(), ab0-deposit-fee-fee, b3.GetAvailable())
+
+	// Commit miner for generation.
+	tx = s.commitmentTransaction(miner, safecast.MustConvert[uint32](s2))
+	_, err = s.Client.HTTPClient.TransactionBroadcast(tx)
+	require.NoError(s.T(), err)
 
 	// Wait for fourth generation period to start, second deposit should be returned.
 	s.Client.WaitForHeight(s.T(), s2, config.WaitWithContext(s.MainCtx), config.WaitWithTimeoutInBlocks(4))
@@ -79,6 +95,10 @@ func (s *IsolatedFinalitySuite) TestDepositsReset() {
 }
 
 func (s *IsolatedFinalitySuite) TestDepositRollback() {
+	// Get the miner account (the same as in wallet) to create commitment transactions for generation.
+	miner, err := s.Cfg.GetAccount(walletAddress)
+	require.NoError(s.T(), err)
+	// Get the richest account to check balance changes, because it's easier to check on balance unaffected by mining.
 	acc := s.Cfg.GetRichestAccount()
 
 	// Ensure that the height is at least 2 (to avoid activation block).
@@ -89,15 +109,20 @@ func (s *IsolatedFinalitySuite) TestDepositRollback() {
 	ab0 := b0.GetAvailable()
 
 	s0 := s.nextPeriodStart()
-	s.T().Logf("s0=%d", s0)
 
 	// Create first commitment transaction and broadcast it.
 	tx1 := s.commitmentTransaction(acc, safecast.MustConvert[uint32](s0))
-	_, err := s.Client.HTTPClient.TransactionBroadcast(tx1)
+	_, err = s.Client.HTTPClient.TransactionBroadcast(tx1)
 	require.NoError(s.T(), err)
 	s.Client.WaitForTransaction(s.T(), *tx1.ID, config.WaitWithContext(s.MainCtx))
 	b1 := s.Client.GRPCClient.GetWavesBalance(s.T(), acc.Address)
-	assert.Equal(s.T(), ab0-deposit-fee, b1.GetAvailable())
+	eb1 := ab0 - (deposit + fee) // Initial balance reduced by deposit and transaction fee amounts.
+	assert.Equal(s.T(), eb1, b1.GetAvailable())
+
+	// Commit miner for next generation period.
+	tx := s.commitmentTransaction(miner, safecast.MustConvert[uint32](s0))
+	_, err = s.Client.HTTPClient.TransactionBroadcast(tx)
+	require.NoError(s.T(), err)
 
 	// Wait for first generation period to start.
 	s.Client.WaitForHeight(s.T(), s0, config.WaitWithContext(s.MainCtx), config.WaitWithTimeoutInBlocks(4))
@@ -109,7 +134,13 @@ func (s *IsolatedFinalitySuite) TestDepositRollback() {
 	require.NoError(s.T(), err)
 	s.Client.WaitForTransaction(s.T(), *tx2.ID, config.WaitWithContext(s.MainCtx))
 	b2 := s.Client.GRPCClient.GetWavesBalance(s.T(), acc.Address)
-	assert.Equal(s.T(), ab0-deposit-fee-deposit-fee, b2.GetAvailable())
+	eb2 := ab0 - 2*(deposit+fee) // Balance reduced twice by deposit and fee amounts.
+	assert.Equal(s.T(), eb2, b2.GetAvailable())
+
+	// Commit miner for the second period also.
+	tx = s.commitmentTransaction(miner, safecast.MustConvert[uint32](s1))
+	_, err = s.Client.HTTPClient.TransactionBroadcast(tx)
+	require.NoError(s.T(), err)
 
 	s.Client.WaitForHeight(s.T(), s1, config.WaitWithContext(s.MainCtx), config.WaitWithTimeoutInBlocks(4))
 
@@ -119,7 +150,9 @@ func (s *IsolatedFinalitySuite) TestDepositRollback() {
 	// Check that the second deposit has been rolled-back.
 	s.Client.WaitForHeight(s.T(), s0+1, config.WaitWithContext(s.MainCtx))
 	b3 := s.Client.GRPCClient.GetWavesBalance(s.T(), acc.Address)
-	assert.Equal(s.T(), ab0-deposit-fee, b3.GetAvailable())
+	// Balance reduced only by the first deposit and fee amounts, second deposit and fee should be rolled back.
+	eb3 := ab0 - (deposit + fee)
+	assert.Equal(s.T(), eb3, b3.GetAvailable())
 
 	// Wait for the first deposit to be returned, we need no active deposits before proceeding with the other tests.
 	s.Client.WaitForHeight(s.T(), s1, config.WaitWithContext(s.MainCtx), config.WaitWithTimeoutInBlocks(4))
@@ -151,7 +184,9 @@ func (s *IsolatedFinalitySuite) commitmentTransaction(
 	ok, err := bls.VerifyPoP(acc.BLSPublicKey, start, cs)
 	require.NoError(s.T(), err)
 	assert.True(s.T(), ok)
-	tx := proto.NewUnsignedCommitToGenerationWithProofs(ver, acc.PublicKey, start, acc.BLSPublicKey, cs, fee, ts)
+	f, err := safecast.Convert[uint64](fee)
+	require.NoError(s.T(), err)
+	tx := proto.NewUnsignedCommitToGenerationWithProofs(ver, acc.PublicKey, start, acc.BLSPublicKey, cs, f, ts)
 	err = tx.Sign(s.Cfg.BlockchainSettings.AddressSchemeCharacter, acc.SecretKey)
 	require.NoError(s.T(), err)
 	return tx

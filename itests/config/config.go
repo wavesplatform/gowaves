@@ -59,6 +59,15 @@ func (c *TestConfig) GetRichestAccount() AccountInfo {
 	return r
 }
 
+func (c *TestConfig) GetAccount(address string) (AccountInfo, error) {
+	for _, a := range c.Accounts {
+		if a.Address.String() == address {
+			return a, nil
+		}
+	}
+	return AccountInfo{}, fmt.Errorf("account with address '%s' is not found", address)
+}
+
 func (c *TestConfig) GenesisSH() crypto.Digest {
 	const uint64Size = 8
 

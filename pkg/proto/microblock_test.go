@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 )
@@ -214,10 +215,10 @@ func TestMicroBlockSignature(t *testing.T) {
 	require.NoError(t, err)
 
 	finalization := FinalizationVoting{
-		EndorserIndexes:                []int32{1, 2, 3},
+		EndorserIndexes:                []uint32{1, 2, 3},
 		AggregatedEndorsementSignature: aggSig,
 		FinalizedBlockHeight:           1,
-		ConflictEndorsements: []EndorseBlock{
+		ConflictEndorsements: []BlockEndorsement{
 			{
 				EndorserIndex:        1,
 				FinalizedBlockID:     ref,
