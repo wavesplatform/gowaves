@@ -116,14 +116,6 @@ type Docker struct {
 // NewDocker creates a new Docker handler for a given suite name.
 // It removes any existing containers or networks for the suite and creates a new suite network.
 func NewDocker(suiteName string) (*Docker, error) {
-	// Set environment variables to enforce docker client connection with a required API version.
-	// Non-empty DOCKER_MACHINE_NAME allows to create client with DOCKER_API_VERSION.
-	if err := os.Setenv("DOCKER_MACHINE_NAME", "local"); err != nil {
-		return nil, err
-	}
-	if err := os.Setenv("DOCKER_API_VERSION", "1.45"); err != nil {
-		return nil, err
-	}
 	pool, err := dockertest.NewPool("")
 	if err != nil {
 		return nil, err

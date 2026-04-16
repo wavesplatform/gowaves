@@ -3,6 +3,7 @@
 package itests
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -51,8 +52,12 @@ func (s *SmokeFinalitySuite) TestFinalization() {
 	// Wait for second generation period to start.
 	s.Clients.WaitForHeight(s.T(), s0, config.WaitWithContext(s.MainCtx), config.WaitWithTimeoutInBlocks(period))
 
-	// Commit for second generation period.
+	// Commit for third generation period.
 	s1 := s.commitToGeneration(activationHeight)
+
+	goFH, scalaFH, equal := s.Clients.FinalityCmp(s.T())
+	assert.True(s.T(), equal, fmt.Sprintf("finalized height mismatch: Go finalized at %d, Scala finalized at %d",
+		goFH, scalaFH))
 
 	// Wait for third generation period to start.
 	s.Clients.WaitForHeight(s.T(), s1, config.WaitWithContext(s.MainCtx), config.WaitWithTimeoutInBlocks(period))

@@ -52,12 +52,8 @@ func testsSetup() error {
 	)
 	// Set environment variables to enforce docker client connection with a required API version.
 	// Non-empty DOCKER_MACHINE_NAME allows to create client with DOCKER_API_VERSION.
-	if envErr := os.Setenv("DOCKER_MACHINE_NAME", "local"); envErr != nil {
-		return envErr
-	}
-	if envErr := os.Setenv("DOCKER_API_VERSION", "1.45"); envErr != nil {
-		return envErr
-	}
+	setIfNotPresent("DOCKER_MACHINE_NAME", "local")
+	setIfNotPresent("DOCKER_API_VERSION", "1.45")
 	pool, err := dockertest.NewPool("")
 	if err != nil {
 		return fmt.Errorf("failed to connect to docker: %w", err)
@@ -158,4 +154,19 @@ func mustBoolEnv(key string) bool {
 			slog.Any("value", val), logging.Error(err))
 	}
 	return r
+}
+
+func setIfNotPresent(key, value string) {
+	val := os.Getenv(key)
+	if val == "" {
+		if err := os.Setenv(key, value); err != nil {
+			slog.Error("Failed to set environment variable", slog.String("variable", key), logging.Error(err))
+			return
+		}
+		slog.Info("Setting environment variable",
+			slog.String("variable", key), slog.String("value", value))
+	} else {
+		slog.Info("Environment variable already set",
+			slog.String("variable", key), slog.String("value", val))
+	}
 }
