@@ -4,6 +4,7 @@ package itests
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -68,24 +69,28 @@ func (s *SmokeFinalitySuite) commitToGeneration(activationHeight uint64) uint64 
 	gps := s.nextPeriodStart(activationHeight)
 	s.T().Logf("Committing for generation period starting at %d", gps)
 
-	goTx := s.commitmentTransaction(s.goMiner, safecast.MustConvert[uint32](gps))
-	_, err := s.Clients.BroadcastToGoNode(s.T(), goTx)
-	require.NoError(s.T(), err)
-	scalaTx := s.commitmentTransaction(s.scalaMiner, safecast.MustConvert[uint32](gps))
-	_, err = s.Clients.BroadcastToScalaNode(s.T(), scalaTx)
-	require.NoError(s.T(), err)
-
-	goErr, scalaErr := s.Clients.WaitForTransaction(*goTx.ID, txTimeout)
-	require.NoError(s.T(), goErr)
-	require.NoError(s.T(), scalaErr)
-	s.T().Logf("Go miner: Address: %s, BLS PK: %s", s.goMiner.Address, s.goMiner.BLSPublicKey.String())
-	s.T().Logf("Go commitment transaction ID: %s", *goTx.ID)
-
-	goErr, scalaErr = s.Clients.WaitForTransaction(*scalaTx.ID, txTimeout)
-	require.NoError(s.T(), goErr)
-	require.NoError(s.T(), scalaErr)
-	s.T().Logf("Scala miner: Address: %s, BLS PK: %s", s.scalaMiner.Address, s.scalaMiner.BLSPublicKey.String())
-	s.T().Logf("Scala commitment transaction ID: %s", *scalaTx.ID)
+	wg := new(sync.WaitGroup)
+	wg.Go(func() {
+		s.T().Logf("Go miner: Address: %s, BLS PK: %s", s.goMiner.Address, s.goMiner.BLSPublicKey.String())
+		goTx := s.commitmentTransaction(s.goMiner, safecast.MustConvert[uint32](gps))
+		_, err := s.Clients.BroadcastToGoNode(s.T(), goTx)
+		require.NoError(s.T(), err)
+		goErr, scalaErr := s.Clients.WaitForTransaction(*goTx.ID, txTimeout)
+		require.NoError(s.T(), goErr)
+		require.NoError(s.T(), scalaErr)
+		s.T().Logf("Go commitment transaction ID: %s", *goTx.ID)
+	})
+	wg.Go(func() {
+		s.T().Logf("Scala miner: Address: %s, BLS PK: %s", s.scalaMiner.Address, s.scalaMiner.BLSPublicKey.String())
+		scalaTx := s.commitmentTransaction(s.scalaMiner, safecast.MustConvert[uint32](gps))
+		_, err := s.Clients.BroadcastToScalaNode(s.T(), scalaTx)
+		require.NoError(s.T(), err)
+		goErr, scalaErr := s.Clients.WaitForTransaction(*scalaTx.ID, txTimeout)
+		require.NoError(s.T(), goErr)
+		require.NoError(s.T(), scalaErr)
+		s.T().Logf("Scala commitment transaction ID: %s", *scalaTx.ID)
+	})
+	wg.Wait()
 	return gps
 }
 
