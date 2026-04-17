@@ -1455,12 +1455,14 @@ func (s *stateManager) handleFinalizationUpdate(
 			blockID.String(), blockHeight, err,
 		)
 	}
-	finalizedHeight, err := s.stor.finality.lastFinalizedHeight(blockHeight)
-	if err != nil {
-		return fmt.Errorf("failed to build local endorsement message: %w", err)
+	if slog.Default().Enabled(context.Background(), slog.LevelInfo) {
+		finalizedHeight, err := s.stor.finality.lastFinalizedHeight(blockHeight)
+		if err != nil {
+			return fmt.Errorf("failed to get last finalization height: %w", err)
+		}
+		slog.Info("Current finalization state", slog.Uint64("finalizedHeight", finalizedHeight),
+			slog.Uint64("blockHeight", blockHeight), slog.String("blockID", blockID.String()))
 	}
-	slog.Debug("Finalization", slog.Uint64("finalizedHeight", finalizedHeight),
-		slog.Uint64("blockHeight", blockHeight), slog.String("blockID", blockID.String()))
 	return nil
 }
 

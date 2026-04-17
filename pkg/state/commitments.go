@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/fxamacker/cbor/v2"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -33,6 +34,13 @@ func (cr *commitmentsRecord) append(generatorPK crypto.PublicKey, endorserPK bls
 func (cr *commitmentsRecord) marshalBinary() ([]byte, error) { return cbor.Marshal(cr) }
 
 func (cr *commitmentsRecord) unmarshalBinary(data []byte) error { return cbor.Unmarshal(data, cr) }
+
+func (cr *commitmentsRecord) lastIndex() (uint32, error) {
+	if len(cr.Commitments) == 0 {
+		return 0, fmt.Errorf("commitments record is empty")
+	}
+	return safecast.Convert[uint32](len(cr.Commitments) - 1)
+}
 
 type commitmentsRecordForStateHashes struct {
 	publicKey    crypto.PublicKey
@@ -100,11 +108,19 @@ func (c *commitments) store(
 		return fmt.Errorf("failed to marshal commitments record: %w", mErr)
 	}
 	if c.calculateHashes {
+		idx, liErr := rec.lastIndex()
+		if liErr != nil {
+			return fmt.Errorf("failed to get last index of commitments: %w", liErr)
+		}
+		shk := commitmentStateHashKey{
+			periodStart: periodStart,
+			index:       idx,
+		}
 		r := &commitmentsRecordForStateHashes{
 			publicKey:    generatorPK,
 			blsPublicKey: endorserPK,
 		}
-		if pErr := c.hasher.push(string(keyBytes), r, blockID); pErr != nil {
+		if pErr := c.hasher.push(shk.string(), r, blockID); pErr != nil {
 			return fmt.Errorf("failed to hash commitment record: %w", pErr)
 		}
 	}

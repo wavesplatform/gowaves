@@ -70,6 +70,31 @@ func (c *NodesClients) StateHashCmp(t *testing.T, height uint64) (proto.StateHas
 			goStateHash.GetSumHash() == scalaStateHash.GetSumHash()
 }
 
+func (c *NodesClients) FinalityCmp(t *testing.T) (uint64, uint64, bool) {
+	var goHeader *proto.BlockHeader
+	var scalaHeader *proto.BlockHeader
+	wg := sync.WaitGroup{}
+	wg.Go(func() {
+		goHeader = c.GoClient.HTTPClient.BlockFinalized(t)
+	})
+	wg.Go(func() {
+		scalaHeader = c.ScalaClient.HTTPClient.BlockFinalized(t)
+	})
+	wg.Wait()
+	if goHeader == nil || scalaHeader == nil {
+		return 0, 0, false
+	}
+	var goFH uint64
+	var scalaFH uint64
+	if goFV, ok := goHeader.GetFinalizationVoting(); ok {
+		goFH = goFV.FinalizedBlockHeight
+	}
+	if scalaFV, ok := goHeader.GetFinalizationVoting(); ok {
+		scalaFH = scalaFV.FinalizedBlockHeight
+	}
+	return goFH, scalaFH, goFH == scalaFH
+}
+
 // WaitForNewHeight waits for nodes to generate new block.
 // Returns the height that was *before* generation of new block.
 func (c *NodesClients) WaitForNewHeight(t *testing.T) uint64 {

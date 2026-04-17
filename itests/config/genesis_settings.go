@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	stderrs "errors"
 	"fmt"
@@ -52,9 +53,9 @@ type GenesisConfig struct {
 }
 
 type DistributionItem struct {
-	SeedText string `json:"seed_text"`
-	Amount   uint64 `json:"amount"`
-	IsMiner  bool   `json:"is_miner"`
+	SeedText   string     `json:"seed_text"`
+	Amount     uint64     `json:"amount"`
+	MiningType MiningType `json:"mining_type"`
 }
 
 type FeatureInfo struct {
@@ -126,9 +127,20 @@ func makeTransactionAndKeyPairs(settings *GenesisSettings, timestamp uint64) ([]
 		if err != nil {
 			return nil, nil, errors.Wrapf(err, "failed to generate address from seed '%s'", string(seed))
 		}
-		bsk, err := bls.GenerateSecretKey(seed)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to generate BLS secret key from seed '%s': %w", string(seed), err)
+		var bsk bls.SecretKey
+		switch dist.MiningType {
+		case GoMining, NoMining:
+			bsk, err = bls.GenerateSecretKey(h[:])
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to generate Go BLS secret key from seed '%s': %w",
+					hex.EncodeToString(h[:]), err)
+			}
+		case ScalaMining:
+			bsk, err = bls.GenerateSecretKey(sk.Bytes(), bls.WithNoPreHash())
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to generate Scala BLS secret key from seed '%s': %w",
+					hex.EncodeToString(sk.Bytes()), err)
+			}
 		}
 		bpk, err := bsk.PublicKey()
 		if err != nil {
@@ -198,7 +210,7 @@ func calcInitialBaseTarget(genSettings *GenesisSettings) (types.BaseTarget, erro
 	maxBT := uint64(0)
 	pos := getPosCalculator(genSettings)
 	for _, acc := range genSettings.Distributions {
-		if !acc.IsMiner {
+		if acc.MiningType == NoMining {
 			continue
 		}
 		bt, err := calculateBaseTarget(pos, consensus.MinBaseTarget, maxBaseTarget, acc.Amount, genSettings.AverageBlockDelay)
