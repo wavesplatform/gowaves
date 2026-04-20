@@ -485,7 +485,7 @@ func takeRideString(s string, n int) rideString {
 	return rideString(runesTake(s, t))
 }
 
-// This is the WRONG implementation of takeString function that handles runes in UTF-8 string incorrectly
+// This is the WRONG implementation of takeString function that handles runes in UTF-8 string INCORRECTLY
 func takeRideStringWrong(s string, n int) rideString {
 	b := utf16.Encode([]rune(s))
 	l := len(b)

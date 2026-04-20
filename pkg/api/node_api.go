@@ -245,7 +245,7 @@ func (a *NodeApi) BlockAt(w http.ResponseWriter, r *http.Request) error {
 	height, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
 		// nickeskov: message taken from scala node
-		// try execute `curl -X GET "https://nodes-testnet.wavesnodes.com/blocks/at/fdsfasdff" -H  "accept: application/json"`
+		// 	try execute `curl -X GET "https://nodes-testnet.wavesnodes.com/blocks/at/fdsfasdff" -H  "accept: application/json"`
 		return blockIDAtInvalidLenErr("at", err)
 	}
 
