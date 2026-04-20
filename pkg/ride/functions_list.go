@@ -372,7 +372,7 @@ func lastIndexOfList(_ environment, args ...rideType) (rideType, error) {
 	if len(list) > maxListSize {
 		return nil, errors.Errorf("lastIndexOfList: list size exceeds %d elements", maxListSize)
 	}
-	for i := len(list) - 1; i >= 0; i-- {
+	for i := range slices.Backward(list) {
 		if e.eq(list[i]) {
 			return rideInt(i), nil
 		}

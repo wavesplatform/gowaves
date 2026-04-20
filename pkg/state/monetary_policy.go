@@ -2,6 +2,7 @@ package state
 
 import (
 	"encoding/binary"
+	"slices"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
@@ -290,8 +291,7 @@ func calculateTotalAmount(
 	curTotalAmount uint64,
 	br *boostedReward,
 ) uint64 {
-	for i := len(changesRecords) - 1; i >= 0; i-- {
-		change := changesRecords[i]
+	for _, change := range slices.Backward(changesRecords) {
 		if relativeHeight < change.Height {
 			continue
 		}

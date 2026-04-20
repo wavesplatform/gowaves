@@ -5403,7 +5403,7 @@ func TestInvokePaymentsCheckBeforeAndAfterInvoke(t *testing.T) {
 		assert.Nil(t, res)
 		assert.EqualError(t, err, "gotcha")
 		assert.Equal(t, UserError, GetEvaluationErrorType(err))
-		// the calls happen in `WrappedState.validatePaymentAction` during payment application  and before invoke
+		// the calls happen in `WrappedState.validatePaymentAction` during payment application and before invoke
 		//  in `performInvoke` function
 		//  in `checkPaymentsApplication` inside `WrappedState.validateBalancesAfterPaymentsApplication`
 		// payments check after application are not second time because of throw
