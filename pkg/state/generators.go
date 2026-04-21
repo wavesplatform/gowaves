@@ -67,36 +67,43 @@ func (g *GeneratorInfo) Address() proto.WavesAddress {
 	return g.address
 }
 
-// bannedGeneratorsRecord is a structure used for CBOR serialization of banned generator indexes.
-// It has public fields to allow encoding/decoding with the specified CBOR tags.
-type bannedGeneratorsRecord struct {
-	Bans map[uint32]uint64 `cbor:"0,keyasint,omitempty"`
+type generatorsKey struct {
+	height uint64
 }
 
-func (r *bannedGeneratorsRecord) appendIndex(index uint32, height proto.Height) error {
-	if h, ok := r.Bans[index]; ok {
-		return fmt.Errorf("generator %d was already banned at height %d", index, h)
+func (k *generatorsKey) bytes() []byte {
+	buf := make([]byte, 1+uint64Size)
+	buf[0] = bannedGeneratorsKeyPrefix
+	binary.BigEndian.PutUint64(buf[1:], k.height)
+	return buf
+}
+
+type generator struct {
+	Balance   uint64 `cbor:"0,keyasint,omitempty"`
+	BanHeight uint32 `cbor:"1,keyasint,omitempty"`
+}
+type generatorsRecord struct {
+	Generators          []generator `cbor:"0,keyasint,omitempty"`
+	BlockGeneratorIndex uint32      `cbor:"1,keyasint,omitempty"`
+	PeriodStart         uint32      `cbor:"2,keyasint,omitempty"`
+}
+
+// banGenerator updates existing generator setting the height at which it was banned.
+func (r *generatorsRecord) banGenerator(index, height uint32) error {
+	if len(g.Generators) <= int(index) {
+		return fmt.Errorf("invalid generator index %d", index)
 	}
-	r.Bans[index] = height
+	g := r.Generators[index]
+	if g.BanHeight != 0 {
+		return fmt.Errorf("generator with index %d is already banned at height %d", index, g.BanHeight)
+	}
+	r.Generators[index].BanHeight = height
 	return nil
 }
 
-func (r *bannedGeneratorsRecord) marshalBinary() ([]byte, error) { return cbor.Marshal(r) }
+func (r *generatorsRecord) marshalBinary() ([]byte, error) { return cbor.Marshal(r) }
 
-func (r *bannedGeneratorsRecord) unmarshalBinary(data []byte) error { return cbor.Unmarshal(data, r) }
-
-// bannedGeneratorsKey is a structure used to generate a unique key for storing banned generators in the
-// history storage.
-type bannedGeneratorsKey struct {
-	periodStart uint32
-}
-
-func (k *bannedGeneratorsKey) bytes() []byte {
-	buf := make([]byte, 1+uint32Size)
-	buf[0] = bannedGeneratorsKeyPrefix
-	binary.BigEndian.PutUint32(buf[1:], k.periodStart)
-	return buf
-}
+func (r *generatorsRecord) unmarshalBinary(data []byte) error { return cbor.Unmarshal(data, r) }
 
 type generatorsBalancesRecordForStateHashes struct {
 	balances []uint64
@@ -164,11 +171,6 @@ type generators struct {
 	commitments commitmentsProvider
 	settings    *settings.BlockchainSettings
 
-	sets                  map[uint64][]GeneratorInfo
-	generationPeriodStart uint32
-	blockGeneratorIndex   int    // Current block generator info.
-	blockHeight           uint64 // Current block height.
-
 	calculateHashes bool
 	hasher          *stateHasher
 }
@@ -187,17 +189,9 @@ func newGenerators(
 		balances:        balances,
 		commitments:     commitments,
 		settings:        sets,
-		sets:            make(map[uint64][]GeneratorInfo),
 		calculateHashes: calcHashes,
 		hasher:          newStateHasher(),
 	}
-}
-
-func (g *generators) wipe() {
-	g.sets = nil
-	g.generationPeriodStart = 0
-	g.blockGeneratorIndex = -1
-	g.blockHeight = 0
 }
 
 // initialize populates the generator set based on the provided commitments and balances.
@@ -207,9 +201,8 @@ func (g *generators) wipe() {
 //	blockchainHeight - height of the state (height of the last applied block),
 //	blockID - ID of the applied block.
 func (g *generators) initialize(
-	blockchainHeight proto.Height, blockID proto.BlockID, generator crypto.PublicKey, ts uint64,
+	blockchainHeight proto.Height, blockID proto.BlockID, genPK crypto.PublicKey, ts uint64,
 ) error {
-	g.wipe()
 	activationHeight, err := g.fs.newestActivationHeight(int16(settings.DeterministicFinality))
 	if err != nil {
 		if isNotFoundInHistoryOrDBErr(err) { // DeterministicFinality feature is not approved or activated.
@@ -217,24 +210,58 @@ func (g *generators) initialize(
 		}
 		return fmt.Errorf("failed to get activation height for Deterministic Finality feature: %w", err)
 	}
-	g.blockHeight = blockchainHeight + 1
-	g.generationPeriodStart, err = CurrentGenerationPeriodStart(activationHeight, g.blockHeight,
-		g.settings.GenerationPeriod)
+	blockHeight := blockchainHeight + 1
+	periodStart, err := CurrentGenerationPeriodStart(activationHeight, blockHeight, g.settings.GenerationPeriod)
 	if err != nil {
 		return fmt.Errorf("failed to calculate current generation period start: %w", err)
 	}
-	cms, err := g.commitments.newestCommitments(g.generationPeriodStart)
+	cms, err := g.commitments.newestCommitments(periodStart)
 	if err != nil {
 		return fmt.Errorf("failed to initialize generators set: %w", err)
 	}
-	// Load saved bans of generators in the current generation period.
-	bans, err := g.bans(g.generationPeriodStart)
+	if len(cms) == 0 {
+		return nil
+	}
+	// Load generators on the previous height to extract banned generators or copy generator set.
+	pg, err := g.generators(blockchainHeight)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve banned generators for the current generation period: %w", err)
+		return fmt.Errorf("failed to retrieve previous generators: %w", err)
+	}
+	if pg != nil && pg.PeriodStart == periodStart {
+		// The generation period did not change, copy generator and update their balances.
+		gs := generatorsRecord{
+			Generators:          make([]generator, 0, len(pg.Generators)),
+			BlockGeneratorIndex: 0,
+			PeriodStart:         periodStart,
+		}
+		for i, gen := range pg.Generators {
+			var bh uint32
+			var bal uint64
+			if gen.BanHeight != 0 {
+				// The generator is banned, copy the ban height without querying balance.
+				bh = gen.BanHeight
+			} else {
+				a, aErr := cms[i].address(g.settings.AddressSchemeCharacter)
+				if aErr != nil {
+					return aErr
+				}
+				// The initialization happens at the very beginning of the block, so the generation balance is
+				// queried at the height of the last applied block (blockchainHeight).
+				var bErr error
+				bal, bErr = g.balances.newestGeneratingBalance(a.ID(), blockchainHeight)
+				if bErr != nil {
+					return fmt.Errorf("failed to get balance for generator at index %d by address '%s': %w",
+						i, a.String(), bErr)
+				}
+			}
+			gs.Generators = append(gs.Generators, generator{
+				Balance:   bal,
+				BanHeight: bh,
+			})
+		}
 	}
 	// Calculate minimal generation balance for the current height and timestamp.
-	threshold := g.fs.minimalGeneratingBalanceAtHeight(g.blockHeight, ts)
-	g.set = make([]GeneratorInfo, 0, len(cms))
+	threshold := g.fs.minimalGeneratingBalanceAtHeight(blockHeight, ts)
 	generatorsBalancesLSHRecord := newGeneratorsBalancesRecordForStateHashes(len(cms))
 	for i, cm := range cms {
 		a, aErr := proto.NewAddressFromPublicKey(g.settings.AddressSchemeCharacter, cm.GeneratorPK)
@@ -267,7 +294,7 @@ func (g *generators) initialize(
 			threshold: threshold,
 		}
 		g.set = append(g.set, gi)
-		if cm.GeneratorPK == generator {
+		if cm.GeneratorPK == genPK {
 			g.blockGeneratorIndex = i // Save index of the current block generator.
 		}
 		if g.calculateHashes {
@@ -279,7 +306,7 @@ func (g *generators) initialize(
 		// This serves as an additional safety check, since the generator has already been validated by its
 		// generation balance.
 		return fmt.Errorf("block generator with public key '%s' is not in the committed generators set",
-			generator.String())
+			genPK.String())
 	}
 	if g.calculateHashes {
 		key := bannedGeneratorsKey{periodStart: g.generationPeriodStart}
@@ -288,6 +315,22 @@ func (g *generators) initialize(
 		}
 	}
 	return nil
+}
+
+func (g *generators) generators(height proto.Height) (*generatorsRecord, error) {
+	k := generatorsKey{height: height}
+	data, err := g.hs.newestTopEntryData(k.bytes())
+	if err != nil {
+		if isNotFoundInHistoryOrDBErr(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to retrieve generators record for height %d: %w", height, err)
+	}
+	r := new(generatorsRecord)
+	if uErr := r.unmarshalBinary(data); uErr != nil {
+		return nil, fmt.Errorf("failed to unmarshal generators record for height %d: %w", height, uErr)
+	}
+	return r, nil
 }
 
 func (g *generators) size() int {
@@ -444,7 +487,12 @@ func (g *generators) prepareHashes() error {
 	return g.hasher.stop()
 }
 
+func (g *generators) flush() {
+	// TODO: Implement moving data to generators history if extended API is on.
+}
+
 func (g *generators) reset() {
+	// TODO move wipe here
 	if !g.calculateHashes {
 		return // No-op if hash calculation is disabled.
 	}
