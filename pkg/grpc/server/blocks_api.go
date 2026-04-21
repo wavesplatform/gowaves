@@ -136,8 +136,9 @@ func (s *Server) GetBlockRange(req *g.BlockRangeRequest, srv g.BlocksApi_GetBloc
 		if !filter(block) {
 			continue
 		}
-		if err := srv.Send(block); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
-			return status.Error(codes.Internal, err.Error())
+		// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+		if sErr := srv.Send(block); sErr != nil {
+			return status.Error(codes.Internal, sErr.Error())
 		}
 	}
 	return nil

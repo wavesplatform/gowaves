@@ -81,7 +81,8 @@ func parseGenesisSettings() (*GenesisSettings, error) {
 		return nil, errors.Wrap(err, "failed to open file")
 	}
 	defer func() {
-		if closeErr := f.Close(); closeErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+		// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+		if closeErr := f.Close(); closeErr != nil {
 			err = stderrs.Join(err, closeErr)
 		}
 	}()

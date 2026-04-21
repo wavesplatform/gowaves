@@ -574,7 +574,8 @@ func createFileIfNotExist(path string) (err error) {
 		return errors.Wrapf(err, "failed to create if not exist file %q", path)
 	}
 	defer func() {
-		if closeErr := knownFile.Close(); closeErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+		// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+		if closeErr := knownFile.Close(); closeErr != nil {
 			if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 				err = errors.Wrapf(err, "failed to close file %q, %v", path, closeErr)
 			} else {

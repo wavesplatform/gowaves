@@ -54,8 +54,9 @@ func (s *Server) GetNFTList(req *g.NFTRequest, srv g.AssetsApi_GetNFTListServer)
 			return status.Error(codes.Internal, err.Error())
 		}
 		res := &g.NFTResponse{AssetId: nft.ID.Bytes(), AssetInfo: ai}
-		if err := srv.Send(res); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
-			return status.Error(codes.Internal, err.Error())
+		// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+		if sErr := srv.Send(res); sErr != nil {
+			return status.Error(codes.Internal, sErr.Error())
 		}
 	}
 	return nil

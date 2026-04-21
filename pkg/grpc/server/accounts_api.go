@@ -25,14 +25,16 @@ func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalanc
 	if len(req.Assets) == 0 {
 		// TODO(nickeskov): send waves balance AND all assets balances (portfolio)
 		//  by the given address according to the scala node implementation
-		if err := s.sendWavesBalance(rcp, srv); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
-			return status.Error(codes.Internal, err.Error())
+		// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+		if sErr := s.sendWavesBalance(rcp, srv); sErr != nil {
+			return status.Error(codes.Internal, sErr.Error())
 		}
 	}
 	for _, asset := range req.Assets {
 		if len(asset) == 0 {
-			if err := s.sendWavesBalance(rcp, srv); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
-				return status.Error(codes.Internal, err.Error())
+			// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+			if sErr := s.sendWavesBalance(rcp, srv); sErr != nil {
+				return status.Error(codes.Internal, sErr.Error())
 			}
 		} else {
 			// Asset.
@@ -51,8 +53,9 @@ func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalanc
 					Amount:  int64(balance),
 				},
 			}
-			if err := srv.Send(&res); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
-				return status.Error(codes.Internal, err.Error())
+			// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+			if sErr := srv.Send(&res); sErr != nil {
+				return status.Error(codes.Internal, sErr.Error())
 			}
 		}
 	}
@@ -108,8 +111,9 @@ func (s *Server) GetActiveLeases(req *g.AccountRequest, srv g.AccountsApi_GetAct
 		return nil
 	}
 	handler := &getActiveLeasesHandler{srv, s}
-	if err := s.iterateAndHandleTransactions(iter, filterFn, handler.handle); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
-		return status.Error(codes.Internal, err.Error())
+	// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+	if iErr := s.iterateAndHandleTransactions(iter, filterFn, handler.handle); iErr != nil {
+		return status.Error(codes.Internal, iErr.Error())
 	}
 	return nil
 }
@@ -133,8 +137,9 @@ func (s *Server) GetDataEntries(req *g.DataRequest, srv g.AccountsApi_GetDataEnt
 			return status.Error(codes.NotFound, "entry removed")
 		}
 		res := &g.DataEntryResponse{Address: req.Address, Entry: entry.ToProtobuf()}
-		if err := srv.Send(res); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
-			return status.Error(codes.Internal, err.Error())
+		// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+		if sErr := srv.Send(res); sErr != nil {
+			return status.Error(codes.Internal, sErr.Error())
 		}
 		return nil
 	}
@@ -150,8 +155,9 @@ func (s *Server) GetDataEntries(req *g.DataRequest, srv g.AccountsApi_GetDataEnt
 			continue // Do not send removed entries
 		}
 		res := &g.DataEntryResponse{Address: req.Address, Entry: entry.ToProtobuf()}
-		if err := srv.Send(res); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
-			return status.Error(codes.Internal, err.Error())
+		// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+		if sErr := srv.Send(res); sErr != nil {
+			return status.Error(codes.Internal, sErr.Error())
 		}
 	}
 	return nil

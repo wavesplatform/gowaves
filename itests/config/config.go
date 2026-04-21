@@ -189,7 +189,8 @@ func (c *ScalaConfigurator) createNodeConfig() (err error) {
 		if synErr := f.Sync(); synErr != nil {
 			err = stderrs.Join(err, errors.Wrapf(synErr, "failed to sync file %q to disk", f.Name()))
 		}
-		if clErr := f.Close(); clErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+		// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+		if clErr := f.Close(); clErr != nil {
 			err = stderrs.Join(err, errors.Wrapf(clErr, "failed to close file %q", f.Name()))
 		}
 	}()
@@ -299,7 +300,8 @@ func (c *GoConfigurator) createNodeConfig() (err error) {
 		if synErr := f.Sync(); synErr != nil {
 			err = stderrs.Join(err, errors.Wrapf(synErr, "failed to sync file %q to disk", f.Name()))
 		}
-		if clErr := f.Close(); clErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+		// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+		if clErr := f.Close(); clErr != nil {
 			err = stderrs.Join(err, errors.Wrapf(clErr, "failed to close file %q", f.Name()))
 		}
 	}()

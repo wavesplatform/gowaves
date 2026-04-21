@@ -214,7 +214,8 @@ func newBlockReadWriter(
 	}
 	defer func() {
 		if retErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
-			if fErr := blockchain.Close(); fErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+			// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+			if fErr := blockchain.Close(); fErr != nil {
 				retErr = stderrs.Join(retErr, errors.Wrap(fErr, "failed to close blockchain file"))
 			}
 		}
@@ -225,7 +226,8 @@ func newBlockReadWriter(
 	}
 	defer func() {
 		if retErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
-			if fErr := headers.Close(); fErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+			// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+			if fErr := headers.Close(); fErr != nil {
 				retErr = stderrs.Join(retErr, errors.Wrap(fErr, "failed to close headers file"))
 			}
 		}
@@ -236,7 +238,8 @@ func newBlockReadWriter(
 	}
 	defer func() {
 		if retErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
-			if fErr := blockHeight2ID.Close(); fErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+			// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+			if fErr := blockHeight2ID.Close(); fErr != nil {
 				retErr = stderrs.Join(retErr, errors.Wrap(fErr, "failed to close block_height_to_id file"))
 			}
 		}

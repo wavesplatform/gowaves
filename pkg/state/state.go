@@ -493,7 +493,8 @@ func initDatabase(
 	}
 	defer func() {
 		if retErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
-			if sdbCloseErr := sdb.close(); sdbCloseErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+				// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+			if sdbCloseErr := sdb.close(); sdbCloseErr != nil {
 				retErr = stderrs.Join(retErr, errors.Wrap(sdbCloseErr, "failed to close state db"))
 			}
 		}
@@ -518,7 +519,8 @@ func checkAndUpdateDBMeta(dataDir string, amend bool, params StateParams) (_ sta
 		return stateInfo{}, errors.Wrap(err, "failed to open DB meta file")
 	}
 	defer func() {
-		if cErr := f.Close(); cErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+		// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+		if cErr := f.Close(); cErr != nil {
 			err = stderrs.Join(err, errors.Wrap(cErr, "failed to close DB meta file"))
 		}
 	}()
@@ -606,14 +608,16 @@ func newStateManager(
 		return nil, err
 	}
 	if _, err := os.Stat(dataDir); errors.Is(err, fs.ErrNotExist) {
-		if dirErr := os.Mkdir(dataDir, 0750); dirErr != nil { // nosemgrep: go.lang.correctness.permissions.file_permission.incorrect-default-permission
+		// nosemgrep: go.lang.correctness.permissions.file_permission.incorrect-default-permission
+		if dirErr := os.Mkdir(dataDir, 0750); dirErr != nil {
 			wErr := errors.Wrap(dirErr, "failed to create state directory")
 			return nil, wrapErr(stateerr.Other, wErr)
 		}
 	}
 	blockStorageDir := filepath.Join(dataDir, blocksStorDir)
 	if _, err := os.Stat(blockStorageDir); errors.Is(err, fs.ErrNotExist) {
-		if dirErr := os.Mkdir(blockStorageDir, 0750); dirErr != nil { // nosemgrep: go.lang.correctness.permissions.file_permission.incorrect-default-permission
+		// nosemgrep: go.lang.correctness.permissions.file_permission.incorrect-default-permission
+		if dirErr := os.Mkdir(blockStorageDir, 0750); dirErr != nil {
 			return nil, wrapErr(stateerr.Other, errors.Wrap(dirErr, "failed to create blocks directory"))
 		}
 	}
@@ -624,7 +628,8 @@ func newStateManager(
 	}
 	defer func() {
 		if retErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
-			if dbCloseErr := db.Close(); dbCloseErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+			// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+			if dbCloseErr := db.Close(); dbCloseErr != nil {
 				retErr = stderrs.Join(retErr, errors.Wrap(dbCloseErr, "failed to close stateDB"))
 			}
 		}
@@ -642,7 +647,8 @@ func newStateManager(
 	}
 	defer func() {
 		if retErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
-			if rwCloseErr := rw.close(); rwCloseErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+			// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+			if rwCloseErr := rw.close(); rwCloseErr != nil {
 				retErr = stderrs.Join(retErr, errors.Wrap(rwCloseErr, "failed to close block read writer"))
 			}
 		}
@@ -666,7 +672,8 @@ func newStateManager(
 	}
 	defer func() {
 		if retErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
-			if atxCloseErr := atx.close(); atxCloseErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+			// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+			if atxCloseErr := atx.close(); atxCloseErr != nil {
 				retErr = stderrs.Join(retErr, errors.Wrap(atxCloseErr, "failed to close address transactions"))
 			}
 		}

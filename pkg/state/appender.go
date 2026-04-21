@@ -1184,7 +1184,8 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 	}
 	if info.acceptFailed {
 		// If accepting failed, we must also check resulting balances.
-		if err := a.diffApplier.validateTxDiff(successfulChanges.diff, a.diffStor); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+		// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+		if vErr := a.diffApplier.validateTxDiff(successfulChanges.diff, a.diffStor); vErr != nil {
 			// Not enough balance for successful diff = fail, return failed diff.
 			// We only check successful diff for negative balances, because failed diff is already checked in checkTxFees().
 			return newApplicationResult(false, scriptsRuns, failedChanges, checkerData), nil

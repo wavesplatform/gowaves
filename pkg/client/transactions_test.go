@@ -98,6 +98,7 @@ func TestTransactions_Info(t *testing.T) {
 	assert.Equal(t, "https://testnodes.wavesnodes.com/transactions/info/95DEg9uS9Ez2RoAQWsBgW8hDmHEJzWB1nMpPZdSp1JbB", resp.Request.URL.String())
 }
 
+// nosemgrep: generic.secrets.gitleaks.generic-api-key.generic-api-key
 var dataTransaction = `
 {
 	"type": 12,
@@ -123,7 +124,7 @@ var dataTransaction = `
 			"value": 1372374
 		},
 		{
-			"key": "GenCSKr8UFrZXrbQ8oAG7W8PDgUY7pe7hrbRmJACuMkS", // nosemgrep: generic.secrets.gitleaks.generic-api-key.generic-api-key
+			"key": "GenCSKr8UFrZXrbQ8oAG7W8PDgUY7pe7hrbRmJACuMkS",
 			"type": "string",
 			"value": "used"
 		}

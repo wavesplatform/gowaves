@@ -68,8 +68,9 @@ func (s *Server) GetTransactions(req *g.TransactionsRequest, srv g.TransactionsA
 		return nil
 	}
 	handler := &getTransactionsHandler{srv, s}
-	if err := s.iterateAndHandleTransactions(iter, filter.filter, handler.handle); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
-		return status.Error(codes.Internal, err.Error())
+	// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+	if iErr := s.iterateAndHandleTransactions(iter, filter.filter, handler.handle); iErr != nil {
+		return status.Error(codes.Internal, iErr.Error())
 	}
 	return nil
 }
@@ -144,8 +145,9 @@ func (s *Server) GetStateChanges(req *g.TransactionsRequest, srv g.TransactionsA
 		return nil
 	}
 	handler := &getStateChangesHandler{srv, s}
-	if err := s.iterateAndHandleTransactions(iter, filter.filter, handler.handle); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
-		return status.Error(codes.Internal, err.Error())
+	// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+	if iErr := s.iterateAndHandleTransactions(iter, filter.filter, handler.handle); iErr != nil {
+		return status.Error(codes.Internal, iErr.Error())
 	}
 	return nil
 }
@@ -179,7 +181,8 @@ func (s *Server) GetStatuses(req *g.TransactionsByIdRequest, srv g.TransactionsA
 			res.Status = g.TransactionStatus_NOT_EXISTS
 			res.ApplicationStatus = g.ApplicationStatus_UNKNOWN
 		}
-		if err := srv.Send(res); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+		// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+		if err := srv.Send(res); err != nil {
 			return status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -213,7 +216,8 @@ func (s *Server) GetUnconfirmed(req *g.TransactionsRequest, srv g.TransactionsAp
 		if !filter.filter(tx) {
 			continue
 		}
-		if hErr := handler.handle(tx, proto.TransactionSucceeded); hErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+		// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+		if hErr := handler.handle(tx, proto.TransactionSucceeded); hErr != nil {
 			return status.Error(codes.Internal, hErr.Error())
 		}
 	}

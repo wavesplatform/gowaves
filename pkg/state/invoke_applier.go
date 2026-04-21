@@ -758,7 +758,9 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 		// Validate total balance changes.
 		if err := ia.diffApplier.validateTxDiff(totalChanges.diff, ia.invokeDiffStor.diffStorage); err != nil {
 			// Total balance changes lead to negative balance, hence invoke has failed.
-			// TODO: use different code for negative balances after it is introduced; use better error text here (addr + amount + asset). // nosemgrep: dgryski.semgrep-go.errtodo.err-todo
+			// nosemgrep: dgryski.semgrep-go.errtodo.err-todo
+		// TODO: use different code for negative balances after it is introduced;
+		//  use better error text here (addr + amount + asset).
 			return proto.DAppError, info.failedChanges, err
 		}
 	}

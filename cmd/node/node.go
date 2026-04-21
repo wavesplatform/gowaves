@@ -545,7 +545,8 @@ func blockchainSettings(nc *config) (_ *settings.BlockchainSettings, retErr erro
 		return nil, errors.Wrap(err, "failed to open configuration file")
 	}
 	defer func() {
-		if clErr := f.Close(); clErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+		// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+		if clErr := f.Close(); clErr != nil {
 			retErr = stderrs.Join(retErr, errors.Wrap(clErr, "failed to close configuration file"))
 		}
 	}()
