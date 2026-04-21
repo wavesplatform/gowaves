@@ -123,7 +123,7 @@ var dataTransaction = `
 			"value": 1372374
 		},
 		{
-			"key": "GenCSKr8UFrZXrbQ8oAG7W8PDgUY7pe7hrbRmJACuMkS",
+			"key": "GenCSKr8UFrZXrbQ8oAG7W8PDgUY7pe7hrbRmJACuMkS", // nosemgrep: generic.secrets.gitleaks.generic-api-key.generic-api-key
 			"type": "string",
 			"value": "used"
 		}

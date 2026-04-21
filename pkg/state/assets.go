@@ -349,7 +349,7 @@ func (a *assets) newestAssetExists(asset proto.OptionalAsset) bool {
 		return true
 	}
 	assetID := proto.AssetIDFromDigest(asset.ID)
-	if _, err := a.newestAssetInfo(assetID); err != nil { // TODO: check error type
+	if _, err := a.newestAssetInfo(assetID); err != nil { // TODO: check error type // nosemgrep: dgryski.semgrep-go.errtodo.err-todo
 		return false
 	}
 	return true

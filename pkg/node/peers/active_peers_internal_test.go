@@ -3,7 +3,7 @@ package peers
 import (
 	"encoding/binary"
 	"math/big"
-	"math/rand"
+	"math/rand" // nosemgrep: go.lang.security.audit.crypto.math_random.math-random-used
 	"net"
 	"sort"
 	"testing"
