@@ -18,30 +18,30 @@ import (
 func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalancesServer) error {
 	c := proto.ProtobufConverter{FallbackChainID: s.scheme}
 	addr, err := c.Address(s.scheme, req.Address)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	rcp := proto.NewRecipientFromAddress(addr)
 	if len(req.Assets) == 0 {
 		// TODO(nickeskov): send waves balance AND all assets balances (portfolio)
 		//  by the given address according to the scala node implementation
-		if err := s.sendWavesBalance(rcp, srv); err != nil {
+		if err := s.sendWavesBalance(rcp, srv); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
 			return status.Error(codes.Internal, err.Error())
 		}
 	}
 	for _, asset := range req.Assets {
 		if len(asset) == 0 {
-			if err := s.sendWavesBalance(rcp, srv); err != nil {
+			if err := s.sendWavesBalance(rcp, srv); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
 				return status.Error(codes.Internal, err.Error())
 			}
 		} else {
 			// Asset.
 			fullAssetID, err := crypto.NewDigestFromBytes(asset)
-			if err != nil {
+			if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 				return status.Error(codes.InvalidArgument, err.Error())
 			}
 			balance, err := s.state.AssetBalance(rcp, proto.AssetIDFromDigest(fullAssetID))
-			if err != nil {
+			if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 				return status.Error(codes.NotFound, err.Error())
 			}
 			var res g.BalanceResponse
@@ -51,7 +51,7 @@ func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalanc
 					Amount:  int64(balance),
 				},
 			}
-			if err := srv.Send(&res); err != nil {
+			if err := srv.Send(&res); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
 				return status.Error(codes.Internal, err.Error())
 			}
 		}
@@ -62,7 +62,7 @@ func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalanc
 func (s *Server) GetScript(_ context.Context, req *g.AccountRequest) (*g.ScriptResponse, error) {
 	c := proto.ProtobufConverter{FallbackChainID: s.scheme}
 	addr, err := c.Address(s.scheme, req.Address)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rcp := proto.NewRecipientFromAddress(addr)
@@ -75,7 +75,7 @@ func (s *Server) GetScript(_ context.Context, req *g.AccountRequest) (*g.ScriptR
 
 func (s *Server) GetActiveLeases(req *g.AccountRequest, srv g.AccountsApi_GetActiveLeasesServer) error {
 	extendedApi, err := s.state.ProvidesExtendedApi()
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return status.Error(codes.Internal, err.Error())
 	}
 	if !extendedApi {
@@ -83,7 +83,7 @@ func (s *Server) GetActiveLeases(req *g.AccountRequest, srv g.AccountsApi_GetAct
 	}
 	c := proto.ProtobufConverter{FallbackChainID: s.scheme}
 	addr, err := c.Address(s.scheme, req.Address)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -100,7 +100,7 @@ func (s *Server) GetActiveLeases(req *g.AccountRequest, srv g.AccountsApi_GetAct
 		}
 	}
 	iter, err := s.state.NewAddrTransactionsIterator(addr)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return status.Error(codes.Internal, err.Error())
 	}
 	if iter == nil {
@@ -108,7 +108,7 @@ func (s *Server) GetActiveLeases(req *g.AccountRequest, srv g.AccountsApi_GetAct
 		return nil
 	}
 	handler := &getActiveLeasesHandler{srv, s}
-	if err := s.iterateAndHandleTransactions(iter, filterFn, handler.handle); err != nil {
+	if err := s.iterateAndHandleTransactions(iter, filterFn, handler.handle); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
 		return status.Error(codes.Internal, err.Error())
 	}
 	return nil
@@ -117,13 +117,13 @@ func (s *Server) GetActiveLeases(req *g.AccountRequest, srv g.AccountsApi_GetAct
 func (s *Server) GetDataEntries(req *g.DataRequest, srv g.AccountsApi_GetDataEntriesServer) error {
 	c := proto.ProtobufConverter{FallbackChainID: s.scheme}
 	addr, err := c.Address(s.scheme, req.Address)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	rcp := proto.NewRecipientFromAddress(addr)
 	if req.Key != "" {
 		entry, err := s.state.RetrieveEntry(rcp, req.Key)
-		if err != nil {
+		if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 			if stateerr.IsNotFound(err) {
 				return nil
 			}
@@ -133,13 +133,13 @@ func (s *Server) GetDataEntries(req *g.DataRequest, srv g.AccountsApi_GetDataEnt
 			return status.Error(codes.NotFound, "entry removed")
 		}
 		res := &g.DataEntryResponse{Address: req.Address, Entry: entry.ToProtobuf()}
-		if err := srv.Send(res); err != nil {
+		if err := srv.Send(res); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
 			return status.Error(codes.Internal, err.Error())
 		}
 		return nil
 	}
 	entries, err := s.state.RetrieveEntries(rcp)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		if stateerr.IsNotFound(err) {
 			return nil
 		}
@@ -150,7 +150,7 @@ func (s *Server) GetDataEntries(req *g.DataRequest, srv g.AccountsApi_GetDataEnt
 			continue // Do not send removed entries
 		}
 		res := &g.DataEntryResponse{Address: req.Address, Entry: entry.ToProtobuf()}
-		if err := srv.Send(res); err != nil {
+		if err := srv.Send(res); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
 			return status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -160,7 +160,7 @@ func (s *Server) GetDataEntries(req *g.DataRequest, srv g.AccountsApi_GetDataEnt
 func (s *Server) ResolveAlias(_ context.Context, req *wrapperspb.StringValue) (*wrapperspb.BytesValue, error) {
 	alias := proto.NewAlias(s.scheme, req.Value)
 	addr, err := s.state.AddrByAlias(*alias)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 	return &wrapperspb.BytesValue{Value: addr.Bytes()}, nil

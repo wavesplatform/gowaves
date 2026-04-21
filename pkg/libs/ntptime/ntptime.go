@@ -46,7 +46,7 @@ func tryNew(addr string, tries uint, inner inner) (*ntpTimeImpl, error) {
 		return newNTPTime(addr, inner)
 	}
 	rs, err := newNTPTime(addr, inner)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return tryNew(addr, tries-1, inner)
 	}
 	return rs, nil

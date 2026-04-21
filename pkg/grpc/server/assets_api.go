@@ -14,15 +14,15 @@ import (
 func (s *Server) GetInfo(_ context.Context, req *g.AssetRequest) (*g.AssetInfoResponse, error) {
 	// we expect full asset id (crypto.Digest)
 	fullAssetID, err := crypto.NewDigestFromBytes(req.AssetId)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	ai, err := s.state.FullAssetInfo(proto.AssetIDFromDigest(fullAssetID))
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 	res, err := ai.ToProtobuf(s.scheme)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return res, nil
@@ -31,30 +31,30 @@ func (s *Server) GetInfo(_ context.Context, req *g.AssetRequest) (*g.AssetInfoRe
 func (s *Server) GetNFTList(req *g.NFTRequest, srv g.AssetsApi_GetNFTListServer) error {
 	c := proto.ProtobufConverter{FallbackChainID: s.scheme}
 	addr, err := c.Address(s.scheme, req.Address)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	var afterAssetID *proto.AssetID
 	if len(req.AfterAssetId) != 0 {
 		// we expect full asset id (crypto.Digest)
 		fullAssetID, err := crypto.NewDigestFromBytes(req.AfterAssetId)
-		if err != nil {
+		if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 			return status.Error(codes.InvalidArgument, err.Error())
 		}
 		assetID := proto.AssetIDFromDigest(fullAssetID)
 		afterAssetID = &assetID
 	}
 	nfts, err := s.state.NFTList(proto.NewRecipientFromAddress(addr), uint64(req.Limit), afterAssetID)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return status.Error(codes.Internal, err.Error())
 	}
 	for _, nft := range nfts {
 		ai, err := nft.ToProtobuf(s.scheme)
-		if err != nil {
+		if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 			return status.Error(codes.Internal, err.Error())
 		}
 		res := &g.NFTResponse{AssetId: nft.ID.Bytes(), AssetInfo: ai}
-		if err := srv.Send(res); err != nil {
+		if err := srv.Send(res); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
 			return status.Error(codes.Internal, err.Error())
 		}
 	}

@@ -438,7 +438,7 @@ func addressFromString(env environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "addressFromString")
 	}
 	a, err := proto.NewAddressFromString(string(s))
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return rideUnit{}, nil
 	}
 	if a[1] != env.scheme() {
@@ -506,7 +506,7 @@ func assetBalanceV3(env environment, args ...rideType) (rideType, error) {
 		balance, err = env.state().NewestWavesBalance(recipient)
 	case rideByteVector:
 		asset, digestErr := crypto.NewDigestFromBytes(assetBytes)
-		if digestErr != nil {
+		if digestErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 			return rideInt(0), nil // according to the scala node implementation
 		}
 		balance, err = env.state().NewestAssetBalance(recipient, asset)
@@ -532,7 +532,7 @@ func assetBalanceV4(env environment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("assetBalanceV4: unable to extract asset ID from '%s'", args[1].instanceOf())
 	}
 	asset, digestErr := crypto.NewDigestFromBytes(assetBytes)
-	if digestErr != nil {
+	if digestErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return rideInt(0), nil // according to the scala node implementation
 	}
 	balance, err := env.state().NewestAssetBalance(recipient, asset)
@@ -544,7 +544,7 @@ func assetBalanceV4(env environment, args ...rideType) (rideType, error) {
 
 func intFromState(env environment, args ...rideType) (rideType, error) {
 	r, k, err := extractRecipientAndKey(args)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return rideUnit{}, nil
 	}
 	entry, err := env.state().RetrieveNewestIntegerEntry(r, k)
@@ -559,7 +559,7 @@ func intFromState(env environment, args ...rideType) (rideType, error) {
 
 func intFromSelfState(env environment, args ...rideType) (rideType, error) {
 	k, err := keyArg(args)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return rideUnit{}, nil
 	}
 	a, ok := env.this().(rideAddress)
@@ -579,7 +579,7 @@ func intFromSelfState(env environment, args ...rideType) (rideType, error) {
 
 func bytesFromState(env environment, args ...rideType) (rideType, error) {
 	r, k, err := extractRecipientAndKey(args)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return rideUnit{}, nil
 	}
 	entry, err := env.state().RetrieveNewestBinaryEntry(r, k)
@@ -594,7 +594,7 @@ func bytesFromState(env environment, args ...rideType) (rideType, error) {
 
 func bytesFromSelfState(env environment, args ...rideType) (rideType, error) {
 	k, err := keyArg(args)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return rideUnit{}, nil
 	}
 	a, ok := env.this().(rideAddress)
@@ -614,7 +614,7 @@ func bytesFromSelfState(env environment, args ...rideType) (rideType, error) {
 
 func stringFromState(env environment, args ...rideType) (rideType, error) {
 	r, k, err := extractRecipientAndKey(args)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return rideUnit{}, nil
 	}
 	entry, err := env.state().RetrieveNewestStringEntry(r, k)
@@ -629,7 +629,7 @@ func stringFromState(env environment, args ...rideType) (rideType, error) {
 
 func stringFromSelfState(env environment, args ...rideType) (rideType, error) {
 	k, err := keyArg(args)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return rideUnit{}, nil
 	}
 	a, ok := env.this().(rideAddress)
@@ -649,7 +649,7 @@ func stringFromSelfState(env environment, args ...rideType) (rideType, error) {
 
 func booleanFromState(env environment, args ...rideType) (rideType, error) {
 	r, k, err := extractRecipientAndKey(args)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return rideUnit{}, nil
 	}
 	entry, err := env.state().RetrieveNewestBooleanEntry(r, k)
@@ -664,7 +664,7 @@ func booleanFromState(env environment, args ...rideType) (rideType, error) {
 
 func booleanFromSelfState(env environment, args ...rideType) (rideType, error) {
 	k, err := keyArg(args)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return rideUnit{}, nil
 	}
 	a, ok := env.this().(rideAddress)
@@ -726,11 +726,11 @@ func sigVerify(env environment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("sigVerify: unexpected argument type '%s'", args[2].instanceOf())
 	}
 	pk, err := crypto.NewPublicKeyFromBytes(pkb)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return rideBoolean(false), nil
 	}
 	sig, err := crypto.NewSignatureFromBytes(signature)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return rideBoolean(false), nil
 	}
 	ok = crypto.Verify(pk, sig, message)
@@ -789,7 +789,7 @@ func addressFromPublicKey(env environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "addressFromPublicKey")
 	}
 	addr, err := proto.NewAddressLikeFromAnyBytes(env.scheme(), b)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return rideUnit{}, nil
 	}
 	return rideAddress(addr), nil
@@ -859,7 +859,7 @@ func assetInfoV3(env environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "assetInfoV3")
 	}
 	asset, err := crypto.NewDigestFromBytes(b)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return rideUnit{}, nil
 	}
 	info, err := env.state().NewestAssetInfo(asset)
@@ -878,7 +878,7 @@ func assetInfoV4(env environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "assetInfoV4")
 	}
 	asset, err := crypto.NewDigestFromBytes(b)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return rideUnit{}, nil
 	}
 	info, err := env.state().NewestFullAssetInfo(asset)
@@ -1045,7 +1045,7 @@ func checkMerkleProof(_ environment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("checkMerkleProof: unexpected argument type '%s'", args[2].instanceOf())
 	}
 	r, err := c2.MerkleRootHash(leaf, proof)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return rideBoolean(false), nil
 	}
 	return rideBoolean(bytes.Equal(root, r)), nil
@@ -1369,7 +1369,7 @@ func address(_ environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "address")
 	}
 	addr, err := proto.NewAddressFromBytes(b)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return rideAddressLike(b), nil
 	}
 	return rideAddress(addr), nil

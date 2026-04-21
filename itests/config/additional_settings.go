@@ -45,7 +45,7 @@ type PaymentSettings struct {
 func NewPaymentSettingsFromFile(path ...string) (*PaymentSettings, error) {
 	f, err := readSettingsFromFile(testdataFolder, filepath.Join(path...))
 	defer func() {
-		if cErr := f.Close(); cErr != nil {
+		if cErr := f.Close(); cErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
 			err = stderrs.Join(err, errors.Wrapf(cErr, "could not close settings file %q", f.Name()))
 		}
 	}()
@@ -69,7 +69,7 @@ type FeatureSettings struct {
 func NewFeatureSettingsFromFile(path ...string) (*FeatureSettings, error) {
 	f, err := readSettingsFromFile(testdataFolder, filepath.Join(path...))
 	defer func() {
-		if cErr := f.Close(); cErr != nil {
+		if cErr := f.Close(); cErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
 			err = stderrs.Join(err, errors.Wrapf(cErr, "could not close settings file %q", f.Name()))
 		}
 	}()
@@ -101,7 +101,7 @@ type RewardSettings struct {
 func NewRewardSettingsFromFile(path ...string) (*RewardSettings, error) {
 	f, err := readSettingsFromFile(testdataFolder, filepath.Join(path...))
 	defer func() {
-		if cErr := f.Close(); cErr != nil {
+		if cErr := f.Close(); cErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
 			err = stderrs.Join(err, errors.Wrapf(cErr, "could not close settings file %q", f.Name()))
 		}
 	}()

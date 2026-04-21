@@ -117,7 +117,7 @@ func (a *WaitSnapshotState) BlockSnapshot(
 		[]*proto.Block{a.blockWaitingForSnapshot},
 		[]*proto.BlockSnapshot{&snapshot},
 	)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		slog.Error("Failed to apply block with snapshot", slog.String("state", a.String()),
 			logging.Error(err), slog.Any("blockID", a.blockWaitingForSnapshot.BlockID()))
 		return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)

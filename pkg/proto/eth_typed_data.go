@@ -264,7 +264,7 @@ func parseInteger(encType string, encValue any) (*big.Int, error) {
 			lengthStr = strings.TrimPrefix(encType, "int")
 		}
 		atoiSize, err := strconv.Atoi(lengthStr)
-		if err != nil {
+		if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 			return nil, errors.Errorf("invalid size on integer: %v", lengthStr)
 		}
 		length = atoiSize
@@ -362,7 +362,7 @@ func (typedData *ethereumTypedData) EncodePrimitiveValue(encType string, encValu
 	if after, ok := strings.CutPrefix(encType, "bytes"); ok {
 		lengthStr := after
 		length, err := strconv.Atoi(lengthStr)
-		if err != nil {
+		if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 			return nil, errors.Errorf("invalid size on bytes: %v", lengthStr)
 		}
 		if length < 0 || length > ethABISlotSize {

@@ -37,18 +37,18 @@ func (h *getTransactionsHandler) handle(tx proto.Transaction, status proto.Trans
 
 func (s *Server) GetTransactions(req *g.TransactionsRequest, srv g.TransactionsApi_GetTransactionsServer) error {
 	extendedApi, err := s.state.ProvidesExtendedApi()
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return status.Error(codes.Internal, err.Error())
 	}
 	if !extendedApi {
 		return status.Error(codes.FailedPrecondition, "Node's state does not have information required for extended API")
 	}
 	filter, err := newTxFilter(s.scheme, req)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return status.Error(codes.FailedPrecondition, err.Error())
 	}
 	iter, err := s.newStateIterator(filter.getSenderRecipient())
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return status.Error(codes.Internal, err.Error())
 	}
 	if iter == nil {
@@ -68,7 +68,7 @@ func (s *Server) GetTransactions(req *g.TransactionsRequest, srv g.TransactionsA
 		return nil
 	}
 	handler := &getTransactionsHandler{srv, s}
-	if err := s.iterateAndHandleTransactions(iter, filter.filter, handler.handle); err != nil {
+	if err := s.iterateAndHandleTransactions(iter, filter.filter, handler.handle); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
 		return status.Error(codes.Internal, err.Error())
 	}
 	return nil
@@ -119,14 +119,14 @@ func (h *getStateChangesHandler) handle(tx proto.Transaction, _ proto.Transactio
 
 func (s *Server) GetStateChanges(req *g.TransactionsRequest, srv g.TransactionsApi_GetStateChangesServer) error {
 	extendedApi, err := s.state.ProvidesExtendedApi()
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return status.Error(codes.Internal, err.Error())
 	}
 	if !extendedApi {
 		return status.Error(codes.FailedPrecondition, "Node's state does not have information required for extended API")
 	}
 	ftr, err := newTxFilter(s.scheme, req)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return status.Error(codes.FailedPrecondition, err.Error())
 	}
 	filter := newTxFilterInvoke(ftr)
@@ -136,7 +136,7 @@ func (s *Server) GetStateChanges(req *g.TransactionsRequest, srv g.TransactionsA
 	} else {
 		iter, err = s.newStateIterator(ftr.getSenderRecipient())
 	}
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return status.Error(codes.Internal, err.Error())
 	}
 	if iter == nil {
@@ -144,7 +144,7 @@ func (s *Server) GetStateChanges(req *g.TransactionsRequest, srv g.TransactionsA
 		return nil
 	}
 	handler := &getStateChangesHandler{srv, s}
-	if err := s.iterateAndHandleTransactions(iter, filter.filter, handler.handle); err != nil {
+	if err := s.iterateAndHandleTransactions(iter, filter.filter, handler.handle); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
 		return status.Error(codes.Internal, err.Error())
 	}
 	return nil
@@ -156,7 +156,7 @@ func (s *Server) GetStatuses(req *g.TransactionsByIdRequest, srv g.TransactionsA
 		if _, txStatus, err := s.state.TransactionByIDWithStatus(id); err == nil {
 			// Transaction is in state, it is confirmed.
 			height, err := s.state.TransactionHeightByID(id)
-			if err != nil {
+			if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 				return status.Error(codes.Internal, err.Error())
 			}
 			res.Status = g.TransactionStatus_CONFIRMED
@@ -179,7 +179,7 @@ func (s *Server) GetStatuses(req *g.TransactionsByIdRequest, srv g.TransactionsA
 			res.Status = g.TransactionStatus_NOT_EXISTS
 			res.ApplicationStatus = g.ApplicationStatus_UNKNOWN
 		}
-		if err := srv.Send(res); err != nil {
+		if err := srv.Send(res); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
 			return status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -204,7 +204,7 @@ func (h *getUnconfirmedHandler) handle(tx proto.Transaction, status proto.Transa
 
 func (s *Server) GetUnconfirmed(req *g.TransactionsRequest, srv g.TransactionsApi_GetUnconfirmedServer) error {
 	filter, err := newTxFilter(s.scheme, req)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return status.Error(codes.FailedPrecondition, err.Error())
 	}
 	handler := &getUnconfirmedHandler{srv, s}
@@ -213,7 +213,7 @@ func (s *Server) GetUnconfirmed(req *g.TransactionsRequest, srv g.TransactionsAp
 		if !filter.filter(tx) {
 			continue
 		}
-		if hErr := handler.handle(tx, proto.TransactionSucceeded); hErr != nil {
+		if hErr := handler.handle(tx, proto.TransactionSucceeded); hErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
 			return status.Error(codes.Internal, hErr.Error())
 		}
 	}

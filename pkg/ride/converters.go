@@ -1585,7 +1585,7 @@ func convertToAction(env environment, obj rideType) (proto.ScriptAction, error) 
 		// On asset ID conversion error we return empty action as in Scala
 		// See example on MainNet: transaction (https://wavesexplorer.com/tx/AUpiEr49Jo43Q9zXKkNN23rstiq87hguvhfQqV8ov9uQ)
 		// and script (https://wavesexplorer.com/tx/Bp1oieWHWpLz8vBFZui9tY1oDTAKUPTrBAGcwfRe9q5K)
-		if err != nil {
+		if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 			return &proto.TransferScriptAction{
 				Recipient: recipient,
 				Amount:    0,

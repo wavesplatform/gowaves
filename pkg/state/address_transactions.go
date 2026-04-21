@@ -170,8 +170,8 @@ func newAddressTransactions(
 		return nil, err
 	}
 	defer func() {
-		if retErr != nil {
-			if fErr := addrTransactionsFile.Close(); fErr != nil {
+		if retErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
+			if fErr := addrTransactionsFile.Close(); fErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
 				retErr = errors.Join(retErr, fmt.Errorf("failed to close address_transactions file: %w", fErr))
 			}
 		}

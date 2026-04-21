@@ -142,7 +142,7 @@ func pow(base, exponent *decimal.Big, context decimal.Context) (*decimal.Big, er
 	}
 	r := decimal.WithContext(context)
 	r = math.Pow(r, base, exponent)
-	if r.Context.Err() != nil {
+	if r.Context.Err() != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, errors.New(r.Context.Conditions.Error())
 	}
 	return r, nil
@@ -229,16 +229,16 @@ func log(base, exponent *decimal.Big, resultScale int) (*decimal.Big, error) {
 	r := decimal.WithContext(bigIntContext).SetMantScale(0, resultScale)
 	bl := decimal.WithContext(bigIntContext)
 	math.Log(bl, base)
-	if bl.Context.Err() != nil {
+	if bl.Context.Err() != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, errors.New(bl.Context.Conditions.Error())
 	}
 	el := decimal.WithContext(bigIntContext)
 	math.Log(el, exponent)
-	if el.Context.Err() != nil {
+	if el.Context.Err() != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, errors.New(el.Context.Conditions.Error())
 	}
 	r.Quo(bl, el)
-	if r.Context.Err() != nil {
+	if r.Context.Err() != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, errors.New(r.Context.Conditions.Error())
 	}
 	return r, nil

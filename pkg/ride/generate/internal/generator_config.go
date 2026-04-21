@@ -71,8 +71,8 @@ func parseConfig(configPath string) (_ *rideObjects, err error) {
 		return nil, errors.Wrap(err, "failed to open file")
 	}
 	defer func() {
-		if closeErr := f.Close(); closeErr != nil {
-			if err != nil {
+		if closeErr := f.Close(); closeErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+			if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 				err = errors.Wrapf(err, "failed to close file: %v", closeErr)
 			} else {
 				err = closeErr
