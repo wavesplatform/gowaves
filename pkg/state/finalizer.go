@@ -47,7 +47,7 @@ func (f *finalizer) processBlockFinalization(
 		return err
 	}
 	blockID := block.BlockID()
-	if err := f.processConflictingEndorsements(finalizationVoting.ConflictEndorsements, blockID); err != nil {
+	if err := f.processConflictingEndorsements(finalizationVoting.ConflictEndorsements, height, blockID); err != nil {
 		return err
 	}
 	// Check that other endorsers are valid to endorse the parent block.
@@ -106,7 +106,7 @@ func (f *finalizer) processBlockFinalization(
 }
 
 func (f *finalizer) processConflictingEndorsements(
-	conflictingEndorsements []proto.BlockEndorsement, blockID proto.BlockID,
+	conflictingEndorsements []proto.BlockEndorsement, blockHeight proto.Height, blockID proto.BlockID,
 ) error {
 	for _, ce := range conflictingEndorsements {
 		// Check the signature of conflicting endorsement.
@@ -130,7 +130,7 @@ func (f *finalizer) processConflictingEndorsements(
 				ce.EndorserIndex)
 		}
 		// Ban generator of conflicting endorsement.
-		if bErr := f.generators.banGenerator(ce.EndorserIndex, blockID); bErr != nil {
+		if bErr := f.generators.banGenerator(ce.EndorserIndex, blockHeight, blockID); bErr != nil {
 			return fmt.Errorf("failed to ban generator of conflicting endorsement with index %d: %w",
 				ce.EndorserIndex, bErr)
 		}

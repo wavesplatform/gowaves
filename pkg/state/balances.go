@@ -1013,3 +1013,25 @@ func (s *balances) reset() {
 	s.leaseHashesState = make(map[proto.BlockID]*stateForHashes)
 	s.leaseHashes = make(map[proto.BlockID]crypto.Digest)
 }
+
+// burnDeposit reduces the balance of an account by Deposit amount. The Deposit part of balance profile is not affected.
+func (s *balances) burnDeposit(addr proto.AddressID, blockID proto.BlockID) error {
+	balance, err := s.newestWavesBalance(addr)
+	if err != nil {
+		return fmt.Errorf("failed to burn deposits: %w", err)
+	}
+	balance.Balance, err = common.SubInt(balance.Balance, Deposit)
+	if err != nil {
+		return fmt.Errorf("failed to burn deposits: %w", err)
+	}
+	v := wavesValue{
+		profile:       balance,
+		leaseChange:   false,
+		balanceChange: true,
+	}
+	if sbErr := s.setWavesBalance(addr, v, blockID); sbErr != nil {
+		return fmt.Errorf("failed to burn deposits: %w", sbErr)
+	}
+	return nil
+}
+

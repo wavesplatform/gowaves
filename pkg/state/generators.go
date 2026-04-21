@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"maps"
 	"slices"
 	"strings"
 
@@ -21,6 +22,11 @@ import (
 // specific heights. Usually, for generating balance retrieval the blockchain height is used.
 type generationBalanceProvider interface {
 	newestGeneratingBalance(proto.AddressID, proto.Height) (uint64, error)
+}
+
+type generationBalanceManager interface {
+	generationBalanceProvider
+	burnDeposit(proto.AddressID, proto.BlockID) error
 }
 
 // commitmentsProvider is an interface that abstracts the retrieval of generator commitments for a given
@@ -64,14 +70,14 @@ func (g *GeneratorInfo) Address() proto.WavesAddress {
 // bannedGeneratorsRecord is a structure used for CBOR serialization of banned generator indexes.
 // It has public fields to allow encoding/decoding with the specified CBOR tags.
 type bannedGeneratorsRecord struct {
-	Indexes []uint32 `cbor:"0,keyasint,omitempty"`
+	Bans map[uint32]uint64 `cbor:"0,keyasint,omitempty"`
 }
 
-func (r *bannedGeneratorsRecord) appendIndex(index uint32) error {
-	if slices.Contains(r.Indexes, index) {
-		return errors.Errorf("index %d is already present in the record", index)
+func (r *bannedGeneratorsRecord) appendIndex(index uint32, height proto.Height) error {
+	if h, ok := r.Bans[index]; ok {
+		return fmt.Errorf("generator %d was already banned at height %d", index, h)
 	}
-	r.Indexes = append(r.Indexes, index)
+	r.Bans[index] = height
 	return nil
 }
 
@@ -154,11 +160,11 @@ type generators struct {
 	hs *historyStorage
 
 	fs          featuresState
-	balances    generationBalanceProvider
+	balances    generationBalanceManager
 	commitments commitmentsProvider
 	settings    *settings.BlockchainSettings
 
-	set                   []GeneratorInfo
+	sets                  map[uint64][]GeneratorInfo
 	generationPeriodStart uint32
 	blockGeneratorIndex   int    // Current block generator info.
 	blockHeight           uint64 // Current block height.
@@ -170,7 +176,7 @@ type generators struct {
 func newGenerators(
 	hs *historyStorage,
 	fs featuresState,
-	balances generationBalanceProvider,
+	balances generationBalanceManager,
 	commitments commitmentsProvider,
 	sets *settings.BlockchainSettings,
 	calcHashes bool,
@@ -181,14 +187,14 @@ func newGenerators(
 		balances:        balances,
 		commitments:     commitments,
 		settings:        sets,
-		set:             make([]GeneratorInfo, 0),
+		sets:            make(map[uint64][]GeneratorInfo),
 		calculateHashes: calcHashes,
 		hasher:          newStateHasher(),
 	}
 }
 
 func (g *generators) wipe() {
-	g.set = nil
+	g.sets = nil
 	g.generationPeriodStart = 0
 	g.blockGeneratorIndex = -1
 	g.blockHeight = 0
@@ -243,13 +249,21 @@ func (g *generators) initialize(
 				i, a.String(), bErr)
 		}
 		idx := uint32(i)
+		banHeight, banned := bans[idx]
+		if banned && banHeight == g.blockHeight-1 {
+			// Generator was banned exactly on previous block, burn the deposit.
+			if bdErr := g.balances.burnDeposit(a.ID(), blockID); bdErr != nil {
+				return fmt.Errorf("failed to burn deposit of banned generator '%s' with index %d: %w",
+					a.String(), i, bdErr)
+			}
+		}
 		gi := GeneratorInfo{
 			index:     idx,
 			address:   a,
 			pk:        cm.GeneratorPK,
 			blsPK:     cm.EndorserPK,
 			balance:   b,
-			ban:       slices.Contains(bans, idx),
+			ban:       banned,
 			threshold: threshold,
 		}
 		g.set = append(g.set, gi)
@@ -301,7 +315,7 @@ func (g *generators) generator(index uint32) (GeneratorInfo, error) {
 	return g.set[index], nil
 }
 
-func (g *generators) banGenerator(index uint32, blockID proto.BlockID) error {
+func (g *generators) banGenerator(index uint32, height proto.Height, blockID proto.BlockID) error {
 	if int(index) >= len(g.set) {
 		return fmt.Errorf("generator index %d is out of bounds for the generator set of size %d",
 			index, len(g.set))
@@ -320,7 +334,7 @@ func (g *generators) banGenerator(index uint32, blockID proto.BlockID) error {
 	if err != nil {
 		if isNotFoundInHistoryOrDBErr(err) { // No record found, create new one.
 			r := bannedGeneratorsRecord{
-				Indexes: []uint32{index},
+				Bans: map[uint32]uint64{index: height},
 			}
 			data, mErr := r.marshalBinary()
 			if mErr != nil {
@@ -334,7 +348,7 @@ func (g *generators) banGenerator(index uint32, blockID proto.BlockID) error {
 	if uErr := r.unmarshalBinary(recordBytes); uErr != nil {
 		return fmt.Errorf("failed to unmarshal record from binary data: %w", uErr)
 	}
-	if aErr := r.appendIndex(index); aErr != nil {
+	if aErr := r.appendIndex(index, height); aErr != nil {
 		return fmt.Errorf("failed to append index to record: %w", aErr)
 	}
 	recordBytes, err = r.marshalBinary()
@@ -344,13 +358,13 @@ func (g *generators) banGenerator(index uint32, blockID proto.BlockID) error {
 	return g.hs.addNewEntry(bannedGenerators, keyBytes, recordBytes, blockID)
 }
 
-func (g *generators) bans(periodStart uint32) ([]uint32, error) {
+func (g *generators) bans(periodStart uint32) (map[uint32]uint64, error) {
 	key := bannedGeneratorsKey{periodStart: periodStart}
 	keyBytes := key.bytes()
 	recordBytes, err := g.hs.newestTopEntryData(keyBytes)
 	if err != nil {
 		if isNotFoundInHistoryOrDBErr(err) { // No record found, return empty bans list.
-			return []uint32{}, nil
+			return map[uint32]uint64{}, nil
 		}
 		return nil, err
 	}
@@ -358,7 +372,7 @@ func (g *generators) bans(periodStart uint32) ([]uint32, error) {
 	if uErr := r.unmarshalBinary(recordBytes); uErr != nil {
 		return nil, fmt.Errorf("failed to unmarshal record from binary data: %w", uErr)
 	}
-	return r.Indexes, nil
+	return maps.Clone(r.Bans), nil
 }
 
 // newestGeneratingBalance retrieves the generating balance for a given address and height. This method checks
