@@ -493,7 +493,7 @@ func initDatabase(
 	}
 	defer func() {
 		if retErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
-				// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+			// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
 			if sdbCloseErr := sdb.close(); sdbCloseErr != nil {
 				retErr = stderrs.Join(retErr, errors.Wrap(sdbCloseErr, "failed to close state db"))
 			}

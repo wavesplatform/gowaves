@@ -28,7 +28,8 @@ const (
 )
 
 var (
-	version = "v0.0.0"
+	version      = "v0.0.0"
+	errEarlyExit = errors.New("early exit")
 )
 
 func main() {
@@ -78,11 +79,11 @@ func parseFlags() (*runConfig, error) {
 
 	if showHelp {
 		showUsage()
-		return nil, nil
+		return nil, errEarlyExit
 	}
 	if showVersion {
 		fmt.Printf("Waves RIDE Appraiser %s\n", version)
-		return nil, nil
+		return nil, errEarlyExit
 	}
 	if cfg.search {
 		cfg.compare = true
@@ -136,10 +137,10 @@ func run() (err error) {
 
 	cfg, err := parseFlags()
 	if err != nil {
+		if errors.Is(err, errEarlyExit) {
+			return nil
+		}
 		return err
-	}
-	if cfg == nil { // early exit (help/version)
-		return nil
 	}
 
 	setupFDLimits()
