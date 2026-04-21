@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"slices"
 	"strings"
+	"syscall"
 	"time"
 
 	flag "github.com/spf13/pflag"
@@ -109,7 +110,7 @@ func run() error {
 	urls := append([]string{node}, other...)
 	slog.Debug("Requesting height from nodes", "count", len(urls))
 
-	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer done()
 
 	clients := make([]*client.Client, len(urls))
@@ -224,6 +225,9 @@ func findLastCommonHeight(ctx context.Context, clients []*client.Client, start, 
 				return 0, fmt.Errorf("failed to get blocks signatures at height %d: %w", middle, err)
 			}
 			if c >= 2 {
+				if middle == 0 {
+					return 0, errors.New("no common height found")
+				}
 				stop = middle - 1
 				r = stop
 			} else {

@@ -38,7 +38,7 @@ func main() {
 	}
 }
 
-func run() error {
+func run() (err error) {
 	var (
 		node               string
 		statePath          string
@@ -129,6 +129,7 @@ func run() error {
 	defer func(st state.StateModifier) {
 		if clErr := st.Close(); clErr != nil {
 			slog.Error("Failed to close state", logging.Error(clErr))
+			err = errors.Join(err, clErr)
 		}
 	}(st)
 
