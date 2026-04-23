@@ -137,6 +137,19 @@ func (f *FinalizationVoting) Validate() error {
 	return nil
 }
 
+// CheckSizes validates the sizes of finalization fields against the size of generator set.
+// The number of endorsements and conflicting endorsements must not exceed the generator set size.
+func (f *FinalizationVoting) CheckSizes(generatorSetSize int) error {
+	if ces := len(f.ConflictEndorsements); ces > generatorSetSize {
+		return fmt.Errorf("conflicting endorsements count %d exceeds generator set size %d",
+			ces, generatorSetSize)
+	}
+	if eis := len(f.EndorserIndexes); eis > generatorSetSize {
+		return fmt.Errorf("endorsements count %d exceeds generator set size %d", eis, generatorSetSize)
+	}
+	return nil
+}
+
 func (f *FinalizationVoting) Marshal() ([]byte, error) {
 	endBlockProto, err := f.ToProtobuf()
 	if err != nil {

@@ -21,14 +21,6 @@ type commitmentItem struct {
 	TransactionID crypto.Digest    `cbor:"2,keyasint,omitempty"`
 }
 
-func (ci *commitmentItem) address(scheme proto.Scheme) (proto.WavesAddress, error) {
-	a, err := proto.NewAddressFromPublicKey(scheme, ci.GeneratorPK)
-	if err != nil {
-		return proto.WavesAddress{}, fmt.Errorf("failed to derive address from generator public key: %w", err)
-	}
-	return a, nil
-}
-
 // commitmentsRecord holds all generator commitments for a specific generation period.
 type commitmentsRecord struct {
 	Commitments []commitmentItem `cbor:"0,keyasint,omitempty"`

@@ -258,16 +258,29 @@ func (a *NGState) endorseParentWithEachKey(
 	block *proto.Block,
 	blockHeight proto.Height,
 ) error {
-	activationHeight, err := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
-	if err != nil {
-		return a.Errorf(errors.Wrapf(err, "failed to get activation height for finality %s", block.BlockID()))
+	// Check current generators set.
+	gs, err := a.baseInfo.storage.CommittedGenerators(blockHeight)
+	if err != nil && !errors.Is(err, state.ErrNoGeneratorsSet) {
+		return a.Errorf(errors.Wrapf(err, "failed to get generators for block '%s'", block.BlockID()))
+	}
+	if errors.Is(err, state.ErrNoGeneratorsSet) || len(gs) == 0 {
+		slog.Debug("Generator set is empty, skipping block endorsement", slog.Uint64("height", blockHeight))
+		return nil
 	}
 
-	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, blockHeight, a.baseInfo.generationPeriod)
-	if err != nil {
-		return a.Errorf(errors.Wrapf(err, "failed to get current generation period, block %s", block.BlockID()))
+	// Following variables are used for logging only.
+	var activationHeight proto.Height
+	var periodStart uint32
+	if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
+		activationHeight, err = a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
+		if err != nil {
+			return a.Errorf(errors.Wrapf(err, "failed to get activation height for finality %s", block.BlockID()))
+		}
+		periodStart, err = state.CurrentGenerationPeriodStart(activationHeight, blockHeight, a.baseInfo.generationPeriod)
+		if err != nil {
+			return a.Errorf(errors.Wrapf(err, "failed to get current generation period, block %s", block.BlockID()))
+		}
 	}
-
 	for i := range sks {
 		sk := sks[i]
 		pk, pkErr := sk.PublicKey()
@@ -278,13 +291,13 @@ func (a *NGState) endorseParentWithEachKey(
 			slog.Int("SeedIndex", i), slog.String("BLS PublicKey", pk.String()),
 			slog.Any("BlockID", block.BlockID()), slog.Any("GenerationPeriodStart", periodStart))
 
-		g, gErr := a.baseInfo.storage.FindGenerator(state.ByBLSPublicKey(pk))
+		g, gErr := a.baseInfo.storage.FindGenerator(blockHeight, state.ByBLSPublicKey(pk))
 		if gErr != nil {
 			slog.Warn("Wallet's BLS public key is not in the generators set",
 				slog.String("BLS PublicKey", pk.String()), logging.Error(gErr))
 			continue
 		}
-		if g.GenerationBalance() == 0 {
+		if g.Balance == 0 {
 			slog.Debug("Wallet's BLS public key has insufficient generation balance",
 				slog.Int("SeedIndex", i), slog.String("BLS PublicKey", pk.String()),
 				slog.Any("BlockID", block.BlockID()), slog.Any("GenerationPeriodStart", periodStart))
@@ -316,12 +329,15 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.BlockEndorsement) (St
 	}
 
 	top := a.baseInfo.storage.TopBlock()
-
+	h, err := a.baseInfo.storage.Height()
+	if err != nil {
+		return a, nil, a.Errorf(errors.Wrapf(err, "failed to retrieve current height"))
+	}
 	generatorIndex, err := safecast.Convert[uint32](blockEndorsement.EndorserIndex)
 	if err != nil {
 		return a, nil, a.Errorf(errors.Wrapf(err, "failed to convert endorser index to uint32"))
 	}
-	gi, err := a.baseInfo.storage.FindGenerator(state.ByIndex(generatorIndex))
+	gi, err := a.baseInfo.storage.FindGenerator(h, state.ByIndex(generatorIndex))
 	if err != nil {
 		return a, nil, a.Errorf(errors.Wrapf(err, "failed to find generator by index"))
 	}
@@ -334,8 +350,8 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.BlockEndorsement) (St
 		return a, nil, a.Errorf(errors.Wrapf(err, "failed to get last finalized block header for endorser address"))
 	}
 	// TODO check if generator is in the generator set.
-	endorserPK := gi.BLSPublicKey()
-	balance := gi.GenerationBalance()
+	endorserPK := gi.BLSPublicKey
+	balance := gi.Balance
 	added, addErr := a.baseInfo.endorsements.Add(blockEndorsement, endorserPK,
 		localFinalizedHeight, localFinalizedBlockHeader.BlockID(), balance, top.Parent)
 	if addErr != nil {
@@ -457,7 +473,7 @@ func (a *NGState) MinedBlock(
 
 func (a *NGState) Endorse(parentBlockID proto.BlockID,
 	endorser state.GeneratorInfo, endorserSK bls.SecretKey) error {
-	endorserIndex := endorser.Index()
+	endorserIndex := endorser.Index
 	lastFinalizedHeight, err := a.baseInfo.storage.LastFinalizedHeight()
 	if err != nil {
 		return a.Errorf(errors.Wrap(err, "failed to get last finalized block height"))
@@ -514,10 +530,10 @@ func (a *NGState) addAndBroadcastOwnEndorsement(
 	top := a.baseInfo.storage.TopBlock()
 	added, addErr := a.baseInfo.endorsements.Add(
 		parentBlockEndorsement,
-		endorser.BLSPublicKey(),
+		endorser.BLSPublicKey,
 		lastFinalizedHeight,
 		lastFinalizedBlockID,
-		endorser.GenerationBalance(),
+		endorser.Balance,
 		top.Parent,
 	)
 	if addErr != nil {

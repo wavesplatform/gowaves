@@ -716,5 +716,5 @@ func (a *blockSnapshotsApplier) ApplyCommitToGeneration(snapshot proto.Generatio
 		return errors.Wrapf(err, "failed to get set balance profile for address %q", addr.String())
 	}
 	return a.stor.commitments.store(tx.GenerationPeriodStart, snapshot.SenderPublicKey, snapshot.EndorserPublicKey,
-		a.info.BlockID())
+		*tx.ID, a.info.BlockID())
 }

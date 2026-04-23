@@ -10,27 +10,26 @@ import (
 )
 
 type finalizer struct {
-	generators *generators
+	generators *generatorsStorage
 	finality   *finality
 }
 
-func newFinalizer(generators *generators, finality *finality) *finalizer {
+func newFinalizer(generators *generatorsStorage, finality *finality) *finalizer {
 	return &finalizer{
 		generators: generators,
 		finality:   finality,
 	}
 }
 
-func (f *finalizer) checkBlockFinalization(voting proto.FinalizationVoting) error {
-	if l := len(voting.ConflictEndorsements); l > f.generators.size() {
-		return fmt.Errorf("conflicting endorsements count %d exceeds generator set size %d",
-			l, f.generators.size())
+func (f *finalizer) checkBlockFinalization(voting proto.FinalizationVoting, height proto.Height) error {
+	gs, err := f.generators.generators(height)
+	if err != nil {
+		if errors.Is(err, ErrNoGeneratorsSet) {
+			return voting.CheckSizes(0)
+		}
+		return fmt.Errorf("failed to check block finalization: %w", err)
 	}
-	if l := len(voting.EndorserIndexes); l > f.generators.size() {
-		return fmt.Errorf("endorsements count %d exceeds generator set size %d",
-			l, f.generators.size())
-	}
-	return nil
+	return voting.CheckSizes(gs.Size())
 }
 
 // processBlockFinalization performs state updates required for block finalization
@@ -43,7 +42,7 @@ func (f *finalizer) processBlockFinalization(
 	block *proto.BlockHeader,
 	height proto.Height,
 ) error {
-	if err := f.checkBlockFinalization(finalizationVoting); err != nil {
+	if err := f.checkBlockFinalization(finalizationVoting, height); err != nil {
 		return err
 	}
 	blockID := block.BlockID()
@@ -52,33 +51,32 @@ func (f *finalizer) processBlockFinalization(
 	}
 	// Check that other endorsers are valid to endorse the parent block.
 	var endorsersBalance uint64 = 0
-	bg, err := f.generators.blockGenerator()
+	bgi, bg, err := f.generators.blockGenerator(height)
 	if err != nil {
 		return fmt.Errorf("failed to get block generator: %w", err)
 	}
-	blockGeneratorIndex := bg.index
 	pks := make([]bls.PublicKey, 0, len(finalizationVoting.EndorserIndexes))
 	for _, ei := range finalizationVoting.EndorserIndexes {
-		g, gErr := f.generators.generator(ei)
+		g, gErr := f.generators.generator(ei, height)
 		if gErr != nil {
 			return fmt.Errorf("failed to get endorser by index %d: %w", ei, gErr)
 		}
-		if g.ban {
-			return fmt.Errorf("banned generator '%s' finalization voting found", g.Address())
+		if g.Ban {
+			return fmt.Errorf("banned generator '%s' finalization voting found", g.Address.String())
 		}
-		if blockGeneratorIndex == ei {
-			return fmt.Errorf("block generator '%s' found in finalization voting", bg.Address())
+		if bgi == ei {
+			return fmt.Errorf("block generator with index %d found in finalization voting", bgi)
 		}
-		balance := g.GenerationBalance()
+		balance := g.Balance
 		if balance == 0 {
 			return fmt.Errorf("generator '%s' with insufficient generation balance found in finalization voting",
-				g.Address())
+				g.Address.String())
 		}
-		pks = append(pks, g.BLSPublicKey())
+		pks = append(pks, g.BLSPublicKey)
 		endorsersBalance += balance
 	}
 	// Add block generator's balance to endorsers balance.
-	endorsersBalance += bg.GenerationBalance() // Balance of block generator already checked.
+	endorsersBalance += bg.Balance // Balance of block generator already checked.
 	// Check aggregate signature.
 	msg, err := f.finality.buildLocalEndorsementMessage(height, block.Parent)
 	if err != nil {
@@ -94,7 +92,11 @@ func (f *finalizer) processBlockFinalization(
 
 	// A block is considered finalized if the total endorsers' balance is at least 2/3 of the committed
 	// generators' total balance.
-	if 3*endorsersBalance >= 2*f.generators.totalGenerationBalance() {
+	totalGenerationBalance, err := f.generators.totalGenerationBalance(height)
+	if err != nil {
+		return err
+	}
+	if 3*endorsersBalance >= 2*totalGenerationBalance {
 		finalizedHeight := height - 1
 		slog.Info("Block finalization achieved", slog.Uint64("finalizedHeight", finalizedHeight),
 			slog.Uint64("blockHeigh", height), slog.String("blockID", blockID.String()))
@@ -115,12 +117,12 @@ func (f *finalizer) processConflictingEndorsements(
 			return fmt.Errorf("failed to build crypto message for conflicting endorsement with index %d: %w",
 				ce.EndorserIndex, err)
 		}
-		gi, err := f.generators.generator(ce.EndorserIndex)
+		gi, err := f.generators.generator(ce.EndorserIndex, blockHeight)
 		if err != nil {
 			return fmt.Errorf("failed to get generator for conflicting endorsement with index %d: %w",
 				ce.EndorserIndex, err)
 		}
-		valid, err := bls.Verify(gi.BLSPublicKey(), cmb, ce.Signature)
+		valid, err := bls.Verify(gi.BLSPublicKey, cmb, ce.Signature)
 		if err != nil {
 			return fmt.Errorf("failed to verify signature of conflicting endorsement with index %d: %w",
 				ce.EndorserIndex, err)

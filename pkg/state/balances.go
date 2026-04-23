@@ -1018,11 +1018,11 @@ func (s *balances) reset() {
 func (s *balances) burnDeposit(addr proto.AddressID, blockID proto.BlockID) error {
 	balance, err := s.newestWavesBalance(addr)
 	if err != nil {
-		return fmt.Errorf("failed to burn deposits: %w", err)
+		return fmt.Errorf("failed to burn deposit: %w", err)
 	}
 	balance.Balance, err = common.SubInt(balance.Balance, Deposit)
 	if err != nil {
-		return fmt.Errorf("failed to burn deposits: %w", err)
+		return fmt.Errorf("failed to burn deposit: %w", err)
 	}
 	v := wavesValue{
 		profile:       balance,
@@ -1030,8 +1030,7 @@ func (s *balances) burnDeposit(addr proto.AddressID, blockID proto.BlockID) erro
 		balanceChange: true,
 	}
 	if sbErr := s.setWavesBalance(addr, v, blockID); sbErr != nil {
-		return fmt.Errorf("failed to burn deposits: %w", sbErr)
+		return fmt.Errorf("failed to burn deposit: %w", sbErr)
 	}
 	return nil
 }
-

@@ -418,10 +418,12 @@ func (a *ThreadSafeReadWrapper) IsActiveLightNodeNewBlocksFields(blockHeight pro
 	return a.s.IsActiveLightNodeNewBlocksFields(blockHeight)
 }
 
-func (a *ThreadSafeReadWrapper) FindGenerator(lookup func(GeneratorInfo) bool) (GeneratorInfo, error) {
+func (a *ThreadSafeReadWrapper) FindGenerator(
+	height proto.Height, lookup func(GeneratorInfo) bool,
+) (GeneratorInfo, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.s.FindGenerator(lookup)
+	return a.s.FindGenerator(height, lookup)
 }
 
 func (a *ThreadSafeReadWrapper) CommittedGenerators(height proto.Height) ([]GeneratorInfo, error) {

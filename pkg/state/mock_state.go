@@ -1655,8 +1655,8 @@ func (_c *MockState_EstimatorVersion_Call) RunAndReturn(run func() (int, error))
 }
 
 // FindGenerator provides a mock function for the type MockState
-func (_mock *MockState) FindGenerator(fn func(GeneratorInfo) bool) (GeneratorInfo, error) {
-	ret := _mock.Called(fn)
+func (_mock *MockState) FindGenerator(v proto.Height, fn func(GeneratorInfo) bool) (GeneratorInfo, error) {
+	ret := _mock.Called(v, fn)
 
 	if len(ret) == 0 {
 		panic("no return value specified for FindGenerator")
@@ -1664,16 +1664,16 @@ func (_mock *MockState) FindGenerator(fn func(GeneratorInfo) bool) (GeneratorInf
 
 	var r0 GeneratorInfo
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(func(GeneratorInfo) bool) (GeneratorInfo, error)); ok {
-		return returnFunc(fn)
+	if returnFunc, ok := ret.Get(0).(func(proto.Height, func(GeneratorInfo) bool) (GeneratorInfo, error)); ok {
+		return returnFunc(v, fn)
 	}
-	if returnFunc, ok := ret.Get(0).(func(func(GeneratorInfo) bool) GeneratorInfo); ok {
-		r0 = returnFunc(fn)
+	if returnFunc, ok := ret.Get(0).(func(proto.Height, func(GeneratorInfo) bool) GeneratorInfo); ok {
+		r0 = returnFunc(v, fn)
 	} else {
 		r0 = ret.Get(0).(GeneratorInfo)
 	}
-	if returnFunc, ok := ret.Get(1).(func(func(GeneratorInfo) bool) error); ok {
-		r1 = returnFunc(fn)
+	if returnFunc, ok := ret.Get(1).(func(proto.Height, func(GeneratorInfo) bool) error); ok {
+		r1 = returnFunc(v, fn)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1686,19 +1686,25 @@ type MockState_FindGenerator_Call struct {
 }
 
 // FindGenerator is a helper method to define mock.On call
+//   - v proto.Height
 //   - fn func(GeneratorInfo) bool
-func (_e *MockState_Expecter) FindGenerator(fn interface{}) *MockState_FindGenerator_Call {
-	return &MockState_FindGenerator_Call{Call: _e.mock.On("FindGenerator", fn)}
+func (_e *MockState_Expecter) FindGenerator(v interface{}, fn interface{}) *MockState_FindGenerator_Call {
+	return &MockState_FindGenerator_Call{Call: _e.mock.On("FindGenerator", v, fn)}
 }
 
-func (_c *MockState_FindGenerator_Call) Run(run func(fn func(GeneratorInfo) bool)) *MockState_FindGenerator_Call {
+func (_c *MockState_FindGenerator_Call) Run(run func(v proto.Height, fn func(GeneratorInfo) bool)) *MockState_FindGenerator_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 func(GeneratorInfo) bool
+		var arg0 proto.Height
 		if args[0] != nil {
-			arg0 = args[0].(func(GeneratorInfo) bool)
+			arg0 = args[0].(proto.Height)
+		}
+		var arg1 func(GeneratorInfo) bool
+		if args[1] != nil {
+			arg1 = args[1].(func(GeneratorInfo) bool)
 		}
 		run(
 			arg0,
+			arg1,
 		)
 	})
 	return _c
@@ -1709,7 +1715,7 @@ func (_c *MockState_FindGenerator_Call) Return(generatorInfo GeneratorInfo, err 
 	return _c
 }
 
-func (_c *MockState_FindGenerator_Call) RunAndReturn(run func(fn func(GeneratorInfo) bool) (GeneratorInfo, error)) *MockState_FindGenerator_Call {
+func (_c *MockState_FindGenerator_Call) RunAndReturn(run func(v proto.Height, fn func(GeneratorInfo) bool) (GeneratorInfo, error)) *MockState_FindGenerator_Call {
 	_c.Call.Return(run)
 	return _c
 }

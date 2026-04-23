@@ -411,7 +411,7 @@ func TestCalculateCommittedGeneratorsBalancesStateHash(t *testing.T) {
 		featureActivationHeight, blockHeight, so.settings.GenerationPeriod,
 	)
 	require.NoError(t, err)
-	err = so.entities.commitments.store(periodStart, pk, bls.PublicKey{1, 2, 3, 4, 5}, bID2)
+	err = so.entities.commitments.store(periodStart, pk, bls.PublicKey{1, 2, 3, 4, 5}, crypto.Digest{6, 7, 8, 9}, bID2)
 	require.NoError(t, err)
 	err = so.entities.generators.initialize(blockchainHeight, bID2, pk, 0)
 	require.NoError(t, err)
