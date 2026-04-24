@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
+	"strconv"
 	"strings"
 
 	"github.com/ccoveille/go-safecast/v2"
@@ -145,6 +147,31 @@ func (r *generatorsRecord) unmarshalBinary(data []byte) error { return cbor.Unma
 
 func (r *generatorsRecord) Size() int { return len(r.Generators) }
 
+func (r *generatorsRecord) string(scheme proto.Scheme) (string, error) {
+	sb := strings.Builder{}
+	sb.WriteRune('(')
+	sb.WriteString(strconv.Itoa(int(r.BlockGeneratorIndex)))
+	sb.WriteRune(')')
+	sb.WriteRune('[')
+	for i, gen := range r.Generators {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		a, aErr := gen.AddressID.ToWavesAddress(scheme)
+		if aErr != nil {
+			return "", fmt.Errorf("failed to convert generator address ID to Waves address: %w", aErr)
+		}
+		sb.WriteString(a.String())
+		sb.WriteRune('(')
+		sb.WriteString(strconv.FormatUint(gen.Balance, 10))
+		sb.WriteRune(')')
+	}
+	sb.WriteRune(']')
+	sb.WriteRune('@')
+	sb.WriteString(strconv.Itoa(int(r.PeriodStart)))
+	return sb.String(), nil
+}
+
 type generatorsBalancesRecordForStateHashes struct {
 	balances []uint64
 }
@@ -271,12 +298,14 @@ func (g *generatorsStorage) initialize(
 	switch {
 	case noCommitments && noPrevGenerators:
 		// No commitments for the current period and no generators from the previous block, nothing to do.
+		slog.Debug("No commitments, no previous generators found", slog.Uint64("height", blockHeight))
 		return nil
 
 	case noCommitments && pg.PeriodStart != periodStart:
 		// No commitments for the current generation period, but if there is a previous generators set with
 		// the different generation period, we have to punish conflicting endorsements on the last block of
 		// previous generation period.
+		slog.Debug("No commitments, but previous generators found", slog.Uint64("height", blockHeight))
 		return g.punish(pg, blockchainHeight, blockID)
 
 	case noCommitments && pg.PeriodStart == periodStart:
@@ -289,6 +318,7 @@ func (g *generatorsStorage) initialize(
 		// There are commitments for the current generation period, but the previous generators list is empty,
 		// this means that we are at the start of new generation period, after a generation period without commitments.
 		// We should initalize a new generator set.
+		slog.Debug("Initializing new generators set, no previous generators found", slog.Uint64("height", blockHeight))
 		return g.initializeNewGeneratorsSetFromCommitments(cms, periodStart, threshold, genPK, blockHeight,
 			blockchainHeight, blockID)
 
@@ -357,6 +387,15 @@ func (g *generatorsStorage) initializeNewGeneratorsSetFromCommitments(
 			generatorsBalancesLSHRecord.append(b)
 		}
 	}
+	return g.finishGeneratorsInitialization(rec, generatorsBalancesLSHRecord, generatorPK, blockHeight,
+		blockchainHeight, blockID, "New generators set initialized")
+}
+
+func (g *generatorsStorage) finishGeneratorsInitialization(
+	rec generatorsRecord, shRec stateComponent,
+	generatorPK crypto.PublicKey, blockHeight, blockchainHeight proto.Height, blockID proto.BlockID,
+	logMessage string,
+) error {
 	if rec.BlockGeneratorIndex < 0 {
 		// The block generator index was not initialized, which means it is not part of the committed generators.
 		// This serves as an additional safety check, since the generator has already been validated by its
@@ -368,7 +407,14 @@ func (g *generatorsStorage) initializeNewGeneratorsSetFromCommitments(
 	if sErr := g.saveGeneratorsRecord(rec, blockHeight, blockID); sErr != nil {
 		return fmt.Errorf("failed to save block generator record: %w", sErr)
 	}
-	return g.pushLegacyStateHashRecord(generatorsBalancesLSHRecord, blockHeight, blockID)
+	str, err := rec.string(g.settings.AddressSchemeCharacter)
+	if err != nil {
+		return fmt.Errorf("failed to build generators set string for logging: %w", err)
+	}
+	slog.Debug(logMessage, slog.String("generators", str),
+		slog.Uint64("blockHeight", blockHeight), slog.String("blockID", blockID.String()),
+		slog.Uint64("blockchainHeight", blockchainHeight))
+	return g.pushLegacyStateHashRecord(shRec, blockHeight, blockID)
 }
 
 func (g *generatorsStorage) copyGeneratorsSetAndUpdateBalances(
@@ -413,18 +459,8 @@ func (g *generatorsStorage) copyGeneratorsSetAndUpdateBalances(
 			generatorsBalancesLSHRecord.append(ng.Balance)
 		}
 	}
-	if rec.BlockGeneratorIndex < 0 {
-		// The block generator index was not initialized, which means it is not part of the committed generators.
-		// This serves as an additional safety check, since the generator has already been validated by its
-		// generation balance.
-		return fmt.Errorf(
-			"block generator with public key '%s' is not in the commitments for the current generation period",
-			generatorPK.String())
-	}
-	if sErr := g.saveGeneratorsRecord(rec, blockHeight, blockID); sErr != nil {
-		return fmt.Errorf("failed to save block generator record: %w", sErr)
-	}
-	return g.pushLegacyStateHashRecord(generatorsBalancesLSHRecord, blockHeight, blockID)
+	return g.finishGeneratorsInitialization(rec, generatorsBalancesLSHRecord, generatorPK, blockHeight,
+		blockchainHeight, blockID, "Generators set updated")
 }
 
 func (g *generatorsStorage) punish(pg *generatorsRecord, blockchainHeight proto.Height, blockID proto.BlockID) error {
@@ -517,20 +553,7 @@ func (g *generatorsStorage) string(height proto.Height) (string, error) {
 		}
 		return "", fmt.Errorf("failed to build generators set string for height %d: %w", height, err)
 	}
-	sb := strings.Builder{}
-	sb.WriteRune('[')
-	for i, gen := range gs.Generators {
-		if i > 0 {
-			sb.WriteString(", ")
-		}
-		a, aErr := gen.AddressID.ToWavesAddress(g.settings.AddressSchemeCharacter)
-		if aErr != nil {
-			return "", fmt.Errorf("failed to convert generator address ID to Waves address: %w", aErr)
-		}
-		sb.WriteString(a.String())
-	}
-	sb.WriteRune(']')
-	return sb.String(), nil
+	return gs.string(g.settings.AddressSchemeCharacter)
 }
 
 func (g *generatorsStorage) generator(index uint32, height proto.Height) (GeneratorInfo, error) {
@@ -572,16 +595,20 @@ func (g *generatorsStorage) banGenerator(index uint32, height proto.Height, bloc
 // newestGeneratingBalance retrieves the generating balance for a given address and height. This method checks
 // that given address is in the current generators set. If current generator set is empty, it uses the balance
 // provider to get the balance for the address.
-func (g *generatorsStorage) newestGeneratingBalance(addr proto.AddressID, height proto.Height) (uint64, error) {
-	gs, err := g.generators(height)
+// Note that the height is the height of the state (blockchain height) here.
+func (g *generatorsStorage) newestGeneratingBalance(
+	addr proto.AddressID, blockchainHeight proto.Height,
+) (uint64, error) {
+	blockHeight := blockchainHeight + 1
+	gs, err := g.generators(blockHeight)
 	if err != nil {
 		if errors.Is(err, ErrNoGeneratorsSet) {
-			return g.balances.newestGeneratingBalance(addr, height)
+			return g.balances.newestGeneratingBalance(addr, blockchainHeight)
 		}
-		return 0, fmt.Errorf("failed to retrieve generators for height %d: %w", height, err)
+		return 0, fmt.Errorf("failed to retrieve generators for block at height %d: %w", blockHeight, err)
 	}
 	if gs.Size() == 0 { // Generators set is empty just get balance from state.
-		return g.balances.newestGeneratingBalance(addr, height)
+		return g.balances.newestGeneratingBalance(addr, blockchainHeight)
 	}
 	for _, gen := range gs.Generators {
 		if gen.AddressID == addr {
@@ -600,9 +627,10 @@ func (g *generatorsStorage) newestGeneratingBalance(addr proto.AddressID, height
 	if err != nil {
 		return 0, fmt.Errorf("failed to convert address ID to Waves address: %w", err)
 	}
-	str, err := g.string(height)
+	str, err := g.string(blockHeight)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get newest generation balance for height %d: %w", height, err)
+		return 0, fmt.Errorf("failed to get newest generation balance for block at height %d: %w",
+			blockHeight, err)
 	}
 	return 0, fmt.Errorf("address '%s' is not in the current generator set %s", a.String(), str)
 }
