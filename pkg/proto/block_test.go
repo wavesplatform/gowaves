@@ -379,6 +379,24 @@ func TestEmptyBlockMarshall(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestEmptyBlockJSONRoundTrip(t *testing.T) {
+	var b Block
+	bts, err := json.Marshal(b)
+	require.NoError(t, err)
+	assert.Nil(t, b.GenSignature)
+
+	var bb Block
+	err = json.Unmarshal(bts, &bb)
+	require.NoError(t, err)
+
+	assert.NotNil(t, bb.GenSignature) // check B58Bytes behavior
+	assert.Empty(t, bb.GenSignature)
+
+	bb.GenSignature = nil
+
+	require.Equal(t, b, bb)
+}
+
 func TestBlockVerifyRootHash(t *testing.T) {
 	// Waves
 	waves := NewOptionalAssetWaves()
