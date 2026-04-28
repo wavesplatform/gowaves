@@ -934,17 +934,25 @@ func (a *NodeApi) GeneratorsAt(w http.ResponseWriter, r *http.Request) error {
 func (a *NodeApi) FinalizedHeight(w http.ResponseWriter, _ *http.Request) error {
 	h, err := a.state.LastFinalizedHeight()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get finalized block height: %w", err)
 	}
 	return trySendJSON(w, map[string]uint64{"height": h})
 }
 
 func (a *NodeApi) FinalizedHeader(w http.ResponseWriter, _ *http.Request) error {
-	blockHeader, err := a.app.state.LastFinalizedBlock()
+	fh, err := a.state.LastFinalizedHeight()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get finalized block height: %w", err)
 	}
-	return trySendJSON(w, blockHeader)
+	header, err := a.app.state.LastFinalizedBlock()
+	if err != nil {
+		return fmt.Errorf("failed to get finalized block header: %w", err)
+	}
+	b, err := newAPIBlockFromHeader(*header, a.app.scheme(), fh)
+	if err != nil {
+		return fmt.Errorf("failed to get finalized block: %w", err)
+	}
+	return trySendJSON(w, b)
 }
 
 type signTxEnvelope struct {

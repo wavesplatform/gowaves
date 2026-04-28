@@ -58,8 +58,8 @@ func (msg *EndorsementCryptoMessage) Bytes() ([]byte, error) {
 // BlockEndorsement represents an endorsement of a block by a validator.
 type BlockEndorsement struct {
 	EndorserIndex        uint32        `json:"endorserIndex"`
-	FinalizedBlockID     BlockID       `json:"finalizedBlockID"`
-	FinalizedBlockHeight uint32        `json:"finalizedBlockHeight"`
+	FinalizedBlockID     BlockID       `json:"finalizedBlockId"`
+	FinalizedBlockHeight uint32        `json:"finalizedHeight"`
 	EndorsedBlockID      BlockID       `json:"endorsedBlockId"`
 	Signature            bls.Signature `json:"signature"`
 }
@@ -110,10 +110,10 @@ func (e *BlockEndorsement) ToProtobuf() (*g.EndorseBlock, error) {
 }
 
 type FinalizationVoting struct {
-	EndorserIndexes                []uint32           `json:"endorserIndexes"`
-	FinalizedBlockHeight           Height             `json:"finalizedBlockHeight"`
+	EndorserIndexes                []uint32           `json:"endorserIndexes,omitempty"`
+	FinalizedBlockHeight           Height             `json:"finalizedHeight"`
 	AggregatedEndorsementSignature bls.Signature      `json:"aggregatedEndorsementSignature"`
-	ConflictEndorsements           []BlockEndorsement `json:"conflictEndorsements"`
+	ConflictEndorsements           []BlockEndorsement `json:"conflictEndorsements,omitempty"`
 }
 
 // Validate checks that FinalizationVoting doesn't have any duplicate endorsers indexes.
