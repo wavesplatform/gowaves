@@ -16,6 +16,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
@@ -200,22 +201,26 @@ func (a *SyncState) BlockSnapshot(
 func (a *SyncState) MinedBlock(
 	block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte,
 ) (State, Async, error) {
-	height, heightErr := a.baseInfo.storage.Height()
-	if heightErr != nil {
-		return a, nil, a.Errorf(heightErr)
+	height, err := a.baseInfo.storage.Height()
+	if err != nil {
+		return a, nil, a.Errorf(err)
+	}
+	ngActivated, err := a.baseInfo.storage.IsActiveAtHeight(int16(settings.NG), height)
+	if err != nil {
+		return a, nil, a.Errorf(err)
+	}
+	if ngActivated {
+		slog.Debug("Skipping mined block in Sync state because NG is already active", "state", a.String())
+		return a, nil, nil
 	}
 	metrics.BlockMined(block)
 	a.baseInfo.logger.Info("New block mined", "state", a.String(), "blockID", block.ID.String())
 
-	_, err := a.baseInfo.blocksApplier.Apply(
-		a.baseInfo.storage,
-		[]*proto.Block{block},
-	)
-	if err != nil {
-		slog.Warn("Failed to apply mined block", slog.String("state", a.String()), logging.Error(err))
+	if _, apErr := a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, []*proto.Block{block}); apErr != nil {
+		slog.Warn("Failed to apply mined block", slog.String("state", a.String()), logging.Error(apErr))
 		return a, nil, nil // We've failed to apply mined block, it's not an error
 	}
-	metrics.BlockAppliedFromExtension(block, height+1)
+	metrics.BlockApplied(block, height+1)
 	a.baseInfo.scheduler.Reschedule()
 
 	// first we should send block
