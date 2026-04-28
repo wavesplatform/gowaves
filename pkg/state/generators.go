@@ -654,7 +654,7 @@ func (g *generatorsStorage) findGenerator(height proto.Height, lookup func(Gener
 func (g *generatorsStorage) totalGenerationBalance(height proto.Height) (uint64, error) {
 	gs, err := g.generators(height)
 	if err != nil {
-		if !errors.Is(err, ErrNoGeneratorsSet) {
+		if errors.Is(err, ErrNoGeneratorsSet) {
 			return 0, nil
 		}
 		return 0, fmt.Errorf("failed to calculate total generation balance for height %d: %w", height, err)

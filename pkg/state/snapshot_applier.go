@@ -688,7 +688,6 @@ func (a *blockSnapshotsApplier) ApplyCommitToGeneration(snapshot proto.Generatio
 	}
 	// Here we take the generation period start from the applying transaction,
 	// because the snapshot itself does not contain this information.
-	// TODO: But maybe it's better to calculate it from the block height?
 	tx, ok := a.txSnapshotContext.applyingTx.(*proto.CommitToGenerationWithProofs)
 	if !ok {
 		return errors.New("failed to apply generation commitment snapshot: applying tx is not CommitToGenerationWithProofs")
@@ -714,6 +713,10 @@ func (a *blockSnapshotsApplier) ApplyCommitToGeneration(snapshot proto.Generatio
 	value := newWavesValue(profile, newProfile)
 	if err = a.stor.balances.setWavesBalance(addr.ID(), value, a.info.BlockID()); err != nil {
 		return errors.Wrapf(err, "failed to get set balance profile for address %q", addr.String())
+	}
+	err = tx.GenerateID(a.info.Scheme())
+	if err != nil {
+		return errors.Wrap(err, "failed to get tx ID")
 	}
 	return a.stor.commitments.store(tx.GenerationPeriodStart, snapshot.SenderPublicKey, snapshot.EndorserPublicKey,
 		*tx.ID, a.info.BlockID())

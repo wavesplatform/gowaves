@@ -99,7 +99,7 @@ func (f *finalizer) processBlockFinalization(
 	if 3*endorsersBalance >= 2*totalGenerationBalance {
 		finalizedHeight := height - 1
 		slog.Debug("Block finalization achieved", slog.Uint64("finalizedHeight", finalizedHeight),
-			slog.Uint64("blockHeigh", height), slog.String("blockID", blockID.String()))
+			slog.Uint64("blockHeight", height), slog.String("blockID", blockID.String()))
 		if fErr := f.finality.updatePendingFinalization(finalizedHeight, blockID); fErr != nil {
 			return fmt.Errorf("failed to update pending finalization: %w", fErr)
 		}
