@@ -23,17 +23,16 @@ import (
 
 const defaultMicroblockInterval = 5 * time.Second
 
+// conf holds time parameters to calculate sync timeout.
+// If nothing happens for more than timeout duration, it means that synchronization is stalled,
+// so we should go to idle state and start again.
 type conf struct {
-	peerSyncWith peer.Peer
-	// if nothing happens more than N duration, means we stalled, so go to idle and again
 	lastReceiveTime time.Time
-
-	timeout time.Duration
+	timeout         time.Duration
 }
 
 func (c conf) Now(tm types.Time) conf {
 	return conf{
-		peerSyncWith:    c.peerSyncWith,
 		lastReceiveTime: tm.Now(),
 		timeout:         c.timeout,
 	}
@@ -103,8 +102,14 @@ func (a *SyncState) Task(task tasks.AsyncTask) (State, Async, error) {
 		a.baseInfo.logger.Debug("Checking timeout", "state", a.String())
 		timeout := a.conf.lastReceiveTime.Add(a.conf.timeout).Before(a.baseInfo.tm.Now())
 		if timeout {
-			a.baseInfo.logger.Debug("Synchronization with peer timed out", "state", a.String(),
-				"timeout", a.conf.timeout.String(), "peer", a.conf.peerSyncWith.ID())
+			if a.baseInfo.syncPeer != nil {
+				a.baseInfo.logger.Debug("Synchronization with peer timed out", "state", a.String(),
+					"timeout", a.conf.timeout.String(), "peer", a.baseInfo.syncPeer.GetPeer().ID())
+				a.baseInfo.logger.Debug("Suspending peer because no timely response was received",
+					slog.String("state", a.String()),
+					slog.String("peer", a.baseInfo.syncPeer.GetPeer().ID().String()))
+				a.baseInfo.peers.Suspend(a.baseInfo.syncPeer.GetPeer(), time.Now(), "timeout during synchronization")
+			}
 			return newIdleState(a.baseInfo), nil, a.Errorf(TimeoutErr)
 		}
 		return a, nil, nil
@@ -124,12 +129,17 @@ func (a *SyncState) BlockIDs(peer peer.Peer, signatures []proto.BlockID) (State,
 	if len(signatures) == 0 {
 		a.baseInfo.logger.Debug("Empty IDs received from peer", "state", a.String(),
 			"peer", peer.ID().String())
+		a.baseInfo.logger.Debug("Suspending peer because of empty blocks IDs received from peer",
+			slog.String("state", a.String()),
+			slog.String("peer", a.baseInfo.syncPeer.GetPeer().ID().String()))
+		a.baseInfo.peers.Suspend(a.baseInfo.syncPeer.GetPeer(), time.Now(), "empty blocks IDs received from peer")
+
 		return a, nil, nil
 	}
 	a.baseInfo.logger.Debug("Block IDs received from peer", "state", a.String(),
 		"from", signatures[0].ShortString(), "to", signatures[len(signatures)-1].ShortString(),
 		"peer", peer.ID().String())
-	if !peer.Equal(a.conf.peerSyncWith) {
+	if !peer.Equal(a.baseInfo.syncPeer.GetPeer()) {
 		a.baseInfo.logger.Debug("Block IDs received from incorrect peer", "state", a.String(),
 			"peer", peer.ID().String(), "expectedPeer", a.baseInfo.syncPeer.GetPeer().ID().String())
 		return a, nil, nil
@@ -167,7 +177,7 @@ func (a *SyncState) Score(p peer.Peer, score *proto.Score) (State, Async, error)
 }
 
 func (a *SyncState) Block(p peer.Peer, block *proto.Block) (State, Async, error) {
-	if !p.Equal(a.conf.peerSyncWith) {
+	if !p.Equal(a.baseInfo.syncPeer.GetPeer()) {
 		return a, nil, nil
 	}
 	metrics.BlockReceivedFromExtension(block, p.Handshake().NodeName)
@@ -186,7 +196,7 @@ func (a *SyncState) BlockSnapshot(
 	blockID proto.BlockID,
 	snapshot proto.BlockSnapshot,
 ) (State, Async, error) {
-	if !p.Equal(a.conf.peerSyncWith) {
+	if !p.Equal(a.baseInfo.syncPeer.GetPeer()) {
 		return a, nil, nil
 	}
 	a.baseInfo.logger.Debug("Received snapshot for block", "state", a.String(), "peer", p.ID(),
@@ -280,11 +290,11 @@ func (a *SyncState) applyBlocksWithSnapshots(
 		})
 	}
 	if err != nil {
-		if errs.IsValidationError(err) || errs.IsValidationError(errors.Cause(err)) {
+		if a.baseInfo.syncPeer != nil && (errs.IsValidationError(err) || errs.IsValidationError(errors.Cause(err))) {
 			a.baseInfo.logger.Debug("Suspending peer because of blocks application error",
 				slog.String("state", a.String()),
 				slog.String("peer", a.baseInfo.syncPeer.GetPeer().ID().String()), logging.Error(err))
-			a.baseInfo.peers.Suspend(conf.peerSyncWith, time.Now(), err.Error())
+			a.baseInfo.peers.Suspend(a.baseInfo.syncPeer.GetPeer(), time.Now(), err.Error())
 		}
 		for _, b := range blocks {
 			metrics.BlockDeclinedFromExtension(b)
@@ -314,7 +324,8 @@ func (a *SyncState) applyBlocksWithSnapshots(
 		a.baseInfo.logger.Debug("Changing sync peer", "state", a.String(), "peer", np.ID().String())
 		return syncWithNewPeer(a, a.baseInfo, np)
 	}
-	a.internal.AskBlocksIDs(extension.NewPeerExtension(a.conf.peerSyncWith, a.baseInfo.scheme, a.baseInfo.netLogger))
+	a.internal.AskBlocksIDs(extension.NewPeerExtension(a.baseInfo.syncPeer.GetPeer(), a.baseInfo.scheme,
+		a.baseInfo.netLogger))
 	return newSyncState(baseInfo, conf, internal), nil, nil
 }
 

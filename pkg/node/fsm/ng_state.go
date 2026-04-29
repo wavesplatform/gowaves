@@ -4,13 +4,15 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
-
 	"github.com/ccoveille/go-safecast/v2"
+
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/logging"
@@ -185,24 +187,14 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 
 	blockHeight := height + 1
 	top := a.baseInfo.storage.TopBlock()
-	if top.BlockID() != block.Parent { // does block refer to last block
-		a.baseInfo.logger.Debug("Key-block has parent which is not the top block", "state", a.String(),
-			"blockID", block.ID.String(), "parent", block.Parent.String(), "top", top.ID.String())
-		if a.baseInfo.enableLightMode {
-			if err = a.rollbackToStateFromCacheInLightNode(block.Parent); err != nil {
-				return a, nil, a.Errorf(err)
-			}
-		} else {
-			if blockFromCache, okGet := a.blocksCache.Get(block.Parent); okGet {
-				a.baseInfo.logger.Debug("Re-applying block from cache", "state", a.String(),
-					"blockID", blockFromCache.ID.String())
-				if err = a.rollbackToStateFromCache(blockFromCache); err != nil {
-					return a, nil, a.Errorf(err)
-				}
-			}
+	// Check if the parent on the top of blockchain.
+	if top.BlockID() != block.Parent {
+		// The block does not refer to last block, try to lookup for the parent in the blocks cache.
+		if rpErr := a.restoreParent(block, top); rpErr != nil {
+			return a, nil, a.Errorf(rpErr)
 		}
 	}
-
+	// The parent is on the top of the blockchain.
 	if a.baseInfo.enableLightMode {
 		defer func() {
 			pe := extension.NewPeerExtension(peer, a.baseInfo.scheme, a.baseInfo.netLogger)
@@ -216,16 +208,26 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 		[]*proto.Block{block},
 	)
 	if err != nil {
+		// Suspend peer if not empty.
+		if a.baseInfo.syncPeer != nil {
+			if errs.IsValidationError(err) || errs.IsValidationError(errors.Cause(err)) {
+				a.baseInfo.logger.Debug("Suspending peer because of blocks application error",
+					slog.String("state", a.String()),
+					slog.String("peer", a.baseInfo.syncPeer.GetPeer().ID().String()), logging.Error(err))
+				a.baseInfo.peers.Suspend(a.baseInfo.syncPeer.GetPeer(), time.Now(), err.Error())
+			}
+		}
 		return a, nil, a.Errorf(errors.Wrapf(err, "failed to apply block %s", block.BlockID()))
 	}
 	metrics.BlockApplied(block, blockHeight)
 	a.baseInfo.endorsements.CleanAll()
 
-	parentBlock, err := a.baseInfo.storage.Block(block.Parent)
+	// Retrieve parent's block header, we need it to save generator's public key in endorsements manager.
+	parentHeader, err := a.baseInfo.storage.Header(block.Parent)
 	if err != nil {
 		return a, nil, a.Errorf(errors.Wrapf(err, "failed to retrieve parent block %s", block.Parent))
 	}
-	a.baseInfo.endorsements.SaveBlockGenerator(&parentBlock.GeneratorPublicKey)
+	a.baseInfo.endorsements.SaveBlockGenerator(&parentHeader.GeneratorPublicKey)
 
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
@@ -251,6 +253,25 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 		}
 	}
 	return newNGState(a.baseInfo), nil, nil
+}
+
+func (a *NGState) restoreParent(block, top *proto.Block) error {
+	a.baseInfo.logger.Debug("Key-block has parent which is not the top block",
+		slog.String("state", a.String()), slog.String("blockID", block.ID.String()),
+		slog.String("parent", block.Parent.String()), slog.String("top", top.ID.String()))
+	if cachedBlock, cacheHit := a.blocksCache.Get(block.Parent); cacheHit {
+		// The parent found in the cache, re-apply it to the blockchain.
+		a.baseInfo.logger.Debug("Re-applying block from cache", slog.String("state", a.String()),
+			slog.String("blockID", cachedBlock.ID.String()))
+		var reApplyErr error
+		if a.baseInfo.enableLightMode {
+			reApplyErr = a.rollbackToStateFromCacheInLightNode(block.Parent)
+		} else {
+			reApplyErr = a.rollbackToStateFromCache(cachedBlock)
+		}
+		return reApplyErr
+	}
+	return nil
 }
 
 func (a *NGState) endorseParentWithEachKey(

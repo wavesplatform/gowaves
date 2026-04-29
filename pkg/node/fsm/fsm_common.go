@@ -96,12 +96,9 @@ func syncWithNewPeer(state State, baseInfo BaseInfo, p peer.Peer) (State, Async,
 		lastSignatures,
 		baseInfo.enableLightMode,
 	)
-	c := conf{
-		peerSyncWith: p,
-		timeout:      defaultSyncTimeout,
-	}
 	baseInfo.logger.Debug("Starting synchronization with peer", "state", state.String(), "peer", p.ID())
 	baseInfo.syncPeer.SetPeer(p)
+	c := conf{timeout: defaultSyncTimeout}
 	return &SyncState{
 		baseInfo: baseInfo,
 		conf:     c.Now(baseInfo.tm),
