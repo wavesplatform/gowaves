@@ -324,7 +324,7 @@ func (a *NGState) endorseParentWithEachKey(
 				slog.Any("BlockID", block.BlockID()), slog.Any("GenerationPeriodStart", periodStart))
 			continue
 		}
-		if enErr := a.Endorse(block.Parent, g, sk); enErr != nil {
+		if enErr := a.Endorse(blockHeight, block.Parent, g, sk); enErr != nil {
 			return a.Errorf(errors.Wrapf(enErr, "failed to endorse parent block"))
 		}
 	}
@@ -492,68 +492,47 @@ func (a *NGState) MinedBlock(
 	return a, tasks.Tasks(tasks.NewMineMicroTask(0, block, limits, keyPair, vrf)), nil
 }
 
-func (a *NGState) Endorse(parentBlockID proto.BlockID,
+func (a *NGState) Endorse(height proto.Height, parentBlockID proto.BlockID,
 	endorser state.GeneratorInfo, endorserSK bls.SecretKey) error {
-	endorserIndex := endorser.Index
-	lastFinalizedHeight, err := a.baseInfo.storage.LastFinalizedHeight()
+	msg, err := a.baseInfo.storage.BuildLocalEndorsementMessage(height, parentBlockID)
 	if err != nil {
-		return a.Errorf(errors.Wrap(err, "failed to get last finalized block height"))
+		return a.Errorf(errors.Wrap(err, "failed to build local endorsement message"))
 	}
-	lfh, err := safecast.Convert[uint32](lastFinalizedHeight)
-	if err != nil {
-		return a.Errorf(errors.Wrap(err, "failed to convert last finalized block height"))
-	}
-	lastFinalizedBlock, err := a.baseInfo.storage.BlockByHeight(lastFinalizedHeight)
-	if err != nil {
-		return a.Errorf(errors.Wrap(err, "failed to get last finalized block"))
-	}
-	msg := proto.NewEndorsementCryptoMessage(lastFinalizedBlock.BlockID(), parentBlockID, lfh)
 	cmb, err := msg.Bytes()
 	if err != nil {
 		return a.Errorf(errors.Wrap(err, "failed to create endorsement message"))
 	}
-	slog.Debug("formed endorsement message",
-		"lastFinalizedBlockID", lastFinalizedBlock.BlockID(),
-		"lastFinalizedHeight", lastFinalizedHeight,
-		"EndorsedBlockID", parentBlockID,
-		"EndorserIndex", endorserIndex)
 	signature, err := bls.Sign(endorserSK, cmb)
 	if err != nil {
 		return a.Errorf(errors.Wrap(err, "failed to sign block endorsement"))
 	}
-
-	finalizedHeight32, cErr := safecast.Convert[uint32](lastFinalizedHeight)
-	if cErr != nil {
-		return a.Errorf(errors.Wrapf(cErr, "lastFinalizedHeight overflows uint32: %v", lastFinalizedHeight))
-	}
 	endorseParentBlock := &proto.BlockEndorsement{
-		EndorserIndex:        endorserIndex,
-		FinalizedBlockID:     lastFinalizedBlock.BlockID(),
-		FinalizedBlockHeight: finalizedHeight32,
-		EndorsedBlockID:      parentBlockID,
+		EndorserIndex:        endorser.Index,
+		FinalizedBlockID:     msg.FinalizedBlockID,
+		FinalizedBlockHeight: msg.FinalizedBlockHeight,
+		EndorsedBlockID:      msg.EndorsedBlockID,
 		Signature:            signature,
 	}
 	id, idErr := endorsementID(endorseParentBlock)
 	if idErr != nil {
 		return a.Errorf(errors.Wrap(idErr, "failed to compute endorsement id"))
 	}
-	return a.addAndBroadcastOwnEndorsement(endorseParentBlock, endorser, lastFinalizedHeight,
-		lastFinalizedBlock.BlockID(), id)
+	slog.Debug("Formed endorsement message", slog.String("endorsementID", id.String()),
+		slog.Any("endorserIndex", endorser.Index), slog.String("signature", signature.String()))
+	return a.addAndBroadcastOwnEndorsement(endorseParentBlock, endorser, id)
 }
 
 func (a *NGState) addAndBroadcastOwnEndorsement(
 	parentBlockEndorsement *proto.BlockEndorsement,
 	endorser state.GeneratorInfo,
-	lastFinalizedHeight proto.Height,
-	lastFinalizedBlockID proto.BlockID,
 	id crypto.Digest,
 ) error {
 	top := a.baseInfo.storage.TopBlock()
 	added, addErr := a.baseInfo.endorsements.Add(
 		parentBlockEndorsement,
 		endorser.BLSPublicKey,
-		lastFinalizedHeight,
-		lastFinalizedBlockID,
+		proto.Height(parentBlockEndorsement.FinalizedBlockHeight),
+		parentBlockEndorsement.FinalizedBlockID,
 		endorser.Balance,
 		top.Parent,
 	)

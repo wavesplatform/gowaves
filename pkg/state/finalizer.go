@@ -22,6 +22,10 @@ func newFinalizer(generators *generatorsStorage, finality *finality) *finalizer 
 }
 
 func (f *finalizer) checkBlockFinalization(voting proto.FinalizationVoting, height proto.Height) error {
+	if voting.FinalizedBlockHeight >= height {
+		return fmt.Errorf("invalid finalization voting: finalized block height %d should be less than block height %d",
+			voting.FinalizedBlockHeight, height)
+	}
 	gs, err := f.generators.generators(height)
 	if err != nil {
 		if errors.Is(err, ErrNoGeneratorsSet) {
@@ -78,7 +82,7 @@ func (f *finalizer) processBlockFinalization(
 	// Add block generator's balance to endorsers balance.
 	endorsersBalance += bg.Balance // Balance of block generator already checked.
 	// Check aggregate signature.
-	msg, err := f.finality.buildLocalEndorsementMessage(height, block.Parent)
+	msg, err := f.finality.buildRemoteEndorsementMessage(finalizationVoting.FinalizedBlockHeight, block.Parent)
 	if err != nil {
 		return err
 	}

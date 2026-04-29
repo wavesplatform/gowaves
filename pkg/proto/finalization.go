@@ -116,8 +116,24 @@ type FinalizationVoting struct {
 	ConflictEndorsements           []BlockEndorsement `json:"conflictEndorsements,omitempty"`
 }
 
+func (f *FinalizationVoting) IsEmpty() bool {
+	return len(f.EndorserIndexes) == 0 && f.FinalizedBlockHeight == 0 && len(f.ConflictEndorsements) == 0 &&
+		(f.AggregatedEndorsementSignature == bls.Signature{})
+}
+
 // Validate checks that FinalizationVoting doesn't have any duplicate endorsers indexes.
 func (f *FinalizationVoting) Validate() error {
+	if f.IsEmpty() { // Empty structure nothing to check.
+		return nil
+	}
+	const genesisBlockHeight = 1
+	if f.FinalizedBlockHeight < genesisBlockHeight {
+		return fmt.Errorf("invalid finalization voting: finalized block height %d is less than genesis block height %d",
+			f.FinalizedBlockHeight, genesisBlockHeight)
+	}
+	if len(f.EndorserIndexes) == 0 && len(f.ConflictEndorsements) == 0 {
+		return fmt.Errorf("invalid finalization voting: both endorsers and conflict endorsements are empty")
+	}
 	indexes := make(map[uint32]struct{}, len(f.ConflictEndorsements)+len(f.EndorserIndexes))
 	for _, ce := range f.ConflictEndorsements {
 		if _, seen := indexes[ce.EndorserIndex]; seen {

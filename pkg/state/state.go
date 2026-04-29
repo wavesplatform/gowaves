@@ -3597,3 +3597,11 @@ func (s *stateManager) LastFinalizedBlock() (*proto.BlockHeader, error) {
 func (s *stateManager) NewestMinimalGeneratingBalanceAtHeight(height proto.Height, ts uint64) uint64 {
 	return s.stor.features.minimalGeneratingBalanceAtHeight(height, ts)
 }
+
+// BuildLocalEndorsementMessage creates endorsement crypto message from local state of finalization at given height and
+// for given parent block ID.
+func (s *stateManager) BuildLocalEndorsementMessage(
+	height proto.Height, parentID proto.BlockID,
+) (proto.EndorsementCryptoMessage, error) {
+	return s.stor.finality.buildLocalEndorsementMessage(height, parentID)
+}
