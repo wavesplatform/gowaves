@@ -134,7 +134,7 @@ func (a *SyncState) BlockIDs(peer peer.Peer, signatures []proto.BlockID) (State,
 			slog.String("peer", a.baseInfo.syncPeer.GetPeer().ID().String()))
 		a.baseInfo.peers.AddToBlackList(a.baseInfo.syncPeer.GetPeer(), time.Now(), "empty blocks IDs received from peer")
 
-		return a, nil, nil
+		return newIdleState(a.baseInfo), nil, nil
 	}
 	a.baseInfo.logger.Debug("Block IDs received from peer", "state", a.String(),
 		"from", signatures[0].ShortString(), "to", signatures[len(signatures)-1].ShortString(),
