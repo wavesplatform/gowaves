@@ -88,19 +88,23 @@ func TestCommitments_Exists(t *testing.T) {
 			cms := generateCommitments(t, test.n+1)
 			for j := range test.n {
 				blockID := generateRandomBlockID(t)
+				txID := generateRandomDigest(t)
 				to.addBlock(t, blockID)
-				err := to.entities.commitments.store(test.periodStart, cms[j].GeneratorPK, cms[j].EndorserPK, blockID)
+				err := to.entities.commitments.store(test.periodStart, cms[j].GeneratorPK, cms[j].EndorserPK, txID,
+					blockID)
 				require.NoError(t, err)
 
 				// Check that all added commitments exist.
 				for k := range j {
-					ok, eErr := to.entities.commitments.newestExists(test.periodStart, cms[k].GeneratorPK, cms[k].EndorserPK)
+					ok, eErr := to.entities.commitments.newestExists(test.periodStart, cms[k].GeneratorPK,
+						cms[k].EndorserPK)
 					require.NoError(t, eErr)
 					assert.True(t, ok)
 				}
 
 				// Check that non-existing commitment does not exist.
-				ok, err := to.entities.commitments.newestExists(test.periodStart, cms[test.n].GeneratorPK, cms[test.n].EndorserPK)
+				ok, err := to.entities.commitments.newestExists(test.periodStart, cms[test.n].GeneratorPK,
+					cms[test.n].EndorserPK)
 				require.NoError(t, err)
 				assert.False(t, ok)
 
@@ -114,7 +118,8 @@ func TestCommitments_Exists(t *testing.T) {
 				}
 
 				// Check that non-existing commitment does not exist after flush.
-				ok, err = to.entities.commitments.exists(test.periodStart, cms[test.n].GeneratorPK, cms[test.n].EndorserPK)
+				ok, err = to.entities.commitments.exists(test.periodStart, cms[test.n].GeneratorPK,
+					cms[test.n].EndorserPK)
 				require.NoError(t, err)
 				assert.False(t, ok)
 			}
@@ -137,8 +142,10 @@ func TestCommitmentsBatch(t *testing.T) {
 			cms := generateCommitments(t, test.n)
 			for j := range test.n {
 				blockID := generateRandomBlockID(t)
+				txID := generateRandomDigest(t)
 				to.addBlock(t, blockID)
-				err := to.entities.commitments.store(test.periodStart, cms[j].GeneratorPK, cms[j].EndorserPK, blockID)
+				err := to.entities.commitments.store(test.periodStart, cms[j].GeneratorPK, cms[j].EndorserPK, txID,
+					blockID)
 				require.NoError(t, err)
 			}
 			// Unflushed size check.
@@ -159,8 +166,9 @@ func TestRepeatedUsageOfBLSKey(t *testing.T) {
 	periodStart := uint32(1_000_000)
 	cms := generateCommitments(t, 2)
 	bID1 := generateRandomBlockID(t)
+	txID1 := generateRandomDigest(t)
 	to.addBlock(t, bID1)
-	err := to.entities.commitments.store(periodStart, cms[0].GeneratorPK, cms[0].EndorserPK, bID1)
+	err := to.entities.commitments.store(periodStart, cms[0].GeneratorPK, cms[0].EndorserPK, txID1, bID1)
 	require.NoError(t, err)
 
 	// Check that the commitment exist.
@@ -194,9 +202,11 @@ func generateCommitments(t testing.TB, n int) []commitmentItem {
 		require.NoError(t, err)
 		bpk, err := bsk.PublicKey()
 		require.NoError(t, err)
+		txID := generateRandomDigest(t)
 		r[i] = commitmentItem{
-			GeneratorPK: wpk,
-			EndorserPK:  bpk,
+			GeneratorPK:   wpk,
+			EndorserPK:    bpk,
+			TransactionID: txID,
 		}
 	}
 	return r
@@ -207,4 +217,11 @@ func generateRandomBlockID(t testing.TB) proto.BlockID {
 	_, err := rand.Read(sig[:])
 	require.NoError(t, err)
 	return proto.NewBlockIDFromSignature(sig)
+}
+
+func generateRandomDigest(t testing.TB) crypto.Digest {
+	var d crypto.Digest
+	_, err := rand.Read(d[:])
+	require.NoError(t, err)
+	return d
 }

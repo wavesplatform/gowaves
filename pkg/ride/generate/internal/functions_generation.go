@@ -926,19 +926,46 @@ func functionsV9() map[string]string {
 
 func catalogueV9() map[string]int {
 	m := catalogueV8()
+	m["201"] = 2
+	m["202"] = 2
+	m["204"] = 2
+	m["205"] = 2
+	m["303"] = 2
+	m["304"] = 2
+	m["306"] = 2
+	m["307"] = 2
+	m["400"] = 1
+	m["401"] = 1
 	m["503"] = 36
 	for i, c := range []int{5, 9, 17, 32} {
 		m[strconv.Itoa(sha256BaseID+i)] = c
 	}
-	m["606"] = 1
-	m["607"] = 1
-	m["608"] = 1
-	m["609"] = 1
+	m["602"] = 3
+	m["603"] = 12
+	m["604"] = 4
+	m["605"] = 4
+	m["606"] = 1 // New function ToBase64_1C
+	m["607"] = 1 // New function FromBase64_1C
+	m["608"] = 1 // New function ToBase16_1C
+	m["609"] = 1 // New function FromBase16_1C
+	m["701"] = 3
 	m["902"] = 43
 	m["903"] = 43
+	m["1105"] = 1
+	m["1106"] = 1
 	m["1107"] = 2
-	m["1214"] = 2
-	m["1215"] = 2
+	m["1214"] = 2 // New function ReplaceFirst
+	m["1215"] = 2 // New function ReplaceAll
+
+	m["getInteger"] = 7
+	m["getBoolean"] = 7
+	m["getBinary"] = 7
+	m["getString"] = 7
+	m["@extrUser(getInteger)"] = 14
+	m["@extrUser(getBoolean)"] = 14
+	m["@extrUser(getBinary)"] = 14
+	m["@extrUser(getString)"] = 14
+
 	constructorsCatalogue(ast.LibV9, m)
 	return m
 }

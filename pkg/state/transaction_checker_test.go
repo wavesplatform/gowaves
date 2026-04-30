@@ -1907,7 +1907,8 @@ func TestCheckCommitToGenerationWithProofs_SecondCommitmentAttempt(t *testing.T)
 	_, err := to.tc.checkCommitToGenerationWithProofs(tx1, info)
 	assert.NoError(t, err)
 
-	err = to.stor.entities.commitments.store(tx1.GenerationPeriodStart, tx1.SenderPK, tx1.EndorserPublicKey, info.blockID)
+	err = to.stor.entities.commitments.store(tx1.GenerationPeriodStart, tx1.SenderPK, tx1.EndorserPublicKey, *tx1.ID,
+		info.blockID)
 	require.NoError(t, err)
 
 	tx2 := createCommitToGenerationWithProofs(t, 10_002,

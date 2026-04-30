@@ -33,50 +33,6 @@ func TestApp_PeersKnown(t *testing.T) {
 	require.Len(t, rs2.Peers, 1)
 }
 
-func TestApp_PeersSuspended(t *testing.T) {
-	peerManager := peers.NewMockPeerManager(t)
-
-	now := time.Now()
-	cfg := &settings.BlockchainSettings{
-		FunctionalitySettings: settings.FunctionalitySettings{
-			GenerationPeriod: 0,
-		},
-	}
-
-	ips := []string{"13.3.4.1", "5.3.6.7"}
-	testData := []storage.SuspendedPeer{
-		{
-			IP:                      storage.IPFromString(ips[0]),
-			RestrictTimestampMillis: now.Add(time.Minute).UnixMilli(),
-			RestrictDuration:        time.Minute,
-			Reason:                  "some reason #1",
-		},
-		{
-			IP:                      storage.IPFromString(ips[1]),
-			RestrictTimestampMillis: now.Add(2 * time.Minute).UnixMilli(),
-			RestrictDuration:        time.Minute,
-			Reason:                  "some reason #2",
-		},
-	}
-
-	peerManager.EXPECT().Suspended().Return(testData)
-
-	app, err := NewApp("key", nil, services.Services{Peers: peerManager}, cfg)
-	require.NoError(t, err)
-
-	suspended := app.PeersSuspended()
-
-	for i, actual := range suspended {
-		p := testData[i]
-		expected := RestrictedPeerInfo{
-			Hostname:  "/" + ips[i],
-			Timestamp: p.RestrictTimestampMillis,
-			Reason:    p.Reason,
-		}
-		assert.Equal(t, expected, actual)
-	}
-}
-
 func TestApp_PeersBlackList(t *testing.T) {
 	peerManager := peers.NewMockPeerManager(t)
 

@@ -58,8 +58,8 @@ func (msg *EndorsementCryptoMessage) Bytes() ([]byte, error) {
 // BlockEndorsement represents an endorsement of a block by a validator.
 type BlockEndorsement struct {
 	EndorserIndex        uint32        `json:"endorserIndex"`
-	FinalizedBlockID     BlockID       `json:"finalizedBlockID"`
-	FinalizedBlockHeight uint32        `json:"finalizedBlockHeight"`
+	FinalizedBlockID     BlockID       `json:"finalizedBlockId"`
+	FinalizedBlockHeight uint32        `json:"finalizedHeight"`
 	EndorsedBlockID      BlockID       `json:"endorsedBlockId"`
 	Signature            bls.Signature `json:"signature"`
 }
@@ -110,14 +110,30 @@ func (e *BlockEndorsement) ToProtobuf() (*g.EndorseBlock, error) {
 }
 
 type FinalizationVoting struct {
-	EndorserIndexes                []uint32           `json:"endorserIndexes"`
-	FinalizedBlockHeight           Height             `json:"finalizedBlockHeight"`
+	EndorserIndexes                []uint32           `json:"endorserIndexes,omitempty"`
+	FinalizedBlockHeight           Height             `json:"finalizedHeight"`
 	AggregatedEndorsementSignature bls.Signature      `json:"aggregatedEndorsementSignature"`
-	ConflictEndorsements           []BlockEndorsement `json:"conflictEndorsements"`
+	ConflictEndorsements           []BlockEndorsement `json:"conflictEndorsements,omitempty"`
+}
+
+func (f *FinalizationVoting) IsEmpty() bool {
+	return len(f.EndorserIndexes) == 0 && f.FinalizedBlockHeight == 0 && len(f.ConflictEndorsements) == 0 &&
+		(f.AggregatedEndorsementSignature == bls.Signature{})
 }
 
 // Validate checks that FinalizationVoting doesn't have any duplicate endorsers indexes.
 func (f *FinalizationVoting) Validate() error {
+	if f.IsEmpty() { // Empty structure nothing to check.
+		return nil
+	}
+	const genesisBlockHeight = 1
+	if f.FinalizedBlockHeight < genesisBlockHeight {
+		return fmt.Errorf("invalid finalization voting: finalized block height %d is less than genesis block height %d",
+			f.FinalizedBlockHeight, genesisBlockHeight)
+	}
+	if len(f.EndorserIndexes) == 0 && len(f.ConflictEndorsements) == 0 {
+		return fmt.Errorf("invalid finalization voting: both endorsers and conflict endorsements are empty")
+	}
 	indexes := make(map[uint32]struct{}, len(f.ConflictEndorsements)+len(f.EndorserIndexes))
 	for _, ce := range f.ConflictEndorsements {
 		if _, seen := indexes[ce.EndorserIndex]; seen {
@@ -133,6 +149,19 @@ func (f *FinalizationVoting) Validate() error {
 			return fmt.Errorf("invalid finalization voting: duplicate endorser index %d", idx)
 		}
 		indexes[idx] = struct{}{}
+	}
+	return nil
+}
+
+// CheckSizes validates the sizes of finalization fields against the size of generator set.
+// The number of endorsements and conflicting endorsements must not exceed the generator set size.
+func (f *FinalizationVoting) CheckSizes(generatorSetSize int) error {
+	if ces := len(f.ConflictEndorsements); ces > generatorSetSize {
+		return fmt.Errorf("conflicting endorsements count %d exceeds generator set size %d",
+			ces, generatorSetSize)
+	}
+	if eis := len(f.EndorserIndexes); eis > generatorSetSize {
+		return fmt.Errorf("endorsements count %d exceeds generator set size %d", eis, generatorSetSize)
 	}
 	return nil
 }
