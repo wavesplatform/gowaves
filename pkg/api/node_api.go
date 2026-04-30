@@ -623,14 +623,6 @@ func (a *NodeApi) PeersConnected(w http.ResponseWriter, _ *http.Request) error {
 	return nil
 }
 
-func (a *NodeApi) PeersSuspended(w http.ResponseWriter, _ *http.Request) error {
-	rs := a.app.PeersSuspended()
-	if err := trySendJSON(w, rs); err != nil {
-		return errors.Wrap(err, "PeersSuspended")
-	}
-	return nil
-}
-
 func (a *NodeApi) PeersBlackListed(w http.ResponseWriter, _ *http.Request) error {
 	rs := a.app.PeersBlackListed()
 	if err := trySendJSON(w, rs); err != nil {

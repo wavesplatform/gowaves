@@ -214,7 +214,7 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 				a.baseInfo.logger.Debug("Suspending peer because of blocks application error",
 					slog.String("state", a.String()),
 					slog.String("peer", a.baseInfo.syncPeer.GetPeer().ID().String()), logging.Error(err))
-				a.baseInfo.peers.Suspend(a.baseInfo.syncPeer.GetPeer(), time.Now(), err.Error())
+				a.baseInfo.peers.AddToBlackList(a.baseInfo.syncPeer.GetPeer(), time.Now(), err.Error())
 			}
 		}
 		return a, nil, a.Errorf(errors.Wrapf(err, "failed to apply block %s", block.BlockID()))

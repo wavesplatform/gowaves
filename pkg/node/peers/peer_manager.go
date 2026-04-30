@@ -2,7 +2,6 @@ package peers
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"math/big"
 	"net"
@@ -18,7 +17,7 @@ import (
 )
 
 const (
-	suspendDuration              = 5 * time.Minute
+	restrictionDuration          = 5 * time.Minute
 	clearRestrictedPeersInterval = 1 * time.Minute
 )
 
@@ -49,8 +48,6 @@ type PeerManager interface {
 	NewConnection(peer.Peer) error
 	ConnectedCount() int
 	EachConnected(func(peer.Peer, *proto.Score))
-	Suspend(peer peer.Peer, suspendTime time.Time, reason string)
-	Suspended() []storage.SuspendedPeer
 	AddToBlackList(peer peer.Peer, blockTime time.Time, reason string)
 	BlackList() []storage.BlackListedPeer
 	ClearBlackList() error
@@ -114,11 +111,7 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 	}
 
 	now := time.Now()
-	if p.Direction() == peer.Outgoing && a.suspended(p, now) {
-		_ = p.Close()
-		return errors.Wrapf(ErrPeerSuspended, "%s", p.ID())
-	}
-	if p.Direction() == peer.Incoming && a.blackListed(p, now) {
+	if a.blackListed(p, now) {
 		_ = p.Close()
 		return errors.Wrapf(ErrPeerBlackListed, "%s", p.ID())
 	}
@@ -179,28 +172,6 @@ func (a *PeerManagerImpl) EachConnected(f func(peer peer.Peer, score *big.Int)) 
 			f(info.peer, info.score)
 		},
 	)
-}
-
-func (a *PeerManagerImpl) Suspend(p peer.Peer, suspendTime time.Time, reason string) {
-	a.Disconnect(p)
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	suspended := storage.NewSuspendedPeer(
-		storage.IpFromIpPort(p.RemoteAddr().ToIpPort()),
-		suspendTime.UnixMilli(),
-		suspendDuration,
-		reason,
-	)
-	if err := a.peerStorage.AddSuspended([]storage.SuspendedPeer{suspended}); err != nil {
-		slog.Error("Failed to suspend peer", slog.Any("peer", p.ID()), slog.String("reason", reason),
-			logging.Error(err))
-	} else {
-		a.logger.Debug("Suspending peer", "peer", p.ID(), "reason", reason)
-	}
-}
-
-func (a *PeerManagerImpl) Suspended() []storage.SuspendedPeer {
-	return a.peerStorage.Suspended(time.Now())
 }
 
 func (a *PeerManagerImpl) AddToBlackList(p peer.Peer, blockTime time.Time, reason string) {
@@ -314,7 +285,7 @@ func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 		if _, ok := a.spawned[ipPort]; ok {
 			continue
 		}
-		if a.peerStorage.IsSuspendedIP(knowPeer.IP(), time.Now()) {
+		if a.peerStorage.IsBlackListedIP(knowPeer.IP(), time.Now()) {
 			continue
 		}
 
@@ -370,6 +341,9 @@ func (a *PeerManagerImpl) Connect(ctx context.Context, addr proto.TCPAddr) error
 	}
 
 	if _, ok := a.spawned[addr.ToIpPort()]; ok {
+		return nil
+	}
+	if a.peerStorage.IsBlackListedIP(storage.IpFromIpPort(addr.ToIpPort()), time.Now()) {
 		return nil
 	}
 
@@ -500,9 +474,6 @@ func (a *PeerManagerImpl) unsafeConnectedCount() int {
 func (a *PeerManagerImpl) clearRestrictedPeers(now time.Time) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if err := a.peerStorage.RefreshSuspended(now); err != nil {
-		slog.Error("Failed to clear suspended peers", logging.Error(err))
-	}
 	if err := a.peerStorage.RefreshBlackList(now); err != nil {
 		slog.Error("Failed to clear black listed peers", logging.Error(err))
 	}
@@ -515,13 +486,6 @@ func (a *PeerManagerImpl) addConnected(peer peer.Peer) {
 	a.active.add(peer)
 }
 
-func (a *PeerManagerImpl) suspended(p peer.Peer, now time.Time) bool {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	ip := storage.IpFromIpPort(p.RemoteAddr().ToIpPort())
-	return a.peerStorage.IsSuspendedIP(ip, now)
-}
-
 func (a *PeerManagerImpl) blackListed(p peer.Peer, now time.Time) bool {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -530,14 +494,7 @@ func (a *PeerManagerImpl) blackListed(p peer.Peer, now time.Time) bool {
 }
 
 func (a *PeerManagerImpl) restrict(p peer.Peer, now time.Time, reason string) {
-	switch d := p.Direction(); d {
-	case peer.Incoming:
-		a.AddToBlackList(p, now, reason)
-	case peer.Outgoing:
-		a.Suspend(p, now, reason)
-	default:
-		panic(fmt.Sprintf("BUG, CREATE REPORT: can't restrict peer because of unexpected peer direction (%d)", d))
-	}
+	a.AddToBlackList(p, now, reason)
 }
 
 // countDirections counts connected peers by its directions and returns number of inbound and outbound connections.

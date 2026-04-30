@@ -10,7 +10,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-func TestPeerManagerImpl_Suspend(t *testing.T) {
+func TestPeerManagerImpl_BlackList(t *testing.T) {
 	now := time.Now()
 	tcpAddr := proto.NewTCPAddrFromString("32.34.46.1:4535")
 	reason := "some-reason"
@@ -22,17 +22,18 @@ func TestPeerManagerImpl_Suspend(t *testing.T) {
 	p.EXPECT().ID().Return(nil)
 
 	peerStorage := NewMockPeerStorage(t)
-	peerStorage.EXPECT().AddSuspended([]storage.SuspendedPeer{{
+	peerStorage.EXPECT().AddToBlackList([]storage.BlackListedPeer{{
 		IP:                      storage.IpFromIpPort(tcpAddr.ToIpPort()),
 		RestrictTimestampMillis: now.UnixMilli(),
-		RestrictDuration:        suspendDuration,
+		RestrictDuration:        restrictionDuration,
 		Reason:                  reason,
 	}}).Return(nil)
 
 	manager := PeerManagerImpl{
-		peerStorage: peerStorage,
-		logger:      slog.New(slog.DiscardHandler),
+		peerStorage:       peerStorage,
+		logger:            slog.New(slog.DiscardHandler),
+		blackListDuration: restrictionDuration,
 	}
 
-	manager.Suspend(p, now, reason)
+	manager.AddToBlackList(p, now, reason)
 }

@@ -108,7 +108,7 @@ func (a *SyncState) Task(task tasks.AsyncTask) (State, Async, error) {
 				a.baseInfo.logger.Debug("Suspending peer because no timely response was received",
 					slog.String("state", a.String()),
 					slog.String("peer", a.baseInfo.syncPeer.GetPeer().ID().String()))
-				a.baseInfo.peers.Suspend(a.baseInfo.syncPeer.GetPeer(), time.Now(), "timeout during synchronization")
+				a.baseInfo.peers.AddToBlackList(a.baseInfo.syncPeer.GetPeer(), time.Now(), "timeout during synchronization")
 			}
 			return newIdleState(a.baseInfo), nil, a.Errorf(TimeoutErr)
 		}
@@ -132,7 +132,7 @@ func (a *SyncState) BlockIDs(peer peer.Peer, signatures []proto.BlockID) (State,
 		a.baseInfo.logger.Debug("Suspending peer because of empty blocks IDs received from peer",
 			slog.String("state", a.String()),
 			slog.String("peer", a.baseInfo.syncPeer.GetPeer().ID().String()))
-		a.baseInfo.peers.Suspend(a.baseInfo.syncPeer.GetPeer(), time.Now(), "empty blocks IDs received from peer")
+		a.baseInfo.peers.AddToBlackList(a.baseInfo.syncPeer.GetPeer(), time.Now(), "empty blocks IDs received from peer")
 
 		return a, nil, nil
 	}
@@ -294,7 +294,7 @@ func (a *SyncState) applyBlocksWithSnapshots(
 			a.baseInfo.logger.Debug("Suspending peer because of blocks application error",
 				slog.String("state", a.String()),
 				slog.String("peer", a.baseInfo.syncPeer.GetPeer().ID().String()), logging.Error(err))
-			a.baseInfo.peers.Suspend(a.baseInfo.syncPeer.GetPeer(), time.Now(), err.Error())
+			a.baseInfo.peers.AddToBlackList(a.baseInfo.syncPeer.GetPeer(), time.Now(), err.Error())
 		}
 		for _, b := range blocks {
 			metrics.BlockDeclinedFromExtension(b)
