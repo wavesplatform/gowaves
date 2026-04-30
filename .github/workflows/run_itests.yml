@@ -35,6 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: "${{ inputs.environment }}" # use the environment name from the input
+      deployment: false # don't create a deployment object, useful for CI or testing jobs that need environment secrets but aren't actually deploying anything
     if: (github.repository == 'wavesplatform/gowaves')
     env:
       DOCKER_MACHINE_NAME: local
