@@ -9,6 +9,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
+const (
+	sha256BaseID = 2900
+)
+
 func functionsV2() map[string]string {
 	m := make(map[string]string)
 	m["0"] = "eq"
@@ -427,7 +431,7 @@ func functionsV4() map[string]string {
 		m[strconv.Itoa(2600+i)] = fmt.Sprintf("rsaVerify_%d", l)
 		m[strconv.Itoa(2700+i)] = fmt.Sprintf("keccak256_%d", l)
 		m[strconv.Itoa(2800+i)] = fmt.Sprintf("blake2b256_%d", l)
-		m[strconv.Itoa(2900+i)] = fmt.Sprintf("sha256_%d", l)
+		m[strconv.Itoa(sha256BaseID+i)] = fmt.Sprintf("sha256_%d", l)
 	}
 	m["@extrNative(1062)"] = "addressValueFromString"
 	for i := 2; i <= 22; i++ {
@@ -516,7 +520,7 @@ func catalogueV4() map[string]int {
 	for i, c := range []int{10, 25, 50, 100} {
 		m[strconv.Itoa(2700+i)] = c
 		m[strconv.Itoa(2800+i)] = c
-		m[strconv.Itoa(2900+i)] = c
+		m[strconv.Itoa(sha256BaseID+i)] = c
 	}
 
 	m["@extrNative(1050)"] = 10
@@ -812,20 +816,6 @@ func functionsV6() map[string]string {
 	return m
 }
 
-func functionsV7() map[string]string {
-	m := functionsV6()
-	constructorsFunctions(ast.LibV7, m)
-	return m
-}
-
-func functionsV8() map[string]string {
-	m := functionsV7()
-	m["901"] = "calculateDelay"
-	m["1106"] = "listReplaceByIndex"
-	constructorsFunctions(ast.LibV8, m)
-	return m
-}
-
 func catalogueV6() map[string]int {
 	m := catalogueV5()
 	m["3"] = 1
@@ -864,7 +854,7 @@ func catalogueV6() map[string]int {
 		m[strconv.Itoa(2800+i)] = c
 	}
 	for i, c := range []int{12, 23, 47, 93} {
-		m[strconv.Itoa(2900+i)] = c
+		m[strconv.Itoa(sha256BaseID+i)] = c
 	}
 	m["fraction"] = 4
 	m["sqrt"] = 2
@@ -874,9 +864,23 @@ func catalogueV6() map[string]int {
 	return m
 }
 
+func functionsV7() map[string]string {
+	m := functionsV6()
+	constructorsFunctions(ast.LibV7, m)
+	return m
+}
+
 func catalogueV7() map[string]int {
 	m := catalogueV6()
 	constructorsCatalogue(ast.LibV7, m)
+	return m
+}
+
+func functionsV8() map[string]string {
+	m := functionsV7()
+	m["901"] = "calculateDelay"
+	m["1106"] = "listReplaceByIndex"
+	constructorsFunctions(ast.LibV8, m)
 	return m
 }
 
@@ -902,6 +906,40 @@ func catalogueV8() map[string]int {
 	m["1105"] = 4
 	m["1106"] = 4
 	constructorsCatalogue(ast.LibV8, m)
+	return m
+}
+
+func functionsV9() map[string]string {
+	m := functionsV8()
+	m["606"] = "toBase641C"
+	m["607"] = "fromBase641C"
+	m["608"] = "toBase161C"
+	m["609"] = "fromBase161C"
+	m["902"] = "validateCertChain"
+	m["903"] = "secP256Verify"
+	m["1107"] = "fillList"
+	m["1214"] = "replaceFirst"
+	m["1215"] = "replaceAll"
+	constructorsFunctions(ast.LibV9, m)
+	return m
+}
+
+func catalogueV9() map[string]int {
+	m := catalogueV8()
+	m["503"] = 36
+	for i, c := range []int{5, 9, 17, 32} {
+		m[strconv.Itoa(sha256BaseID+i)] = c
+	}
+	m["606"] = 1
+	m["607"] = 1
+	m["608"] = 1
+	m["609"] = 1
+	m["902"] = 43
+	m["903"] = 43
+	m["1107"] = 2
+	m["1214"] = 2
+	m["1215"] = 2
+	constructorsCatalogue(ast.LibV9, m)
 	return m
 }
 
@@ -999,6 +1037,14 @@ func evaluationCatalogueV8EvaluatorV1() map[string]int {
 
 func evaluationCatalogueV8EvaluatorV2() map[string]int {
 	return evaluationCatalogueEvaluatorV2Builder(ast.LibV8, catalogueV8)
+}
+
+func evaluationCatalogueV9EvaluatorV1() map[string]int {
+	return evaluationCatalogueEvaluatorV1Builder(ast.LibV9, catalogueV9)
+}
+
+func evaluationCatalogueV9EvaluatorV2() map[string]int {
+	return evaluationCatalogueEvaluatorV2Builder(ast.LibV9, catalogueV9)
 }
 
 func constructorsFromConstants(m map[string]string, c map[string]constantDescription) {
@@ -1132,6 +1178,8 @@ func GenerateFunctions(fn string) {
 		evaluationCatalogueV7EvaluatorV2())
 	createFunctionsList(cd, "V8", functionsV8(), catalogueV8(), evaluationCatalogueV8EvaluatorV1(),
 		evaluationCatalogueV8EvaluatorV2())
+	createFunctionsList(cd, "V9", functionsV9(), catalogueV9(), evaluationCatalogueV9EvaluatorV1(),
+		evaluationCatalogueV9EvaluatorV2())
 	if err := cd.Save(fn); err != nil {
 		panic(err)
 	}

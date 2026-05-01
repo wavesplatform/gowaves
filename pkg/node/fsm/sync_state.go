@@ -333,6 +333,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 		Ignore(StartMiningEvent).
 		Ignore(StopMiningEvent).
 		Ignore(MicroBlockSnapshotEvent).
+		Ignore(BlockEndorsementEvent). // TODO: Consider adding endorsements to pool.
 		OnEntry(func(_ context.Context, _ ...any) error {
 			info.skipMessageList.SetList(syncSkipMessageList)
 			return nil

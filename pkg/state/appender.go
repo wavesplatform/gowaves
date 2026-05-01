@@ -60,6 +60,8 @@ type txAppender struct {
 	buildApiData bool
 
 	bUpdatesPluginInfo *proto.BlockchainUpdatesPluginInfo
+
+	finalizer *finalizer
 }
 
 func newTxAppender(
@@ -103,6 +105,7 @@ func newTxAppender(
 	}
 	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier)
 	ethKindResolver := proto.NewEthereumTransactionKindResolver(state, settings.AddressSchemeCharacter)
+	finalizer := newFinalizer(stor.generators, stor.finality)
 	return &txAppender{
 		sc:                 sc,
 		ia:                 ia,
@@ -120,6 +123,7 @@ func newTxAppender(
 		buildApiData:       buildAPIData,
 		ethTxKindResolver:  ethKindResolver,
 		bUpdatesPluginInfo: bUpdatesPluginInfo,
+		finalizer:          finalizer,
 	}, nil
 }
 
@@ -221,14 +225,20 @@ func (a *txAppender) checkTxFees(tx proto.Transaction, info *fallibleValidationP
 		if err != nil {
 			return err
 		}
-		// TODO handle ethereum invoke expression tx
+		// TODO handle Ethereum invoke expression tx
 	case proto.EthereumMetamaskTransaction:
 		feeChanges, err = a.txHandler.td.createFeeDiffEthereumInvokeScriptWithProofs(tx, di)
 		if err != nil {
 			return err
 		}
+	case proto.GenesisTransaction, proto.PaymentTransaction, proto.IssueTransaction, proto.TransferTransaction,
+		proto.ReissueTransaction, proto.BurnTransaction, proto.LeaseTransaction, proto.LeaseCancelTransaction,
+		proto.CreateAliasTransaction, proto.MassTransferTransaction, proto.DataTransaction, proto.SetScriptTransaction,
+		proto.SponsorshipTransaction, proto.SetAssetScriptTransaction, proto.UpdateAssetInfoTransaction,
+		proto.CommitToGenerationTransaction:
+		return fmt.Errorf("failed to check tx fees: wrong tx type=%d (%T)", tx.GetTypeInfo().Type, tx)
 	default:
-		return errors.Errorf("failed to check tx fees: wrong tx type=%d (%T)", tx.GetTypeInfo().Type, tx)
+		return errors.Errorf("unexpected transaction type %d (%T)", tx.GetTypeInfo().Type, tx)
 	}
 
 	return a.diffApplier.validateTxDiff(feeChanges.diff, a.diffStor)
@@ -538,7 +548,8 @@ func (a *txAppender) handleTxAndScripts(
 	case proto.GenesisTransaction, proto.PaymentTransaction, proto.IssueTransaction, proto.TransferTransaction,
 		proto.ReissueTransaction, proto.BurnTransaction, proto.LeaseTransaction, proto.LeaseCancelTransaction,
 		proto.CreateAliasTransaction, proto.MassTransferTransaction, proto.DataTransaction, proto.SetScriptTransaction,
-		proto.SponsorshipTransaction, proto.SetAssetScriptTransaction, proto.UpdateAssetInfoTransaction:
+		proto.SponsorshipTransaction, proto.SetAssetScriptTransaction, proto.UpdateAssetInfoTransaction,
+		proto.CommitToGenerationTransaction:
 		applicationRes, err := a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
 		if err != nil {
 			id, idErr := tx.GetID(a.settings.AddressSchemeCharacter)
@@ -551,7 +562,8 @@ func (a *txAppender) handleTxAndScripts(
 		// In UTX balances are always validated.
 		return applicationRes, nil, params.validatingUtx, nil
 	default:
-		return nil, nil, false, errors.Errorf("Undefined transaction type %d", tx.GetTypeInfo())
+		return nil, nil, false, errors.Errorf("undefined transaction type %d with proofs version %d",
+			tx.GetTypeInfo().Type, tx.GetTypeInfo().ProofVersion)
 	}
 }
 
@@ -794,16 +806,15 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		a.sc.resetComplexity()
 		a.totalScriptsRuns = 0
 	}()
-	checkerInfo, err := a.createCheckerInfo(params)
+	chkInfo, err := a.createCheckerInfo(params)
 	if err != nil {
 		return err
 	}
 	hasParent := params.parent != nil
 	if hasParent {
-		checkerInfo.parentTimestamp = params.parent.Timestamp
+		chkInfo.parentTimestamp = params.parent.Timestamp
 	}
-
-	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter)
+	snapshotApplierInfo := newBlockSnapshotsApplierInfo(chkInfo, a.settings.AddressSchemeCharacter)
 	cleanup := a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 	defer cleanup()
 
@@ -817,6 +828,22 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return errors.Wrapf(err, "failed to create tx snapshot default hasher, block height is %d", currentBlockHeight)
 	}
 	defer hasher.Release()
+
+	// Process block finalization.
+	_, challenged := params.block.GetChallengedHeader()
+	voting, hasFinalizationVoting := params.block.GetFinalizationVoting()
+	// Challenged blocks must not contain finalization voting, so treat this as an error.
+	if challenged && hasFinalizationVoting {
+		return fmt.Errorf("block '%s' at height %d has finalization voting but is challenged, which is invalid",
+			params.block.BlockID().String(), currentBlockHeight)
+	}
+	// Skip finalization processing for the genesis block, which has no parent.
+	if hasParent && hasFinalizationVoting {
+		if fErr := a.finalizer.processBlockFinalization(voting, params.block, currentBlockHeight); fErr != nil {
+			return fmt.Errorf("failed to process finalization for block '%s' at %d: %w",
+				params.block.BlockID().String(), currentBlockHeight, fErr)
+		}
+	}
 
 	createInitHashParams := initialDiffAndStateHashParams{
 		blockHeader:               params.block,
@@ -839,7 +866,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		blockSnapshot = *params.optionalSnapshot
 		stateHash, err = a.applySnapshotInLightNode(params, blockInfo, blockSnapshot, stateHash, hasher)
 	} else {
-		blockSnapshot, stateHash, err = a.appendTxs(params, checkerInfo, blockInfo, stateHash, hasher)
+		blockSnapshot, stateHash, err = a.appendTxs(params, chkInfo, blockInfo, stateHash, hasher)
 	}
 	if err != nil {
 		return err
@@ -869,7 +896,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	}
 
 	if shErr := a.stor.stateHashes.saveSnapshotStateHash(stateHash, currentBlockHeight, blockID); shErr != nil {
-		return errors.Wrapf(shErr, "failed to save block shasnpt hash at height %d", currentBlockHeight)
+		return errors.Wrapf(shErr, "failed to save block snapshot hash at height %d", currentBlockHeight)
 	}
 	// Save fee distribution of this block.
 	// This will be needed for createMinerAndRewardDiff() of next block due to NG.
@@ -937,7 +964,7 @@ func (a *txAppender) createCheckerInfo(params *appendBlockParams) (*checkerInfo,
 	if err != nil {
 		return nil, err
 	}
-	checkerInfo := &checkerInfo{
+	return &checkerInfo{
 		currentTimestamp:        params.block.Timestamp,
 		blockID:                 params.block.BlockID(),
 		blockVersion:            params.block.Version,
@@ -945,8 +972,7 @@ func (a *txAppender) createCheckerInfo(params *appendBlockParams) (*checkerInfo,
 		rideV5Activated:         rideV5Activated,
 		rideV6Activated:         rideV6Activated,
 		blockRewardDistribution: blockRewardDistribution,
-	}
-	return checkerInfo, nil
+	}, nil
 }
 
 type initialDiffAndStateHashParams struct {
@@ -1208,8 +1234,14 @@ func (a *txAppender) handleFallible(
 	case proto.ExchangeTransaction:
 		applicationRes, err := a.handleExchange(tx, info)
 		return nil, applicationRes, err
+	case proto.GenesisTransaction, proto.PaymentTransaction, proto.IssueTransaction, proto.TransferTransaction,
+		proto.ReissueTransaction, proto.BurnTransaction, proto.LeaseTransaction, proto.LeaseCancelTransaction,
+		proto.CreateAliasTransaction, proto.MassTransferTransaction, proto.DataTransaction, proto.SetScriptTransaction,
+		proto.SponsorshipTransaction, proto.SetAssetScriptTransaction, proto.UpdateAssetInfoTransaction,
+		proto.CommitToGenerationTransaction:
+		return nil, nil, errors.Errorf("transaction of type %T is not fallible", tx)
 	default:
-		return nil, nil, errors.Errorf("transaction (%T) is not fallible", tx)
+		return nil, nil, errors.Errorf("unexpected transaction type %T", tx)
 	}
 }
 

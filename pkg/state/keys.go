@@ -133,8 +133,14 @@ const (
 	snapshotsKeyPrefix
 	// Blockchain patches storage.
 	patchKeyPrefix
-
+	// Key to store and retrieve challenged addresses.
 	challengedAddressKeyPrefix
+	// Key to store and retrieve generator's commitments for a specific generation period.
+	commitmentKeyPrefix
+	// Key to store and retrieve last finalization record.
+	finalizationKeyPrefix
+	// Key to address the set of generators' indexes that are banned from block generation.
+	bannedGeneratorsKeyPrefix
 )
 
 var (
@@ -200,6 +206,12 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{patchKeyPrefix}, nil
 	case challengedAddress:
 		return []byte{challengedAddressKeyPrefix}, nil
+	case commitment:
+		return []byte{commitmentKeyPrefix}, nil
+	case finalization:
+		return []byte{finalizationKeyPrefix}, nil
+	case bannedGenerators:
+		return []byte{bannedGeneratorsKeyPrefix}, nil
 	default:
 		return nil, errors.New("bad entity type")
 	}
@@ -760,4 +772,29 @@ func (k *challengedAddressKey) bytes() []byte {
 	buf[0] = challengedAddressKeyPrefix
 	copy(buf[1:], k.address[:])
 	return buf
+}
+
+type commitmentKey struct {
+	periodStart uint32
+}
+
+func (k *commitmentKey) bytes() []byte {
+	buf := make([]byte, 1+uint32Size)
+	buf[0] = commitmentKeyPrefix
+	binary.BigEndian.PutUint32(buf[1:], k.periodStart)
+	return buf
+}
+
+// commitmentStateHashKey is used only to correctly order legacy state hash record.
+// WARNING! Do not use the key for any storage operations.
+type commitmentStateHashKey struct {
+	periodStart uint32
+	index       uint32
+}
+
+func (k *commitmentStateHashKey) string() string {
+	buf := make([]byte, uint32Size*2)
+	binary.BigEndian.PutUint32(buf, k.periodStart)
+	binary.BigEndian.PutUint32(buf[uint32Size:], k.index)
+	return string(buf)
 }

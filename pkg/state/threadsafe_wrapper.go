@@ -358,7 +358,7 @@ func (a *ThreadSafeReadWrapper) ProvidesStateHashes() (bool, error) {
 	return a.s.ProvidesStateHashes()
 }
 
-func (a *ThreadSafeReadWrapper) LegacyStateHashAtHeight(height uint64) (*proto.StateHash, error) {
+func (a *ThreadSafeReadWrapper) LegacyStateHashAtHeight(height uint64) (proto.StateHash, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.LegacyStateHashAtHeight(height)
@@ -416,6 +416,37 @@ func (a *ThreadSafeReadWrapper) IsActiveLightNodeNewBlocksFields(blockHeight pro
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.IsActiveLightNodeNewBlocksFields(blockHeight)
+}
+
+func (a *ThreadSafeReadWrapper) FindGenerator(lookup func(GeneratorInfo) bool) (GeneratorInfo, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.FindGenerator(lookup)
+}
+
+func (a *ThreadSafeReadWrapper) CommittedGenerators(height proto.Height) ([]GeneratorInfo, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.CommittedGenerators(height)
+}
+
+func (a *ThreadSafeReadWrapper) LastFinalizedHeight() (proto.Height, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.LastFinalizedHeight()
+}
+
+func (a *ThreadSafeReadWrapper) LastFinalizedBlock() (*proto.BlockHeader, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.LastFinalizedBlock()
+}
+
+// CheckRollbackHeightAuto validates automatic rollback height constraints.
+func (a *ThreadSafeReadWrapper) CheckRollbackHeightAuto(height proto.Height) error {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.CheckRollbackHeightAuto(height)
 }
 
 func NewThreadSafeReadWrapper(mu *sync.RWMutex, s StateInfo) StateInfo {
@@ -499,16 +530,16 @@ func (a *ThreadSafeWriteWrapper) AddDeserializedBlocksWithSnapshots(
 	return a.s.AddDeserializedBlocksWithSnapshots(blocks, snapshots)
 }
 
-func (a *ThreadSafeWriteWrapper) RollbackToHeight(height proto.Height) error {
+func (a *ThreadSafeWriteWrapper) RollbackToHeight(height proto.Height, isAutoRollback bool) error {
 	a.lock()
 	defer a.unlock()
-	return a.s.RollbackToHeight(height)
+	return a.s.RollbackToHeight(height, isAutoRollback)
 }
 
-func (a *ThreadSafeWriteWrapper) RollbackTo(removalEdge proto.BlockID) error {
+func (a *ThreadSafeWriteWrapper) RollbackTo(removalEdge proto.BlockID, isAutoRollback bool) error {
 	a.lock()
 	defer a.unlock()
-	return a.s.RollbackTo(removalEdge)
+	return a.s.RollbackTo(removalEdge, isAutoRollback)
 }
 
 func (a *ThreadSafeWriteWrapper) TxValidation(f func(validation TxValidation) error) error {
