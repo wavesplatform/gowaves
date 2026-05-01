@@ -531,7 +531,7 @@ func stringToBigInt(_ environment, args ...rideType) (rideType, error) {
 
 func stringToBigIntOpt(env environment, args ...rideType) (rideType, error) {
 	v, err := stringToBigInt(env, args...)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return newUnit(env), nil
 	}
 	return v, nil

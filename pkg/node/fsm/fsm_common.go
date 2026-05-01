@@ -109,7 +109,7 @@ func tryBroadcastTransaction(
 	fsm State, baseInfo BaseInfo, p peer.Peer, t proto.Transaction,
 ) (_ State, _ Async, err error) {
 	defer func() {
-		if err != nil {
+		if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 			err = fsm.Errorf(proto.NewInfoMsg(err))
 		}
 	}()
@@ -127,7 +127,7 @@ func tryBroadcastTransaction(
 				return
 			}
 			txID := base58.Encode(txIDBytes)
-			if err != nil {
+			if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 				err = errors.Wrapf(err, "failed to broadcast transaction %q", txID)
 			} else {
 				baseInfo.logger.Debug("Transaction broadcasted successfully", "state", fsm.String(), "txID", txID)

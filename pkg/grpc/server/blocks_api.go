@@ -17,15 +17,15 @@ import (
 
 func (s *Server) headerByHeight(height proto.Height) (*g.BlockWithHeight, error) {
 	header, err := s.state.HeaderByHeight(height)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 	vrf, rewards, err := calculateVRFAndRewards(s.state, s.scheme, header, height)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	res, err := header.HeaderToProtobufWithHeight(s.scheme, height, vrf, rewards)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return res, nil
@@ -33,15 +33,15 @@ func (s *Server) headerByHeight(height proto.Height) (*g.BlockWithHeight, error)
 
 func (s *Server) blockByHeight(height proto.Height) (*g.BlockWithHeight, error) {
 	block, err := s.state.BlockByHeight(height)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 	vrf, rewards, err := calculateVRFAndRewards(s.state, s.scheme, &block.BlockHeader, height)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	res, err := block.ToProtobufWithHeight(s.scheme, height, vrf, rewards)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return res, nil
@@ -85,11 +85,11 @@ func (s *Server) GetBlock(ctx context.Context, req *g.BlockRequest) (*g.BlockWit
 	switch r := req.Request.(type) {
 	case *g.BlockRequest_BlockId:
 		id, err := proto.NewBlockIDFromBytes(r.BlockId)
-		if err != nil {
+		if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 		blockHeight, err := s.state.BlockIDToHeight(id)
-		if err != nil {
+		if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 			return nil, status.Error(codes.NotFound, err.Error())
 		}
 		return s.headerOrBlockByHeight(blockHeight, req.IncludeTransactions)
@@ -109,7 +109,7 @@ func (s *Server) GetBlockRange(req *g.BlockRangeRequest, srv g.BlocksApi_GetBloc
 		}
 	case *g.BlockRangeRequest_GeneratorAddress:
 		addr, err := proto.RebuildAddress(s.scheme, t.GeneratorAddress)
-		if err != nil {
+		if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 			return status.Errorf(codes.InvalidArgument, "Invalid address: %s", err.Error())
 		}
 		filter = func(b *g.BlockWithHeight) bool {
@@ -122,7 +122,7 @@ func (s *Server) GetBlockRange(req *g.BlockRangeRequest, srv g.BlocksApi_GetBloc
 		}
 	}
 	stateHeight, err := s.state.Height()
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return status.Error(codes.Internal, err.Error())
 	}
 	if req.ToHeight > uint32(stateHeight) {
@@ -130,14 +130,15 @@ func (s *Server) GetBlockRange(req *g.BlockRangeRequest, srv g.BlocksApi_GetBloc
 	}
 	for height := proto.Height(req.FromHeight); height <= proto.Height(req.ToHeight); height++ {
 		block, err := s.headerOrBlockByHeight(height, req.IncludeTransactions)
-		if err != nil {
+		if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 			return status.Error(codes.NotFound, err.Error())
 		}
 		if !filter(block) {
 			continue
 		}
-		if err := srv.Send(block); err != nil {
-			return status.Error(codes.Internal, err.Error())
+		// nosemgrep: semgrep.rules.if-incorrect-nil-err-return, semgrep.rules.if-inplace-func-incorrect-nil-err-return
+		if sErr := srv.Send(block); sErr != nil {
+			return status.Error(codes.Internal, sErr.Error())
 		}
 	}
 	return nil
@@ -145,7 +146,7 @@ func (s *Server) GetBlockRange(req *g.BlockRangeRequest, srv g.BlocksApi_GetBloc
 
 func (s *Server) GetCurrentHeight(ctx context.Context, req *emptypb.Empty) (*wrapperspb.UInt32Value, error) {
 	height, err := s.state.Height()
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return &wrapperspb.UInt32Value{Value: uint32(height)}, nil

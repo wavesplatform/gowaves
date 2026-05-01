@@ -77,7 +77,7 @@ func Groth16Verify(vkBytes []byte, proofBytes []byte, inputsBytes []byte, curve 
 		return false, err
 	}
 	err = gnark.Verify(proof, vk, wit)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return false, nil
 	}
 	return true, nil

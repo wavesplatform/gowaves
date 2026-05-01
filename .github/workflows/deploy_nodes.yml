@@ -7,9 +7,12 @@ on:
     inputs:
       arch:
         required: true
-        type: string
+        type: choice
         description: "Machine architecture (amd64, arm64)"
         default: "amd64"
+        options:
+          - amd64
+          - arm64
 
 jobs:
   deploy:
@@ -19,7 +22,11 @@ jobs:
         network: [ stagenet, testnet, mainnet ]
         arch: [ "${{ inputs.arch }}" ]
     uses: "./.github/workflows/deploy_node.yml"
-    secrets: inherit
+    secrets:
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      DEPLOYMENT_SERVER: ${{ secrets.DEPLOYMENT_SERVER }}
+      DEPLOYMENT_PORT: ${{ secrets.DEPLOYMENT_PORT }}
+      DEPLOYMENT_USER: ${{ secrets.DEPLOYMENT_USER }}
     with:
       network: ${{ matrix.network }}
       arch: ${{ matrix.arch }}

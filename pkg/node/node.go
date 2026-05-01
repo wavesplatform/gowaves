@@ -121,8 +121,8 @@ func (a *Node) serveIncomingPeers(ctx context.Context) error {
 
 	for {
 		conn, acErr := l.Accept()
-		if acErr != nil {
-			if errors.Is(err, net.ErrClosed) && errors.Is(ctx.Err(), context.Canceled) {
+		if acErr != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
+			if errors.Is(acErr, net.ErrClosed) && errors.Is(ctx.Err(), context.Canceled) {
 				return nil // Listener closed due to context cancellation this is fine.
 			}
 			slog.Error("Failed to accept new peer", logging.Error(acErr))

@@ -28,7 +28,8 @@ const (
 )
 
 var (
-	version = "v0.0.0"
+	version      = "v0.0.0"
+	errEarlyExit = errors.New("early exit")
 )
 
 func main() {
@@ -38,36 +39,38 @@ func main() {
 	}
 }
 
-func run() error {
-	var (
-		node               string
-		statePath          string
-		blockchainType     string
-		height             uint64
-		extendedAPI        bool
-		compare            bool
-		search             bool
-		showHelp           bool
-		showVersion        bool
-		onlyLegacy         bool
-		disableBloomFilter bool
-		compressionAlgo    keyvalue.CompressionAlgo
-	)
+type runConfig struct {
+	node            string
+	statePath       string
+	blockchainType  string
+	height          uint64
+	extendedAPI     bool
+	compare         bool
+	search          bool
+	onlyLegacy      bool
+	disableBloom    bool
+	compressionAlgo keyvalue.CompressionAlgo
+}
 
-	slog.SetDefault(slog.New(logging.NewHandler(logging.LoggerPrettyNoColor, slog.LevelInfo)))
+// parseFlags parses command-line flags and returns the configuration.
+// It returns nil config if the program should exit early (help/version).
+func parseFlags() (*runConfig, error) {
+	var cfg runConfig
+	var showHelp, showVersion bool
 
-	flag.StringVar(&node, "node", "", "Path to node's state folder")
-	flag.StringVar(&statePath, "state-path", "", "Path to node's state folder")
-	flag.StringVar(&blockchainType, "blockchain-type", "mainnet", "Blockchain type mainnet/testnet/stagenet, default value is mainnet")
-	flag.Uint64Var(&height, "at-height", 0, "Height to get state hash at, defaults to the top most value")
-	flag.BoolVar(&extendedAPI, "extended-api", false, "Open state with extended API")
-	flag.BoolVar(&compare, "compare", false, "Compare the state hash with the node's state hash at the same height")
-	flag.BoolVar(&search, "search", false, "Search for the topmost equal state hashes")
+	flag.StringVar(&cfg.node, "node", "", "Path to node's state folder")
+	flag.StringVar(&cfg.statePath, "state-path", "", "Path to node's state folder")
+	flag.StringVar(&cfg.blockchainType, "blockchain-type", "mainnet",
+		"Blockchain type mainnet/testnet/stagenet, default value is mainnet")
+	flag.Uint64Var(&cfg.height, "at-height", 0, "Height to get state hash at, defaults to the top most value")
+	flag.BoolVar(&cfg.extendedAPI, "extended-api", false, "Open state with extended API")
+	flag.BoolVar(&cfg.compare, "compare", false, "Compare the state hash with the node's state hash at the same height")
+	flag.BoolVar(&cfg.search, "search", false, "Search for the topmost equal state hashes")
 	flag.BoolVar(&showHelp, "help", false, "Show usage information and exit")
 	flag.BoolVar(&showVersion, "version", false, "Print version information and quit")
-	flag.BoolVar(&onlyLegacy, "legacy", false, "Compare only legacy state hashes")
-	flag.BoolVar(&disableBloomFilter, "disable-bloom", false, "Disable bloom filter")
-	flag.TextVar(&compressionAlgo, "db-compression-algo", keyvalue.CompressionDefault,
+	flag.BoolVar(&cfg.onlyLegacy, "legacy", false, "Compare only legacy state hashes")
+	flag.BoolVar(&cfg.disableBloom, "disable-bloom", false, "Disable bloom filter")
+	flag.TextVar(&cfg.compressionAlgo, "db-compression-algo", keyvalue.CompressionDefault,
 		fmt.Sprintf("Set the compression algorithm for the state database. Supported: %v",
 			keyvalue.CompressionAlgoStrings(),
 		),
@@ -76,17 +79,23 @@ func run() error {
 
 	if showHelp {
 		showUsage()
-		return nil
+		return nil, errEarlyExit
 	}
 	if showVersion {
 		fmt.Printf("Waves RIDE Appraiser %s\n", version)
-		return nil
+		return nil, errEarlyExit
 	}
-
-	if search {
-		compare = true
+	if cfg.search {
+		cfg.compare = true
 	}
+	if cfg.statePath == "" || len(strings.Fields(cfg.statePath)) > 1 {
+		slog.Error("Invalid path to state", "path", cfg.statePath)
+		return nil, errors.New("invalid state path")
+	}
+	return &cfg, nil
+}
 
+func setupFDLimits() {
 	maxFDs, err := fdlimit.MaxFDs()
 	if err != nil {
 		slog.Error("Initialization failed", logging.Error(err))
@@ -97,58 +106,76 @@ func run() error {
 		slog.Error("Initialization failed", logging.Error(err))
 		os.Exit(1)
 	}
+}
 
-	if statePath == "" || len(strings.Fields(statePath)) > 1 {
-		slog.Error("Invalid path to state", "path", statePath)
-		return errors.New("invalid state path")
-	}
-
-	ss, err := settings.BlockchainSettingsByTypeName(blockchainType)
+func openState(ctx context.Context, cfg *runConfig) (state.State, error) {
+	ss, err := settings.BlockchainSettingsByTypeName(cfg.blockchainType)
 	if err != nil {
 		slog.Error("Failed to load blockchain settings", logging.Error(err))
-		return err
+		return nil, err
 	}
 
 	params := state.DefaultStateParams()
 	params.VerificationGoroutinesNum = 2 * runtime.NumCPU()
 	params.DbParams.WriteBuffer = 16 * MB
-	params.DbParams.DisableBloomFilter = disableBloomFilter
-	params.StoreExtendedApiData = extendedAPI
+	params.DbParams.DisableBloomFilter = cfg.disableBloom
+	params.StoreExtendedApiData = cfg.extendedAPI
 	params.BuildStateHashes = true
 	params.ProvideExtendedApi = false
-	params.DbParams.CompressionAlgo = compressionAlgo
+	params.DbParams.CompressionAlgo = cfg.compressionAlgo
+
+	st, err := state.NewState(ctx, cfg.statePath, false, params, ss, false, nil)
+	if err != nil {
+		slog.Error("Failed to open state", slog.String("path", cfg.statePath), logging.Error(err))
+		return nil, err
+	}
+	return st, nil
+}
+
+func run() (err error) {
+	slog.SetDefault(slog.New(logging.NewHandler(logging.LoggerPrettyNoColor, slog.LevelInfo)))
+
+	cfg, err := parseFlags()
+	if err != nil {
+		if errors.Is(err, errEarlyExit) {
+			return nil
+		}
+		return err
+	}
+
+	setupFDLimits()
 
 	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer done()
 
-	st, err := state.NewState(ctx, statePath, false, params, ss, false, nil)
+	st, err := openState(ctx, cfg)
 	if err != nil {
-		slog.Error("Failed to open state", slog.String("path", statePath), logging.Error(err))
 		return err
 	}
-	defer func(st state.StateModifier) {
+	defer func(st state.State) {
 		if clErr := st.Close(); clErr != nil {
 			slog.Error("Failed to close state", logging.Error(clErr))
+			err = errors.Join(err, clErr)
 		}
 	}(st)
 
-	c, err := createClient(node)
+	c, err := createClient(cfg.node)
 	if err != nil {
 		return err
 	}
-	if compare {
-		if cmpErr := compareAtHeight(ctx, st, c, 1, onlyLegacy); cmpErr != nil {
+	if cfg.compare {
+		if cmpErr := compareAtHeight(ctx, st, c, 1, cfg.onlyLegacy); cmpErr != nil {
 			return cmpErr
 		}
 	}
 
+	height := cfg.height
 	if height == 0 { // determine the topmost height
-		h, err := st.Height()
+		height, err = st.Height()
 		if err != nil {
 			slog.Error("Failed to get current blockchain height", logging.Error(err))
 			return err
 		}
-		height = h
 	}
 	lsh, err := getLocalStateHash(st, height)
 	if err != nil {
@@ -156,23 +183,33 @@ func run() error {
 		return err
 	}
 	slog.Info("State hash at height", "height", height, "stateHash", stateHashToString(lsh))
-	if compare {
-		ok, rsh, cmpErr := compareWithRemote(ctx, lsh, c, height, onlyLegacy)
-		if cmpErr != nil {
-			slog.Error("Failed to compare", logging.Error(cmpErr))
-			return cmpErr
-		}
-		if !ok {
-			slog.Warn("[NOT OK] State hashes are different")
-			slog.Info("Remote state hash", "height", height, "stateHash", stateHashToString(rsh))
-			if search {
-				if sErr := searchLastEqualStateLash(ctx, c, st, height, onlyLegacy); sErr != nil {
-					return sErr
-				}
-			}
-			return nil
-		}
+	if cfg.compare {
+		return compareAndSearch(ctx, lsh, c, st, height, cfg)
+	}
+	return nil
+}
+
+func compareAndSearch(
+	ctx context.Context,
+	lsh *proto.StateHashDebug,
+	c *client.Client,
+	st state.State,
+	height uint64,
+	cfg *runConfig,
+) error {
+	ok, rsh, cmpErr := compareWithRemote(ctx, lsh, c, height, cfg.onlyLegacy)
+	if cmpErr != nil {
+		slog.Error("Failed to compare", logging.Error(cmpErr))
+		return cmpErr
+	}
+	if ok {
 		slog.Info("[OK] State hash is equal to remote state hash at the same height")
+		return nil
+	}
+	slog.Warn("[NOT OK] State hashes are different")
+	slog.Info("Remote state hash", "height", height, "stateHash", stateHashToString(rsh))
+	if cfg.search {
+		return searchLastEqualStateLash(ctx, c, st, height, cfg.onlyLegacy)
 	}
 	return nil
 }
