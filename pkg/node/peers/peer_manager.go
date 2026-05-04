@@ -417,12 +417,18 @@ func (a *PeerManagerImpl) CheckPeerWithMaxScore(p peer.Peer) (peer.Peer, bool) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
-	var pid peer.ID
-	pIDStr := "n/a"
-	if p != nil {
-		pid = p.ID()
-		pIDStr = p.ID().String()
+	if p == nil { // Fast path for the case when we don't have current peer, just return the peer with max score.
+		npi, ok := a.active.getPeerWithMaxScore()
+		if !ok { // No active peers, no peer with max score.
+			return nil, false
+		}
+		a.logger.Debug("Selecting peer with maximum score", "peer", npi.peer.ID().String())
+		return npi.peer, false
 	}
+
+	// Normal peer selection.
+	pid := p.ID()
+	pIDStr := p.ID().String()
 	cpi, ok := a.active.get(pid)
 	if !ok {
 		return nil, false
