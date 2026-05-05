@@ -4,13 +4,20 @@ on:
     inputs:
       network:
         required: true
-        type: string
+        type: choice
         description: "Waves network name (mainnet, testnet, stagenet)"
+        options:
+          - mainnet
+          - testnet
+          - stagenet
       arch:
         required: true
-        type: string
+        type: choice
         description: "Machine architecture (amd64, arm64)"
         default: "amd64"
+        options:
+          - amd64
+          - arm64
   workflow_call:
     inputs:
       network:

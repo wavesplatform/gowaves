@@ -191,8 +191,9 @@ func convertToInterface[T any](arg any) T {
 }
 
 func isCanBeNil(t reflect.Type) bool {
-	return t.Kind() == reflect.Map || t.Kind() == reflect.Slice || t.Kind() == reflect.Interface ||
-		t.Kind() == reflect.Chan || t.Kind() == reflect.Func || t.Kind() == reflect.Ptr
+	k := t.Kind()
+	return k == reflect.Map || k == reflect.Slice || k == reflect.Interface || k == reflect.Chan ||
+		k == reflect.Func || k == reflect.Pointer
 }
 
 func validateEventArgs(event stateless.Trigger, args ...any) {
