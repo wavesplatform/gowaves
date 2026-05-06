@@ -66,6 +66,9 @@ const (
 	uint16Size                               = 2
 	uint32Size                               = 4
 	uint64Size                               = 8
+
+	FalseString = "false"
+	TrueString  = "true"
 )
 
 type Timestamp = uint64
@@ -3359,9 +3362,9 @@ func (vt ArgumentValueType) String() string {
 	case ArgumentList:
 		return "list"
 	case ArgumentValueFalse:
-		return "false"
+		return FalseString
 	case ArgumentValueTrue:
-		return "true"
+		return TrueString
 	default:
 		return ""
 	}

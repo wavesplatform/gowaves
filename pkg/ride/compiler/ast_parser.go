@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 
 	"github.com/mr-tron/base58"
@@ -1149,9 +1150,9 @@ func (p *astParser) ruleBooleanAtomHandler(node *node32) (ast.Node, s.Type) {
 	value := p.nodeValue(node)
 	var boolValue bool
 	switch value {
-	case "true":
+	case proto.TrueString:
 		boolValue = true
-	case "false":
+	case proto.FalseString:
 		boolValue = false
 	}
 	return ast.NewBooleanNode(boolValue), s.BooleanType
