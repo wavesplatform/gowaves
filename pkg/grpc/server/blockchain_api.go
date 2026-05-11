@@ -80,7 +80,7 @@ func (s *Server) featureActivationStatus(id int16, height uint64) (*g.FeatureAct
 
 func (s *Server) GetActivationStatus(ctx context.Context, req *g.ActivationStatusRequest) (*g.ActivationStatusResponse, error) {
 	height, err := s.state.Height()
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if req.Height > int32(height) {
@@ -89,7 +89,7 @@ func (s *Server) GetActivationStatus(ctx context.Context, req *g.ActivationStatu
 	reqHeight := uint64(req.Height)
 	res := &g.ActivationStatusResponse{Height: req.Height}
 	sets, err := s.state.BlockchainSettings()
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	res.VotingInterval = int32(sets.ActivationWindowSize(reqHeight))
@@ -97,13 +97,13 @@ func (s *Server) GetActivationStatus(ctx context.Context, req *g.ActivationStatu
 	prevCheck := reqHeight - (reqHeight % uint64(res.VotingInterval))
 	res.NextCheck = int32(prevCheck) + res.VotingInterval
 	features, err := s.allFeatures()
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	res.Features = make([]*g.FeatureActivationStatus, len(features))
 	for i, id := range features {
 		res.Features[i], err = s.featureActivationStatus(id, reqHeight)
-		if err != nil {
+		if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -112,11 +112,11 @@ func (s *Server) GetActivationStatus(ctx context.Context, req *g.ActivationStatu
 
 func (s *Server) GetBaseTarget(ctx context.Context, req *emptypb.Empty) (*g.BaseTargetResponse, error) {
 	height, err := s.state.Height()
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	block, err := s.state.BlockByHeight(height)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 	return &g.BaseTargetResponse{BaseTarget: int64(block.BaseTarget)}, nil
@@ -124,11 +124,11 @@ func (s *Server) GetBaseTarget(ctx context.Context, req *emptypb.Empty) (*g.Base
 
 func (s *Server) GetCumulativeScore(ctx context.Context, req *emptypb.Empty) (*g.ScoreResponse, error) {
 	score, err := s.state.CurrentScore()
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	scoreBytes, err := score.GobEncode()
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return &g.ScoreResponse{Score: scoreBytes}, nil

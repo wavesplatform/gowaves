@@ -211,7 +211,7 @@ func (a *SyncState) MinedBlock(
 		a.baseInfo.storage,
 		[]*proto.Block{block},
 	)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		slog.Warn("Failed to apply mined block", slog.String("state", a.String()), logging.Error(err))
 		return a, nil, nil // We've failed to apply mined block, it's not an error
 	}

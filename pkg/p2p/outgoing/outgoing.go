@@ -70,7 +70,7 @@ func (a *connector) connect(
 		return nil, proto.Handshake{}, errors.Wrapf(err, "failed to dial with address %s", addr)
 	}
 	defer func() {
-		if err != nil { // close connection on error
+		if err != nil { // close connection on error // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 			if clErr := c.Close(); clErr != nil {
 				slog.Error("Failed to close outgoing connection", slog.String("address", addr), logging.Error(clErr))
 			}

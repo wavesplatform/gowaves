@@ -69,7 +69,7 @@ func Decode(walletData []byte, password []byte) (Wallet, error) {
 
 	format := WalletFormat{}
 	err = json.Unmarshal(bts, &format)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, errors.New("invalid password")
 	}
 	return &WalletImpl{

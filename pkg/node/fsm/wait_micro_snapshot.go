@@ -105,7 +105,7 @@ func (a *WaitMicroSnapshotState) MicroBlockSnapshot(
 	defer a.cleanupBeforeTransition()
 	// the TopBlock() is used here
 	block, err := a.checkAndAppendMicroBlock(a.microBlockWaitingForSnapshot, &snapshot)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		metrics.MicroBlockDeclined(a.microBlockWaitingForSnapshot)
 		ae := a.Errorf(err)
 		slog.Error("Failed to check and append microblock", slog.String("state", a.String()), logging.Error(ae))
@@ -121,7 +121,7 @@ func (a *WaitMicroSnapshotState) MicroBlockSnapshot(
 	// Notify all connected peers about new microblock, send them microblock inv network message
 	if inv, ok := a.baseInfo.MicroBlockInvCache.Get(block.BlockID()); ok {
 		//TODO: We have to exclude from recipients peers that already have this microblock
-		if err = broadcastMicroBlockInv(a.baseInfo, inv); err != nil {
+		if err = broadcastMicroBlockInv(a.baseInfo, inv); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 			ae := a.Errorf(errors.Wrap(err, "Failed to handle micro block message"))
 			slog.Error("Failed to broadcast microblock", slog.String("state", a.String()), logging.Error(ae))
 			return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)

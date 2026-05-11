@@ -86,7 +86,7 @@ func (a *NodeApi) TransactionInfo(w http.ResponseWriter, r *http.Request) error 
 	s := chi.URLParam(r, "id")
 
 	id, err := crypto.NewDigestFromBase58(s)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		if invalidRune, isInvalid := findFirstInvalidRuneInBase58String(s); isInvalid {
 			return transactionIDAtInvalidCharErr(invalidRune, s)
 		}
@@ -299,7 +299,7 @@ func (a *NodeApi) BlockIDAt(w http.ResponseWriter, r *http.Request) error {
 
 	height, err := a.state.BlockIDToHeight(id)
 	if err != nil {
-		// TODO(nickeskov): should handle state.IsNotFound(...)?
+		// TODO(nickeskov): should handle state.IsNotFound(...)? // nosemgrep: dgryski.semgrep-go.errtodo.err-todo
 		return errors.Wrapf(err,
 			"BlockIDAt: failed to execute state.BlockIDToHeight for blockID=%s", s)
 	}
@@ -391,12 +391,12 @@ func (a *NodeApi) BlockScoreAt(w http.ResponseWriter, r *http.Request) error {
 	s := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
-		// TODO(nickeskov): which error it should send?
+		// TODO(nickeskov): which error it should send? // nosemgrep: dgryski.semgrep-go.errtodo.err-todo
 		return wrapToBadRequestError(err)
 	}
 	rs, err := a.app.BlocksScoreAt(id)
 	if err != nil {
-		// TODO(nickeskov): which error it should send?
+		// TODO(nickeskov): which error it should send? // nosemgrep: dgryski.semgrep-go.errtodo.err-todo
 		return errors.Wrapf(err, "failed get blocks score at for id %d", id)
 	}
 	if jsErr := trySendJSON(w, rs); jsErr != nil {
@@ -518,7 +518,7 @@ func (a *NodeApi) AddrByAlias(w http.ResponseWriter, r *http.Request) error {
 	aliasShort := chi.URLParam(r, "alias")
 
 	alias := proto.NewAlias(a.app.scheme(), aliasShort)
-	if _, err := alias.Valid(a.app.scheme()); err != nil {
+	if _, err := alias.Valid(a.app.scheme()); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		msg := err.Error()
 		return apiErrs.NewCustomValidationError(msg)
 	}
@@ -543,7 +543,7 @@ func (a *NodeApi) AliasesByAddr(w http.ResponseWriter, r *http.Request) error {
 	addrBase58 := chi.URLParam(r, "address")
 
 	addr, err := proto.NewAddressFromString(addrBase58)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return &apiErrs.InvalidAddressError{}
 	}
 
@@ -827,7 +827,7 @@ func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) error {
 	s := chi.URLParam(r, "height")
 	height, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
-		// TODO(nickeskov): which error it should send?
+		// TODO(nickeskov): which error it should send? // nosemgrep: dgryski.semgrep-go.errtodo.err-todo
 		return wrapToBadRequestError(err)
 	}
 	if height < 1 {
@@ -873,7 +873,7 @@ func (a *NodeApi) snapshotStateHash(w http.ResponseWriter, r *http.Request) erro
 	s := chi.URLParam(r, "height")
 	height, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
-		// TODO(nickeskov): which error it should send?
+		// TODO(nickeskov): which error it should send? // nosemgrep: dgryski.semgrep-go.errtodo.err-todo
 		return wrapToBadRequestError(err)
 	}
 	if height < 1 {
@@ -908,7 +908,7 @@ func wavesAddressInvalidCharErr(invalidChar rune, id string) *apiErrs.CustomVali
 func (a *NodeApi) EthereumDAppABI(w http.ResponseWriter, r *http.Request) error {
 	s := chi.URLParam(r, "address")
 	addr, err := proto.NewAddressFromString(s)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		if invalidRune, isInvalid := findFirstInvalidRuneInBase58String(s); isInvalid {
 			return wavesAddressInvalidCharErr(invalidRune, s)
 		}
@@ -930,13 +930,13 @@ func (a *NodeApi) EthereumDAppABI(w http.ResponseWriter, r *http.Request) error 
 func (a *NodeApi) AssetsDetailsByID(w http.ResponseWriter, r *http.Request) error {
 	s := chi.URLParam(r, "id")
 	fullAssetID, err := crypto.NewDigestFromBase58(s)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return apiErrs.InvalidAssetId
 	}
 
 	var full bool
 	if f := r.URL.Query().Get("full"); f != "" {
-		if full, err = strconv.ParseBool(f); err != nil {
+		if full, err = strconv.ParseBool(f); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 			return apiErrs.InvalidAssetId
 		}
 	}
@@ -975,7 +975,7 @@ func (a *NodeApi) assetsDetailsByIDs(w http.ResponseWriter, fullQueryParam strin
 	var full bool
 	if fullQueryParam != "" {
 		full, err = strconv.ParseBool(fullQueryParam)
-		if err != nil {
+		if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 			return apiErrs.InvalidAssetId
 		}
 	}

@@ -4,7 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	mrand "math/rand"
+	mrand "math/rand" // nosemgrep: go.lang.security.audit.crypto.math_random.math-random-used
 	"testing"
 
 	"github.com/stretchr/testify/assert"

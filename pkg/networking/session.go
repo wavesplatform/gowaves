@@ -415,7 +415,6 @@ func (s *Session) keepaliveLoop() error {
 	timer := time.NewTimer(s.config.keepAliveInterval)
 	defer timer.Stop()
 	for {
-		timer.Reset(s.config.keepAliveInterval)
 		select {
 		case <-s.ctx.Done():
 			return s.ctx.Err()
@@ -437,6 +436,7 @@ func (s *Session) keepaliveLoop() error {
 					return fErr
 				}
 			}
+			timer.Reset(s.config.keepAliveInterval)
 		}
 	}
 }

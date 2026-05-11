@@ -62,7 +62,7 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 
 	if opts.EnableHeartbeatRoute {
 		r.Get("/go/node/healthz", func(w http.ResponseWriter, r *http.Request) {
-			if _, err := w.Write([]byte("OK")); err != nil {
+			if _, err := w.Write([]byte("OK")); err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 				slog.Error("Can't write 'OK' to ResponseWriter", logging.Error(err))
 				w.WriteHeader(http.StatusInternalServerError)
 			}

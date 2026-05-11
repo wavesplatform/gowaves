@@ -272,12 +272,7 @@ func (a *Addresses) AddressesData(ctx context.Context, address proto.WavesAddres
 	for _, key := range params.keys {
 		v.Add("key", key)
 	}
-	rel, err := url.Parse(fmt.Sprintf("/addresses/data/%s", address.String()))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	u, err := joinUrl(a.options.BaseUrl, rel.String())
+	u, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/data/%s", address.String()))
 	if err != nil {
 		return nil, nil, err
 	}

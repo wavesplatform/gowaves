@@ -332,7 +332,7 @@ func (a *aliases) disableStolenAliases(blockID proto.BlockID) error {
 
 func (a *aliases) removeAliasByAddressID(id proto.AddressID, aliasStr string, blockID proto.BlockID) (err error) {
 	defer func() {
-		if err != nil {
+		if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 			addr, addrErr := id.ToWavesAddress(a.scheme)
 			if addrErr != nil {
 				err = errors.Wrapf(err, "failed to rebuild address: %v", addrErr)

@@ -928,7 +928,7 @@ func ipsV4PortFromString(addr string) ([]net.IP, uint16, error) {
 		return nil, 0, errors.Wrap(err, "failed to split host and port")
 	}
 	portNum, err := strconv.ParseUint(port, 10, 16)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return nil, 0, errors.Errorf("invalid port %q", port)
 	}
 	if portNum == 0 {

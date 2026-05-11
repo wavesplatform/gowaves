@@ -303,7 +303,7 @@ func parseInt(_ environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "parseInt")
 	}
 	i, err := strconv.ParseInt(string(s), 10, 64)
-	if err != nil {
+	if err != nil { // nosemgrep: semgrep.rules.if-incorrect-nil-err-return
 		return rideUnit{}, nil
 	}
 	return rideInt(i), nil

@@ -117,7 +117,7 @@ func (s *Symbols) ParseTicker(ticker string) (crypto.Digest, error) {
 		defer s.mu.RUnlock()
 		id, ok := s.tickers[ticker]
 		if !ok {
-			return crypto.Digest{}, fmt.Errorf("unknown ticker or invalid asset ID '%s': %w", ticker, err)
+			return crypto.Digest{}, fmt.Errorf("unknown ticker or invalid asset ID '%s'", ticker)
 		}
 		return id, nil
 	}

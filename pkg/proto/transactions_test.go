@@ -5589,6 +5589,7 @@ func TestDataWithProofsToJSON(t *testing.T) {
 }
 
 func TestDataWithProofsFromJSON(t *testing.T) {
+	// nosemgrep: generic.secrets.gitleaks.generic-api-key.generic-api-key
 	var js = `
 {
 	"type": 12,
