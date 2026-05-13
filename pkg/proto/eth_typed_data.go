@@ -203,7 +203,7 @@ func (typedData *ethereumTypedData) handleEncodeDataArray(encType string, encVal
 		return nil, dataMismatchError(encType, encValue)
 	}
 	arrayBuffer := bytes.Buffer{}
-	parsedType := strings.Split(encType, "[")[0]
+	parsedType, _, _ := strings.Cut(encType, "[")
 	for _, item := range arrayValue {
 		if typedData.Types[parsedType] != nil {
 			mapValue, has := item.(map[string]any)
