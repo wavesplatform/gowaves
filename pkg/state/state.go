@@ -73,7 +73,7 @@ type blockchainEntitiesStorage struct {
 	patches           *patchesStorage
 	commitments       *commitments
 	finality          *finality
-	generators        *generators
+	generators        *generatorsStorage
 	settings          *settings.BlockchainSettings
 	calculateHashes   bool
 }
@@ -1455,12 +1455,12 @@ func (s *stateManager) handleFinalizationUpdate(
 			blockID.String(), blockHeight, err,
 		)
 	}
-	if slog.Default().Enabled(context.Background(), slog.LevelInfo) {
+	if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
 		finalizedHeight, err := s.stor.finality.lastFinalizedHeight(blockHeight)
 		if err != nil {
 			return fmt.Errorf("failed to get last finalization height: %w", err)
 		}
-		slog.Info("Current finalization state", slog.Uint64("finalizedHeight", finalizedHeight),
+		slog.Debug("Current finalization state", slog.Uint64("finalizedHeight", finalizedHeight),
 			slog.Uint64("blockHeight", blockHeight), slog.String("blockID", blockID.String()))
 	}
 	return nil
@@ -3556,13 +3556,13 @@ func (s *stateManager) CalculateVotingFinalization(endorsers []proto.WavesAddres
 
 // FindGenerator retrieves the generator's information by a lookup function that is applied to current generators set.
 // Available lookup functions: ByBLSPublicKey.
-func (s *stateManager) FindGenerator(lookup func(GeneratorInfo) bool) (GeneratorInfo, error) {
-	return s.stor.generators.findGenerator(lookup)
+func (s *stateManager) FindGenerator(height proto.Height, lookup func(GeneratorInfo) bool) (GeneratorInfo, error) {
+	return s.stor.generators.findGenerator(height, lookup)
 }
 
 // CommittedGenerators returns the list of Waves addresses of committed generators.
 func (s *stateManager) CommittedGenerators(height proto.Height) ([]GeneratorInfo, error) {
-	return s.stor.generators.generatorsByHeight(height)
+	return s.stor.generators.infos(height)
 }
 
 func (s *stateManager) LastFinalizedHeight() (proto.Height, error) {
@@ -3596,4 +3596,12 @@ func (s *stateManager) LastFinalizedBlock() (*proto.BlockHeader, error) {
 // It checks feature activation using newestIsActivatedAtHeight function.
 func (s *stateManager) NewestMinimalGeneratingBalanceAtHeight(height proto.Height, ts uint64) uint64 {
 	return s.stor.features.minimalGeneratingBalanceAtHeight(height, ts)
+}
+
+// BuildLocalEndorsementMessage creates endorsement crypto message from local state of finalization at given height and
+// for given parent block ID.
+func (s *stateManager) BuildLocalEndorsementMessage(
+	height proto.Height, parentID proto.BlockID,
+) (proto.EndorsementCryptoMessage, error) {
+	return s.stor.finality.buildLocalEndorsementMessage(height, parentID)
 }

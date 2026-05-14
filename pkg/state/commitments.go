@@ -16,8 +16,9 @@ import (
 // commitmentItem represents a single commitment made by a block generator.
 // It links the generator's Waves public key to its corresponding BLS endorser public key.
 type commitmentItem struct {
-	GeneratorPK crypto.PublicKey `cbor:"0,keyasint,omitempty"`
-	EndorserPK  bls.PublicKey    `cbor:"1,keyasint,omitempty"`
+	GeneratorPK   crypto.PublicKey `cbor:"0,keyasint,omitempty"`
+	EndorserPK    bls.PublicKey    `cbor:"1,keyasint,omitempty"`
+	TransactionID crypto.Digest    `cbor:"2,keyasint,omitempty"`
 }
 
 // commitmentsRecord holds all generator commitments for a specific generation period.
@@ -25,10 +26,11 @@ type commitmentsRecord struct {
 	Commitments []commitmentItem `cbor:"0,keyasint,omitempty"`
 }
 
-func (cr *commitmentsRecord) append(generatorPK crypto.PublicKey, endorserPK bls.PublicKey) {
+func (cr *commitmentsRecord) append(generatorPK crypto.PublicKey, endorserPK bls.PublicKey, txID crypto.Digest) {
 	cr.Commitments = append(cr.Commitments, commitmentItem{
-		GeneratorPK: generatorPK,
-		EndorserPK:  endorserPK,
+		GeneratorPK:   generatorPK,
+		EndorserPK:    endorserPK,
+		TransactionID: txID,
 	})
 }
 func (cr *commitmentsRecord) marshalBinary() ([]byte, error) { return cbor.Marshal(cr) }
@@ -88,7 +90,8 @@ func newCommitments(hs *historyStorage, calcHashes bool) *commitments {
 }
 
 func (c *commitments) store(
-	periodStart uint32, generatorPK crypto.PublicKey, endorserPK bls.PublicKey, blockID proto.BlockID,
+	periodStart uint32, generatorPK crypto.PublicKey, endorserPK bls.PublicKey, txID crypto.Digest,
+	blockID proto.BlockID,
 ) error {
 	key := commitmentKey{periodStart: periodStart}
 	keyBytes := key.bytes()
@@ -102,7 +105,7 @@ func (c *commitments) store(
 			return fmt.Errorf("failed to unmarshal commitments record: %w", umErr)
 		}
 	}
-	rec.append(generatorPK, endorserPK)
+	rec.append(generatorPK, endorserPK, txID)
 	newData, mErr := rec.marshalBinary()
 	if mErr != nil {
 		return fmt.Errorf("failed to marshal commitments record: %w", mErr)

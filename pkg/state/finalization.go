@@ -158,10 +158,32 @@ func (f *finality) buildLocalEndorsementMessage(
 	slog.Debug("Local finalization state",
 		slog.Uint64("finalizedHeight", finalizedHeight),
 		slog.String("finalizedBlockID", finalizedBlockID.String()),
+		slog.String("parentID", parentID.String()),
 	)
 	fh, err := safecast.Convert[uint32](finalizedHeight)
 	if err != nil {
 		return proto.EndorsementCryptoMessage{}, fmt.Errorf("failed to build local endorsement message: %w", err)
+	}
+	return proto.EndorsementCryptoMessage{
+		FinalizedBlockID:     finalizedBlockID,
+		FinalizedBlockHeight: fh,
+		EndorsedBlockID:      parentID,
+	}, nil
+}
+
+func (f *finality) buildRemoteEndorsementMessage(
+	finalizedBlockHeight proto.Height, parentID proto.BlockID,
+) (proto.EndorsementCryptoMessage, error) {
+	finalizedBlockID, err := f.rw.newestBlockIDByHeight(finalizedBlockHeight)
+	if err != nil {
+		return proto.EndorsementCryptoMessage{}, fmt.Errorf("failed to build remote endorsement message: %w", err)
+	}
+	slog.Debug("Remote finalization state", slog.Uint64("finalizedHeight", finalizedBlockHeight),
+		slog.String("finalizedBlockID", finalizedBlockID.String()),
+		slog.String("endorsedBlockID", parentID.String()))
+	fh, err := safecast.Convert[uint32](finalizedBlockHeight)
+	if err != nil {
+		return proto.EndorsementCryptoMessage{}, fmt.Errorf("failed to build remote endorsement message: %w", err)
 	}
 	return proto.EndorsementCryptoMessage{
 		FinalizedBlockID:     finalizedBlockID,

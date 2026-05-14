@@ -117,7 +117,8 @@ func TestFinalizationVotingValidation(t *testing.T) {
 		fail      bool
 		err       string
 	}{
-		{indexes: nil, conflicts: nil, fail: false},
+		{indexes: nil, conflicts: nil, fail: true,
+			err: "invalid finalization voting: both endorsers and conflict endorsements are empty"},
 		{indexes: nil, conflicts: []uint32{2, 0, 1}, fail: false},
 		{indexes: nil, conflicts: []uint32{2, 1, 2}, fail: true,
 			err: "invalid finalization voting: duplicate conflicting endorsement with endorser index 2"},

@@ -114,8 +114,7 @@ func (n *Network) Run(ctx context.Context) {
 }
 
 func (n *Network) handleConnected(msg *peer.Connected) {
-	err := n.peers.NewConnection(msg.Peer)
-	if err != nil {
+	if err := n.peers.NewConnection(msg.Peer); err != nil {
 		n.logger.Debug("Failed to establish connection with peer", slog.Any("direction", msg.Peer.Direction()),
 			slog.Any("peer", msg.Peer.ID()), logging.Error(err))
 		return

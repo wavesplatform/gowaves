@@ -452,6 +452,37 @@ func TestBalances(t *testing.T) {
 	}
 }
 
+func TestBurnDeposit(t *testing.T) {
+	const waves = 1_0000_0000
+	to := createBalances(t)
+	to.stor.addBlock(t, blockID0)
+	to.stor.addBlock(t, blockID1)
+	wavesTests := []struct {
+		addr    string
+		profile balanceProfile
+		err     string
+	}{
+		{addr0, balanceProfile{200 * waves, 0, 0, 100 * waves}, ""},
+		{addr1, balanceProfile{1100 * waves, 0, 0, 100 * waves}, ""},
+		{addr1, balanceProfile{100 * waves, 0, 0, 100 * waves}, ""},
+		{addr1, balanceProfile{10 * waves, 0, 0, 100 * waves},
+			"failed to burn deposit: sub: integer overflow/underflow"},
+	}
+	for _, tc := range wavesTests {
+		addr, err := proto.NewAddressFromString(tc.addr)
+		require.NoError(t, err)
+		err = to.balances.setWavesBalance(addr.ID(), newWavesValueFromProfile(tc.profile), blockID0)
+		require.NoError(t, err)
+		to.stor.flush(t)
+		err = to.balances.burnDeposit(addr.ID(), blockID1)
+		if tc.err == "" {
+			require.NoError(t, err)
+		} else {
+			require.EqualError(t, err, tc.err)
+		}
+	}
+}
+
 func TestNftList(t *testing.T) {
 	to := createBalances(t)
 

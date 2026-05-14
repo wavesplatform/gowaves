@@ -2,6 +2,7 @@ package fsm
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
@@ -49,6 +50,8 @@ func (a *IdleState) StartMining() (State, Async, error) {
 func (a *IdleState) MinedBlock(
 	block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte,
 ) (State, Async, error) {
+	a.baseInfo.logger.Info("New block mined", slog.String("state", a.String()),
+		slog.String("blockID", block.ID.String()))
 	newA, ok := newNGState(a.baseInfo).(*NGState)
 	if !ok {
 		return a, nil, a.Errorf(errors.Errorf("unexpected type '%T' expected '*NGState'", a.baseInfo))
