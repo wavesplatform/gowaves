@@ -20,14 +20,8 @@ import (
 
 var ErrNoGeneratorsSet = errors.New("no generators set found")
 
-// generationBalanceProvider is an interface that abstracts the retrieval of generating balances for addresses at
-// specific heights. Usually, for generating balance retrieval the blockchain height is used.
-type generationBalanceProvider interface {
-	newestGeneratingBalance(proto.AddressID, proto.Height) (uint64, error)
-}
-
 type generationBalanceManager interface {
-	generationBalanceProvider
+	newestGeneratingBalance(proto.AddressID, proto.Height) (uint64, error)
 	burnDeposit(proto.AddressID, proto.BlockID) error
 }
 
@@ -40,11 +34,11 @@ type commitmentsProvider interface {
 type GeneratorInfo struct {
 	Index         uint32             `json:"-"`
 	Address       proto.WavesAddress `json:"address"`
-	PublicKey     crypto.PublicKey
-	BLSPublicKey  bls.PublicKey `json:"-"`
-	Balance       uint64        `json:"balance"`
-	Ban           bool
-	TransactionID crypto.Digest `json:"transactionID"`
+	PublicKey     crypto.PublicKey   `json:"-"`
+	BLSPublicKey  bls.PublicKey      `json:"-"`
+	Balance       uint64             `json:"balance"`
+	Ban           bool               `json:"-"`
+	TransactionID crypto.Digest      `json:"transactionId"`
 }
 
 func buildGeneratorInfo(
@@ -81,39 +75,18 @@ func buildInfos(commitments []commitmentItem, generators []generator, scheme pro
 		return nil, fmt.Errorf("number of commitments %d does not match number of generators %d", cs, gs)
 	}
 	res := make([]GeneratorInfo, len(commitments))
-	for i, c := range commitments {
+	for i := range commitments {
 		idx, err := safecast.Convert[uint32](i)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert generator index %d: %w", i, err)
 		}
-		g := generators[i]
-		a, err := g.AddressID.ToWavesAddress(scheme)
+		gi, err := buildGeneratorInfo(idx, commitments, generators, scheme)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert address ID to Waves address for generator %d: %w", i, err)
-		}
-		gi := GeneratorInfo{
-			Index:         idx,
-			Address:       a,
-			PublicKey:     c.GeneratorPK,
-			BLSPublicKey:  c.EndorserPK,
-			Balance:       g.Balance,
-			Ban:           g.BanHeight != 0,
-			TransactionID: c.TransactionID,
+			return nil, err
 		}
 		res[i] = gi
 	}
 	return res, nil
-}
-
-type generatorsKey struct {
-	height uint64
-}
-
-func (k *generatorsKey) bytes() []byte {
-	buf := make([]byte, 1+uint64Size)
-	buf[0] = generatorsKeyPrefix
-	binary.BigEndian.PutUint64(buf[1:], k.height)
-	return buf
 }
 
 type generator struct {
@@ -145,7 +118,7 @@ func (r *generatorsRecord) marshalBinary() ([]byte, error) { return cbor.Marshal
 
 func (r *generatorsRecord) unmarshalBinary(data []byte) error { return cbor.Unmarshal(data, r) }
 
-func (r *generatorsRecord) Size() int { return len(r.Generators) }
+func (r *generatorsRecord) size() int { return len(r.Generators) }
 
 func (r *generatorsRecord) string(scheme proto.Scheme) (string, error) {
 	sb := strings.Builder{}
@@ -294,7 +267,6 @@ func (g *generatorsStorage) initialize(
 	}
 	noCommitments := len(cms) == 0
 	noPrevGenerators := errors.Is(err, ErrNoGeneratorsSet)
-
 	switch {
 	case noCommitments && noPrevGenerators:
 		// No commitments for the current period and no generators from the previous block, nothing to do.
@@ -353,7 +325,10 @@ func (g *generatorsStorage) initializeNewGeneratorsSetFromCommitments(
 	}
 
 	// Calculate minimal generation balance for the current height and timestamp.
-	generatorsBalancesLSHRecord := newGeneratorsBalancesRecordForStateHashes(len(commitments))
+	var generatorsBalancesLSHRecord *generatorsBalancesRecordForStateHashes
+	if g.calculateHashes {
+		generatorsBalancesLSHRecord = newGeneratorsBalancesRecordForStateHashes(len(commitments))
+	}
 	for i, cm := range commitments {
 		a, aErr := proto.NewAddressFromPublicKey(g.settings.AddressSchemeCharacter, cm.GeneratorPK)
 		if aErr != nil {
@@ -369,7 +344,7 @@ func (g *generatorsStorage) initializeNewGeneratorsSetFromCommitments(
 		if b < threshold {
 			b = 0 // Set generation balances less than threshold to zero, so they are not eligible for generation.
 		}
-		if generatorPK == commitments[i].GeneratorPK {
+		if generatorPK == cm.GeneratorPK {
 			// The block generator found.
 			idx, scErr := safecast.Convert[int32](i)
 			if scErr != nil {
@@ -383,7 +358,7 @@ func (g *generatorsStorage) initializeNewGeneratorsSetFromCommitments(
 			AddressID: a.ID(),
 		}
 		rec.Generators = append(rec.Generators, gen)
-		if g.calculateHashes && b > 0 {
+		if g.calculateHashes && b > 0 && generatorsBalancesLSHRecord != nil {
 			generatorsBalancesLSHRecord.append(b)
 		}
 	}
@@ -422,12 +397,18 @@ func (g *generatorsStorage) copyGeneratorsSetAndUpdateBalances(
 	blockHeight, blockchainHeight proto.Height,
 	blockID proto.BlockID,
 ) error {
+	if gs, cs := len(pg.Generators), len(commitments); gs != cs {
+		return fmt.Errorf("invalid previous generators size %d while commitments size if %d", gs, cs)
+	}
 	rec := generatorsRecord{
 		Generators:          make([]generator, 0, len(pg.Generators)),
 		BlockGeneratorIndex: -1,
 		PeriodStart:         pg.PeriodStart,
 	}
-	generatorsBalancesLSHRecord := newGeneratorsBalancesRecordForStateHashes(len(pg.Generators))
+	var generatorsBalancesLSHRecord *generatorsBalancesRecordForStateHashes
+	if g.calculateHashes {
+		generatorsBalancesLSHRecord = newGeneratorsBalancesRecordForStateHashes(len(pg.Generators))
+	}
 	for i, gen := range pg.Generators {
 		ng := generator{
 			Balance:   0,
@@ -455,7 +436,7 @@ func (g *generatorsStorage) copyGeneratorsSetAndUpdateBalances(
 			rec.BlockGeneratorIndex = idx
 		}
 		rec.Generators = append(rec.Generators, ng)
-		if g.calculateHashes && ng.Balance > 0 {
+		if g.calculateHashes && ng.Balance > 0 && generatorsBalancesLSHRecord != nil {
 			generatorsBalancesLSHRecord.append(ng.Balance)
 		}
 	}
@@ -493,8 +474,8 @@ func (g *generatorsStorage) saveGeneratorsRecord(
 func (g *generatorsStorage) pushLegacyStateHashRecord(
 	record stateComponent, height proto.Height, blockID proto.BlockID,
 ) error {
-	key := generatorsKey{height: height}
 	if g.calculateHashes {
+		key := generatorsKey{height: height}
 		if err := g.hasher.push(string(key.bytes()), record, blockID); err != nil {
 			return fmt.Errorf("failed to hash generators balances record: %w", err)
 		}
@@ -562,7 +543,7 @@ func (g *generatorsStorage) generator(index uint32, height proto.Height) (Genera
 		return GeneratorInfo{}, fmt.Errorf("failed to retrieve generator by index %d for height %d: %w",
 			index, height, err)
 	}
-	if s := gs.Size(); int(index) >= s {
+	if s := gs.size(); int(index) >= s {
 		return GeneratorInfo{}, fmt.Errorf("generator index %d is out of bounds for generator set of size %d",
 			index, s)
 	}
@@ -607,7 +588,7 @@ func (g *generatorsStorage) newestGeneratingBalance(
 		}
 		return 0, fmt.Errorf("failed to retrieve generators for block at height %d: %w", blockHeight, err)
 	}
-	if gs.Size() == 0 { // Generators set is empty just get balance from state.
+	if gs.size() == 0 { // Generators set is empty just get balance from state.
 		return g.balances.newestGeneratingBalance(addr, blockchainHeight)
 	}
 	for _, gen := range gs.Generators {
@@ -659,7 +640,7 @@ func (g *generatorsStorage) totalGenerationBalance(height proto.Height) (uint64,
 		}
 		return 0, fmt.Errorf("failed to calculate total generation balance for height %d: %w", height, err)
 	}
-	if gs.Size() == 0 {
+	if gs.size() == 0 {
 		return 0, nil
 	}
 	total := uint64(0)
@@ -674,7 +655,7 @@ func (g *generatorsStorage) blockGenerator(height proto.Height) (uint32, *genera
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to retrieve generators for height %d: %w", height, err)
 	}
-	if bgi := int(gs.BlockGeneratorIndex); bgi < 0 || bgi >= gs.Size() {
+	if bgi := int(gs.BlockGeneratorIndex); bgi < 0 || bgi >= gs.size() {
 		return 0, nil, fmt.Errorf("invalid block generator index %d", bgi)
 	}
 	idx, err := safecast.Convert[uint32](gs.BlockGeneratorIndex)

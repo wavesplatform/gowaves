@@ -33,7 +33,7 @@ func (f *finalizer) checkBlockFinalization(voting proto.FinalizationVoting, heig
 		}
 		return fmt.Errorf("failed to check block finalization: %w", err)
 	}
-	return voting.CheckSizes(gs.Size())
+	return voting.CheckSizes(gs.size())
 }
 
 // processBlockFinalization performs state updates required for block finalization

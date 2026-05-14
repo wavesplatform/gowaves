@@ -290,16 +290,16 @@ func (a *NGState) endorseParentWithEachKey(
 	}
 
 	// Following variables are used for logging only.
-	var activationHeight proto.Height
 	var periodStart uint32
 	if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
-		activationHeight, err = a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
-		if err != nil {
-			return a.Errorf(errors.Wrapf(err, "failed to get activation height for finality %s", block.BlockID()))
+		activationHeight, ahErr := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
+		if ahErr != nil {
+			return a.Errorf(errors.Wrapf(ahErr, "failed to get activation height for finality %s", block.BlockID()))
 		}
-		periodStart, err = state.CurrentGenerationPeriodStart(activationHeight, blockHeight, a.baseInfo.generationPeriod)
-		if err != nil {
-			return a.Errorf(errors.Wrapf(err, "failed to get current generation period, block %s", block.BlockID()))
+		var gpErr error
+		periodStart, gpErr = state.CurrentGenerationPeriodStart(activationHeight, blockHeight, a.baseInfo.generationPeriod)
+		if gpErr != nil {
+			return a.Errorf(errors.Wrapf(gpErr, "failed to get current generation period, block %s", block.BlockID()))
 		}
 	}
 	for i := range sks {

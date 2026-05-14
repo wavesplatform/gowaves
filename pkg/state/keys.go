@@ -798,3 +798,14 @@ func (k *commitmentStateHashKey) string() string {
 	binary.BigEndian.PutUint32(buf[uint32Size:], k.index)
 	return string(buf)
 }
+
+type generatorsKey struct {
+	height uint64
+}
+
+func (k *generatorsKey) bytes() []byte {
+	buf := make([]byte, 1+uint64Size)
+	buf[0] = generatorsKeyPrefix
+	binary.BigEndian.PutUint64(buf[1:], k.height)
+	return buf
+}
