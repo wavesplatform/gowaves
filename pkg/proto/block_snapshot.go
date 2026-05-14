@@ -171,20 +171,21 @@ type balanceSnapshotJSON struct {
 }
 
 type txSnapshotJSON struct {
-	ApplicationStatus         TransactionStatus                          `json:"applicationStatus"`
-	Balances                  NonNullableSlice[balanceSnapshotJSON]      `json:"balances"`
-	LeaseBalances             NonNullableSlice[LeaseBalanceSnapshot]     `json:"leaseBalances"`
-	AssetStatics              NonNullableSlice[NewAssetSnapshot]         `json:"assetStatics"`
-	AssetVolumes              NonNullableSlice[AssetVolumeSnapshot]      `json:"assetVolumes"`
-	AssetNamesAndDescriptions NonNullableSlice[AssetDescriptionSnapshot] `json:"assetNamesAndDescriptions"`
-	AssetScripts              NonNullableSlice[AssetScriptSnapshot]      `json:"assetScripts"`
-	Sponsorships              NonNullableSlice[SponsorshipSnapshot]      `json:"sponsorships"`
-	NewLeases                 NonNullableSlice[NewLeaseSnapshot]         `json:"newLeases"`
-	CancelledLeases           NonNullableSlice[CancelledLeaseSnapshot]   `json:"cancelledLeases"`
-	Aliases                   NonNullableSlice[AliasSnapshot]            `json:"aliases"`
-	OrderFills                NonNullableSlice[FilledVolumeFeeSnapshot]  `json:"orderFills"`
-	AccountScripts            NonNullableSlice[AccountScriptSnapshot]    `json:"accountScripts"`
-	AccountData               NonNullableSlice[DataEntriesSnapshot]      `json:"accountData"`
+	ApplicationStatus         TransactionStatus                              `json:"applicationStatus"`
+	Balances                  NonNullableSlice[balanceSnapshotJSON]          `json:"balances"`
+	LeaseBalances             NonNullableSlice[LeaseBalanceSnapshot]         `json:"leaseBalances"`
+	AssetStatics              NonNullableSlice[NewAssetSnapshot]             `json:"assetStatics"`
+	AssetVolumes              NonNullableSlice[AssetVolumeSnapshot]          `json:"assetVolumes"`
+	AssetNamesAndDescriptions NonNullableSlice[AssetDescriptionSnapshot]     `json:"assetNamesAndDescriptions"`
+	AssetScripts              NonNullableSlice[AssetScriptSnapshot]          `json:"assetScripts"`
+	Sponsorships              NonNullableSlice[SponsorshipSnapshot]          `json:"sponsorships"`
+	NewLeases                 NonNullableSlice[NewLeaseSnapshot]             `json:"newLeases"`
+	CancelledLeases           NonNullableSlice[CancelledLeaseSnapshot]       `json:"cancelledLeases"`
+	Aliases                   NonNullableSlice[AliasSnapshot]                `json:"aliases"`
+	OrderFills                NonNullableSlice[FilledVolumeFeeSnapshot]      `json:"orderFills"`
+	AccountScripts            NonNullableSlice[AccountScriptSnapshot]        `json:"accountScripts"`
+	AccountData               NonNullableSlice[DataEntriesSnapshot]          `json:"accountData"`
+	GenerationCommitments     NonNullableSlice[GenerationCommitmentSnapshot] `json:"generationCommitments"`
 }
 
 func (s *txSnapshotJSON) MarshalJSON() ([]byte, error) {
@@ -220,7 +221,8 @@ func (s *txSnapshotJSON) snapshotsCount() int {
 		len(s.Aliases) +
 		len(s.OrderFills) +
 		len(s.AccountScripts) +
-		len(s.AccountData)
+		len(s.AccountData) +
+		len(s.GenerationCommitments)
 }
 
 func (s *txSnapshotJSON) toTransactionSnapshot() ([]AtomicSnapshot, error) {
@@ -278,6 +280,9 @@ func (s *txSnapshotJSON) toTransactionSnapshot() ([]AtomicSnapshot, error) {
 	}
 	for i := range s.AccountData {
 		res = append(res, &s.AccountData[i])
+	}
+	for i := range s.GenerationCommitments {
+		res = append(res, &s.GenerationCommitments[i])
 	}
 	return res, nil
 }
@@ -359,6 +364,11 @@ func (s *txSnapshotJSON) ApplyNewLease(snapshot NewLeaseSnapshot) error {
 
 func (s *txSnapshotJSON) ApplyCancelledLease(snapshot CancelledLeaseSnapshot) error {
 	s.CancelledLeases = append(s.CancelledLeases, snapshot)
+	return nil
+}
+
+func (s *txSnapshotJSON) ApplyCommitToGeneration(snapshot GenerationCommitmentSnapshot) error {
+	s.GenerationCommitments = append(s.GenerationCommitments, snapshot)
 	return nil
 }
 

@@ -12,14 +12,20 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/peers/storage"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 func TestApp_PeersKnown(t *testing.T) {
+	cfg := &settings.BlockchainSettings{
+		FunctionalitySettings: settings.FunctionalitySettings{
+			GenerationPeriod: 0,
+		},
+	}
 	peerManager := peers.NewMockPeerManager(t)
 	addr := proto.NewTCPAddr(net.ParseIP("127.0.0.1"), 6868).ToIpPort()
 	peerManager.EXPECT().KnownPeers().Return([]storage.KnownPeer{storage.KnownPeer(addr)})
 
-	app, err := NewApp("key", nil, services.Services{Peers: peerManager})
+	app, err := NewApp("key", nil, services.Services{Peers: peerManager}, cfg)
 	require.NoError(t, err)
 
 	rs2, err := app.PeersKnown()
@@ -31,6 +37,11 @@ func TestApp_PeersSuspended(t *testing.T) {
 	peerManager := peers.NewMockPeerManager(t)
 
 	now := time.Now()
+	cfg := &settings.BlockchainSettings{
+		FunctionalitySettings: settings.FunctionalitySettings{
+			GenerationPeriod: 0,
+		},
+	}
 
 	ips := []string{"13.3.4.1", "5.3.6.7"}
 	testData := []storage.SuspendedPeer{
@@ -50,7 +61,7 @@ func TestApp_PeersSuspended(t *testing.T) {
 
 	peerManager.EXPECT().Suspended().Return(testData)
 
-	app, err := NewApp("key", nil, services.Services{Peers: peerManager})
+	app, err := NewApp("key", nil, services.Services{Peers: peerManager}, cfg)
 	require.NoError(t, err)
 
 	suspended := app.PeersSuspended()
@@ -88,8 +99,12 @@ func TestApp_PeersBlackList(t *testing.T) {
 	}
 
 	peerManager.EXPECT().BlackList().Return(testData)
-
-	app, err := NewApp("key", nil, services.Services{Peers: peerManager})
+	cfg := &settings.BlockchainSettings{
+		FunctionalitySettings: settings.FunctionalitySettings{
+			GenerationPeriod: 0,
+		},
+	}
+	app, err := NewApp("key", nil, services.Services{Peers: peerManager}, cfg)
 	require.NoError(t, err)
 
 	blackList := app.PeersBlackListed()

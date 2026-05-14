@@ -45,6 +45,9 @@ const (
 	snapshots
 	patches
 	challengedAddress
+	commitment
+	finalization
+	bannedGenerators
 )
 
 type blockchainEntityProperties struct {
@@ -86,14 +89,12 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 	wavesBalance: {
 		needToFilter: true,
 		needToCut:    true,
-		fixedSize:    true,
-		recordSize:   wavesBalanceRecordSize + 4,
+		fixedSize:    false,
 	},
 	assetBalance: {
 		needToFilter: true,
 		needToCut:    true,
-		fixedSize:    true,
-		recordSize:   assetBalanceRecordSize + 4,
+		fixedSize:    false,
 	},
 	featureVote: {
 		needToFilter: true,
@@ -208,6 +209,21 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		fixedSize:    false,
 	},
 	challengedAddress: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
+	},
+	commitment: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
+	},
+	finalization: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
+	},
+	bannedGenerators: {
 		needToFilter: true,
 		needToCut:    true,
 		fixedSize:    false,
@@ -811,6 +827,7 @@ func (hs *historyStorage) flush() error {
 }
 
 // isNotFoundInHistoryOrDBErr checks if the error is errEmptyHist or keyvalue.ErrNotFound.
+// TODO: Should be renamed to isNotFoundInHistoryOrEmptyHistory.
 func isNotFoundInHistoryOrDBErr(err error) bool {
 	return errors.Is(err, keyvalue.ErrNotFound) || errors.Is(err, errEmptyHist)
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/pkg/errors"
@@ -176,9 +177,43 @@ func (a *Transactions) Broadcast(ctx context.Context, transaction proto.Transact
 		}
 	}
 
+	slog.Debug("Broadcasting transaction", "transaction", string(bts))
 	req, err := http.NewRequest("POST", url.String(), bytes.NewReader(bts))
 	if err != nil {
 		return nil, err
 	}
 	return doHTTP(ctx, a.options, req, nil)
+}
+
+type SignCommitRequest struct {
+	Sender                string  `json:"sender"`
+	GenerationPeriodStart *uint32 `json:"generationPeriodStart,omitempty"`
+	Timestamp             *int64  `json:"timestamp,omitempty"`
+	ChainID               *byte   `json:"chainId,omitempty"`
+}
+
+// SignCommit calls POST /transactions/sign and returns the signed CommitToGenerationWithProofs tx.
+func (a *Transactions) SignCommit(ctx context.Context,
+	reqBody *SignCommitRequest) (*proto.CommitToGenerationWithProofs, *Response, error) {
+	if reqBody == nil {
+		return nil, nil, fmt.Errorf("empty request body")
+	}
+	url, err := joinUrl(a.options.BaseUrl, "/transactions/sign")
+	if err != nil {
+		return nil, nil, err
+	}
+	bts, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url.String(), bytes.NewReader(bts))
+	if err != nil {
+		return nil, nil, err
+	}
+	out := new(proto.CommitToGenerationWithProofs)
+	resp, err := doHTTP(ctx, a.options, req, out)
+	if err != nil {
+		return nil, resp, err
+	}
+	return out, resp, nil
 }

@@ -124,7 +124,7 @@ type StateInfo interface {
 	ProvidesStateHashes() (bool, error)
 
 	// State hashes.
-	LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error)
+	LegacyStateHashAtHeight(height proto.Height) (proto.StateHash, error)
 	SnapshotStateHashAtHeight(height proto.Height) (crypto.Digest, error)
 
 	// Map on readable state. Way to apply multiple operations under same lock.
@@ -155,6 +155,14 @@ type StateInfo interface {
 
 	// SnapshotsAtHeight returns block snapshots at the given height.
 	SnapshotsAtHeight(height proto.Height) (proto.BlockSnapshot, error)
+
+	// FindGenerator returns the first generator for which the lookup function returns true.
+	// The lookup function receives a copy of GeneratorInfo, so it cannot modify the stored data.
+	FindGenerator(func(GeneratorInfo) bool) (GeneratorInfo, error)
+	CommittedGenerators(height proto.Height) ([]GeneratorInfo, error)
+	LastFinalizedHeight() (proto.Height, error)
+	LastFinalizedBlock() (*proto.BlockHeader, error)
+	CheckRollbackHeightAuto(height proto.Height) error
 }
 
 // StateModifier contains all the methods needed to modify node's state.
@@ -172,8 +180,8 @@ type StateModifier interface {
 	AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error)
 	AddDeserializedBlocksWithSnapshots(blocks []*proto.Block, snapshots []*proto.BlockSnapshot) (*proto.Block, error)
 	// Rollback functionality.
-	RollbackToHeight(height proto.Height) error
-	RollbackTo(removalEdge proto.BlockID) error
+	RollbackToHeight(height proto.Height, isAutoRollback bool) error
+	RollbackTo(removalEdge proto.BlockID, isAutoRollback bool) error
 
 	// CreateNextSnapshotHash creates snapshot hash for next block in the context of current state.
 	// It also temporary modifies internal state.

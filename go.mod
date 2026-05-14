@@ -9,6 +9,7 @@ require (
 	github.com/ccoveille/go-safecast/v2 v2.0.0
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/cespare/xxhash/v2 v2.3.0
+	github.com/cloudflare/circl v1.6.3
 	github.com/consensys/gnark v0.15.0
 	github.com/consensys/gnark-crypto v0.20.1
 	github.com/coocood/freecache v1.2.7
@@ -50,7 +51,7 @@ require (
 	go.uber.org/atomic v1.11.0
 	go.uber.org/goleak v1.3.0
 	golang.org/x/crypto v0.51.0
-	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546
+	golang.org/x/exp v0.0.0-20260218203240-3dfff04db8fa
 	golang.org/x/sync v0.20.0
 	golang.org/x/sys v0.44.0
 	google.golang.org/grpc v1.81.0

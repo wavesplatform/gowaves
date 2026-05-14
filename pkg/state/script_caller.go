@@ -165,7 +165,11 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 	return nil
 }
 
-func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, setTx func(*ride.EvaluationEnvironment) error, assetID crypto.Digest, params *appendTxParams) (ride.Result, error) {
+func (a *scriptCaller) callAssetScriptCommon(
+	env *ride.EvaluationEnvironment,
+	setTx func(*ride.EvaluationEnvironment) error,
+	assetID crypto.Digest, params *appendTxParams,
+) (ride.Result, error) {
 	tree, err := a.stor.scriptsStorage.newestScriptByAsset(proto.AssetIDFromDigest(assetID))
 	if err != nil {
 		return nil, err
@@ -182,20 +186,22 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, se
 
 	switch tree.LibVersion {
 	case ast.LibV1, ast.LibV2, ast.LibV3:
-		assetInfo, err := a.state.NewestAssetInfo(assetID)
-		if err != nil {
-			return nil, err
+		ai, aiErr := a.state.NewestAssetInfo(assetID)
+		if aiErr != nil {
+			return nil, aiErr
 		}
-		env.SetThisFromAssetInfo(assetInfo)
+		env.SetThisFromAssetInfo(ai)
+	case ast.LibV4, ast.LibV5, ast.LibV6, ast.LibV7, ast.LibV8, ast.LibV9:
+		ai, aiErr := a.state.NewestFullAssetInfo(assetID)
+		if aiErr != nil {
+			return nil, aiErr
+		}
+		env.SetThisFromFullAssetInfo(ai)
 	default:
-		assetInfo, err := a.state.NewestFullAssetInfo(assetID)
-		if err != nil {
-			return nil, err
-		}
-		env.SetThisFromFullAssetInfo(assetInfo)
+		return nil, fmt.Errorf("unsupported lib version %d", tree.LibVersion)
 	}
-	if err := env.SetLastBlockFromBlockInfo(params.blockInfo); err != nil {
-		return nil, err
+	if biErr := env.SetLastBlockFromBlockInfo(params.blockInfo); biErr != nil {
+		return nil, biErr
 	}
 	r, err := ride.CallVerifier(env, tree)
 	if err != nil {
@@ -209,11 +215,9 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, se
 		a.recentTxComplexity += uint64(r.Complexity())
 	} else {
 		// For asset script we use original estimation
-		est, err := a.stor.scriptsComplexity.newestScriptComplexityByAsset(
-			proto.AssetIDFromDigest(assetID),
-		)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
+		est, scErr := a.stor.scriptsComplexity.newestScriptComplexityByAsset(proto.AssetIDFromDigest(assetID))
+		if scErr != nil {
+			return nil, errors.Wrapf(scErr, "failed to call script on asset '%s'", assetID.String())
 		}
 		a.recentTxComplexity += uint64(est.Verifier)
 	}

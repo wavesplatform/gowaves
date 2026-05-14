@@ -844,6 +844,63 @@ func (_c *MockFeaturesState_isApprovedAtHeight_Call) RunAndReturn(run func(featu
 	return _c
 }
 
+// minimalGeneratingBalanceAtHeight provides a mock function for the type MockFeaturesState
+func (_mock *MockFeaturesState) minimalGeneratingBalanceAtHeight(v proto.Height, v1 uint64) uint64 {
+	ret := _mock.Called(v, v1)
+
+	if len(ret) == 0 {
+		panic("no return value specified for minimalGeneratingBalanceAtHeight")
+	}
+
+	var r0 uint64
+	if returnFunc, ok := ret.Get(0).(func(proto.Height, uint64) uint64); ok {
+		r0 = returnFunc(v, v1)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+	return r0
+}
+
+// MockFeaturesState_minimalGeneratingBalanceAtHeight_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'minimalGeneratingBalanceAtHeight'
+type MockFeaturesState_minimalGeneratingBalanceAtHeight_Call struct {
+	*mock.Call
+}
+
+// minimalGeneratingBalanceAtHeight is a helper method to define mock.On call
+//   - v proto.Height
+//   - v1 uint64
+func (_e *MockFeaturesState_Expecter) minimalGeneratingBalanceAtHeight(v interface{}, v1 interface{}) *MockFeaturesState_minimalGeneratingBalanceAtHeight_Call {
+	return &MockFeaturesState_minimalGeneratingBalanceAtHeight_Call{Call: _e.mock.On("minimalGeneratingBalanceAtHeight", v, v1)}
+}
+
+func (_c *MockFeaturesState_minimalGeneratingBalanceAtHeight_Call) Run(run func(v proto.Height, v1 uint64)) *MockFeaturesState_minimalGeneratingBalanceAtHeight_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 proto.Height
+		if args[0] != nil {
+			arg0 = args[0].(proto.Height)
+		}
+		var arg1 uint64
+		if args[1] != nil {
+			arg1 = args[1].(uint64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockFeaturesState_minimalGeneratingBalanceAtHeight_Call) Return(v2 uint64) *MockFeaturesState_minimalGeneratingBalanceAtHeight_Call {
+	_c.Call.Return(v2)
+	return _c
+}
+
+func (_c *MockFeaturesState_minimalGeneratingBalanceAtHeight_Call) RunAndReturn(run func(v proto.Height, v1 uint64) uint64) *MockFeaturesState_minimalGeneratingBalanceAtHeight_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // newestActivationHeight provides a mock function for the type MockFeaturesState
 func (_mock *MockFeaturesState) newestActivationHeight(featureID int16) (uint64, error) {
 	ret := _mock.Called(featureID)

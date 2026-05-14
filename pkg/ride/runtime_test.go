@@ -432,9 +432,11 @@ func makeFullAssetInfo(digest crypto.Digest, pk crypto.PublicKey, address proto.
 	return fullAssetInfoToObject(info)
 }
 
-func makeBlockInfo(sig []byte, address proto.WavesAddress, pk crypto.PublicKey) rideType {
+func makeBlockInfo(t testing.TB, sig []byte, address proto.WavesAddress, pk crypto.PublicKey) rideType {
 	info := proto.NewBlockInfo(proto.ProtobufBlockVersion, 1, 2, 3, address, pk, sig, sig, nil)
-	return blockInfoToObject(info, ast.LibV4)
+	bi, err := blockInfoToObject(info, ast.LibV4)
+	require.NoError(t, err)
+	return bi
 }
 
 func TestTypesStrings(t *testing.T) {
@@ -497,7 +499,7 @@ func TestTypesStrings(t *testing.T) {
 	testSponsorFeeTransaction := makeSponsorFeeTransactionObject(t, sig, dig, dig, 1, 2, 3)
 	testDataTransaction := makeDataTransactionObject(t, sig, dig, []string{"key"}, []string{"value"}, 1, 2)
 	testAssetInfo := makeFullAssetInfo(d, pk, ad, longBytes, itx)
-	testBlockInfo := makeBlockInfo(shortBytes, ad, pk)
+	testBlockInfo := makeBlockInfo(t, shortBytes, ad, pk)
 	testIssueAction := newRideIssue(rideUnit{}, "name", "description", 1, 2, 3, true)
 	testReissueAction := newRideReissue(shortBytes, 1, true)
 	testBurnAction := newRideBurn(shortBytes, 1)

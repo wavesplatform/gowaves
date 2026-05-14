@@ -2,8 +2,10 @@ package config
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	stderrs "errors"
+	"fmt"
 	"math"
 	"math/big"
 	"os"
@@ -13,6 +15,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -50,9 +53,9 @@ type GenesisConfig struct {
 }
 
 type DistributionItem struct {
-	SeedText string `json:"seed_text"`
-	Amount   uint64 `json:"amount"`
-	IsMiner  bool   `json:"is_miner"`
+	SeedText   string     `json:"seed_text"`
+	Amount     uint64     `json:"amount"`
+	MiningType MiningType `json:"mining_type"`
 }
 
 type FeatureInfo struct {
@@ -95,11 +98,13 @@ func parseGenesisSettings() (*GenesisSettings, error) {
 }
 
 type AccountInfo struct {
-	PublicKey crypto.PublicKey
-	SecretKey crypto.SecretKey
-	Amount    uint64
-	Address   proto.WavesAddress
-	Alias     proto.Alias
+	PublicKey    crypto.PublicKey
+	SecretKey    crypto.SecretKey
+	Amount       uint64
+	Address      proto.WavesAddress
+	Alias        proto.Alias
+	BLSSecretKey bls.SecretKey
+	BLSPublicKey bls.PublicKey
 }
 
 func makeTransactionAndKeyPairs(settings *GenesisSettings, timestamp uint64) ([]genesis_generator.GenesisTransactionInfo, []AccountInfo, error) {
@@ -122,8 +127,35 @@ func makeTransactionAndKeyPairs(settings *GenesisSettings, timestamp uint64) ([]
 		if err != nil {
 			return nil, nil, errors.Wrapf(err, "failed to generate address from seed '%s'", string(seed))
 		}
+		var bsk bls.SecretKey
+		switch dist.MiningType {
+		case GoMining, NoMining:
+			bsk, err = bls.GenerateSecretKey(h[:])
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to generate Go BLS secret key from seed '%s': %w",
+					hex.EncodeToString(h[:]), err)
+			}
+		case ScalaMining:
+			bsk, err = bls.GenerateSecretKey(sk.Bytes(), bls.WithNoPreHash())
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to generate Scala BLS secret key from seed '%s': %w",
+					hex.EncodeToString(sk.Bytes()), err)
+			}
+		}
+		bpk, err := bsk.PublicKey()
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to generate BLS public key from seed '%s': %w", string(seed), err)
+		}
 		r = append(r, genesis_generator.GenesisTransactionInfo{Address: addr, Amount: dist.Amount, Timestamp: timestamp})
-		accounts = append(accounts, AccountInfo{PublicKey: pk, SecretKey: sk, Amount: dist.Amount, Address: addr})
+		acc := AccountInfo{
+			PublicKey:    pk,
+			SecretKey:    sk,
+			Amount:       dist.Amount,
+			Address:      addr,
+			BLSSecretKey: bsk,
+			BLSPublicKey: bpk,
+		}
+		accounts = append(accounts, acc)
 	}
 	return r, accounts, nil
 }
@@ -178,7 +210,7 @@ func calcInitialBaseTarget(genSettings *GenesisSettings) (types.BaseTarget, erro
 	maxBT := uint64(0)
 	pos := getPosCalculator(genSettings)
 	for _, acc := range genSettings.Distributions {
-		if !acc.IsMiner {
+		if acc.MiningType == NoMining {
 			continue
 		}
 		bt, err := calculateBaseTarget(pos, consensus.MinBaseTarget, maxBaseTarget, acc.Amount, genSettings.AverageBlockDelay)
