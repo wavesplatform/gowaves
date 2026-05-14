@@ -1,6 +1,6 @@
 module github.com/wavesplatform/gowaves
 
-go 1.25.0
+go 1.25.7
 
 require (
 	filippo.io/edwards25519 v1.2.0
@@ -9,8 +9,8 @@ require (
 	github.com/ccoveille/go-safecast/v2 v2.0.0
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/cespare/xxhash/v2 v2.3.0
-	github.com/consensys/gnark v0.14.0
-	github.com/consensys/gnark-crypto v0.19.2
+	github.com/consensys/gnark v0.15.0
+	github.com/consensys/gnark-crypto v0.20.1
 	github.com/coocood/freecache v1.2.7
 	github.com/cosmos/go-bip39 v1.0.0
 	github.com/dpotapov/slogpfx v0.0.0-20230917063348-41a73c95c536
@@ -64,7 +64,7 @@ require (
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/antithesishq/antithesis-sdk-go v0.7.0-default-no-op // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bits-and-blooms/bitset v1.24.0 // indirect
+	github.com/bits-and-blooms/bitset v1.24.4 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0 // indirect
 	github.com/containerd/continuity v0.4.5 // indirect
@@ -84,11 +84,10 @@ require (
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/go-tpm v0.9.8 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
-	github.com/google/pprof v0.0.0-20250820193118-f64d9cf942d6 // indirect
+	github.com/google/pprof v0.0.0-20260202012954-cb029daf43ef // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
-	github.com/ingonyama-zk/icicle-gnark/v3 v3.2.2 // indirect
 	github.com/klauspost/compress v1.18.5 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/minio/highwayhash v1.0.4 // indirect
