@@ -1,11 +1,14 @@
 package ride
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf16"
 	"unicode/utf8"
 
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -302,9 +305,13 @@ func parseInt(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "parseInt")
 	}
-	i, err := strconv.ParseInt(string(s), 10, 64)
+	ns, err := normalizeDigits(string(s))
 	if err != nil {
-		return rideUnit{}, nil
+		return rideUnit{}, nil //nolint:nilerr // Suppress invalid digits string error, return unit instead.
+	}
+	i, err := strconv.ParseInt(ns, 10, 64)
+	if err != nil {
+		return rideUnit{}, nil //nolint:nilerr // Suppress conversion error, return unit instead.
 	}
 	return rideInt(i), nil
 }
@@ -315,6 +322,67 @@ func parseIntValue(env environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "parseIntValue")
 	}
 	return extractValue(maybeInt)
+}
+
+func digitValueInRange(r rune, lo, hi, stride uint32) (byte, bool) {
+	v, err := safecast.Convert[uint32](r)
+	if err != nil {
+		return 0, false
+	}
+	if v < lo || v > hi {
+		return 0, false
+	}
+	if (v-lo)%stride != 0 {
+		return 0, false
+	}
+	return byte((v - lo) / stride % base10), true
+}
+
+func digitValue(r rune) (byte, bool) {
+	for _, rt := range unicode.Digit.R16 {
+		if v, ok := digitValueInRange(r, uint32(rt.Lo), uint32(rt.Hi), uint32(rt.Stride)); ok {
+			return v, true
+		}
+	}
+	for _, rt := range unicode.Digit.R32 {
+		if v, ok := digitValueInRange(r, rt.Lo, rt.Hi, rt.Stride); ok {
+			return v, true
+		}
+	}
+	return 0, false
+}
+
+// isMathematicalStyleDigit returns true for Mathematical Alphanumeric Symbols like 𝟎-𝟗, 𝟘-𝟡, 𝟢-𝟫, 𝟬-𝟵, 𝟶-𝟿.
+func isMathematicalStyledDigit(r rune) bool {
+	return '\U0001D7CE' <= r && r <= '\U0001D7FF'
+}
+
+func normalizeDigits(s string) (string, error) {
+	var b strings.Builder
+	for i, r := range s {
+		switch {
+		case r == '+' || r == '-':
+			// Sign is allowed only at the beginning.
+			if i != 0 {
+				return "", fmt.Errorf("unexpected sign %q", r)
+			}
+			b.WriteRune(r)
+		case '0' <= r && r <= '9':
+			b.WriteRune(r)
+		case unicode.IsDigit(r):
+			if isMathematicalStyledDigit(r) {
+				return "", fmt.Errorf("unsupported styled digit %q", r)
+			}
+			v, ok := digitValue(r)
+			if !ok {
+				return "", fmt.Errorf("unsupported digit %q", r)
+			}
+			b.WriteByte('0' + v)
+		default:
+			return "", fmt.Errorf("invalid character %q", r)
+		}
+	}
+	return b.String(), nil
 }
 
 func lastIndexOfSubstring(_ environment, args ...rideType) (rideType, error) {
