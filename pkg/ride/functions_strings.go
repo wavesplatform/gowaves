@@ -352,7 +352,7 @@ func digitValue(r rune) (byte, bool) {
 	return 0, false
 }
 
-// isMathematicalStyleDigit returns true for Mathematical Alphanumeric Symbols like 𝟎-𝟗, 𝟘-𝟡, 𝟢-𝟫, 𝟬-𝟵, 𝟶-𝟿.
+// isMathematicalStyledDigit returns true for Mathematical Alphanumeric Symbols like 𝟎-𝟗, 𝟘-𝟡, 𝟢-𝟫, 𝟬-𝟵, 𝟶-𝟿.
 func isMathematicalStyledDigit(r rune) bool {
 	return '\U0001D7CE' <= r && r <= '\U0001D7FF'
 }
@@ -370,6 +370,12 @@ func normalizeDigits(s string) (string, error) {
 		case '0' <= r && r <= '9':
 			b.WriteRune(r)
 		case unicode.IsDigit(r):
+			// Go's `unicode.IsDigit` reports more Unicode characters as digits than Java's implementation.
+			// Based on tests, mathematically styled digits are not treated as digits in the Scala node,
+			// so we filter them out here to preserve compatibility.
+			//
+			// This behavior may change in future versions of either platform, so compatibility should
+			// be rechecked when updating Go or Scala versions.
 			if isMathematicalStyledDigit(r) {
 				return "", fmt.Errorf("unsupported styled digit %q", r)
 			}

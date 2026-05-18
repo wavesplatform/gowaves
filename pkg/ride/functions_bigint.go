@@ -3,6 +3,7 @@ package ride
 import (
 	"math/big"
 	"sort"
+	"unicode/utf8"
 
 	"github.com/ericlagergren/decimal"
 	"github.com/pkg/errors"
@@ -518,7 +519,8 @@ func stringToBigInt(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "stringToBigInt")
 	}
-	if l := len(s); l > 155 { // 155 symbols is the length of math.MinBigInt value is string representation
+	const maxBitIntStringSize = 155 // The maximum allowed length of math.MinBigInt string.
+	if l := utf8.RuneCountInString(string(s)); l > maxBitIntStringSize {
 		return nil, errors.Errorf("stringToBigInt: string is too long (%d symbols) for a BigInt", l)
 	}
 	ns, err := normalizeDigits(string(s))
