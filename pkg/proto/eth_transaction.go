@@ -313,7 +313,11 @@ func (tx *EthereumTransaction) Verify() (*EthereumPublicKey, error) {
 	signer := MakeEthereumSigner(tx.ChainId())
 	senderPK, err := signer.SenderPK(tx)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to verify EthereumTransaction")
+		idStr := "n/a"
+		if tx.ID != nil {
+			idStr = tx.ID.String()
+		}
+		return nil, errors.Wrapf(err, "failed to verify EthereumTransaction '%s'", idStr)
 	}
 	tx.threadSafeSetSenderPK(senderPK)
 	return senderPK, nil
