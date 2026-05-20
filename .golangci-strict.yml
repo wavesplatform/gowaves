@@ -134,6 +134,7 @@ linters:
         - "2"
       ignored-files:
         - pkg(/|\\)settings(/|\\)blockchain_settings\.go$
+        - pkg(/|\\)state(/|\\)exclusions\.go$
       ignored-functions:
         - os.Chmod
         - os.Mkdir

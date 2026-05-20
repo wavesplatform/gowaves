@@ -339,7 +339,8 @@ func (a *txAppender) commitTxApplication(
 	tx proto.Transaction,
 	params *appendTxParams,
 	invocationRes *invocationResult,
-	applicationRes *applicationResult) (txSnapshot, error) {
+	applicationRes *applicationResult,
+) (txSnapshot, error) {
 	// Add transaction ID to recent IDs.
 	txID, err := tx.GetID(a.settings.AddressSchemeCharacter)
 	if err != nil {
@@ -376,17 +377,16 @@ func (a *txAppender) commitTxApplication(
 			errors.Wrapf(err, "failed to perform transaction %q", base58.Encode(txID)),
 		)
 	}
-
-	if !params.validatingUtx {
-		// Count tx fee. This should not affect transaction execution. It only accumulates miner fee.
-		if err := a.blockDiffer.countMinerFee(tx); err != nil {
-			return txSnapshot{}, wrapErr(stateerr.TxCommitmentError, errors.Errorf("failed to count miner fee: %v", err))
-		}
-	}
 	return snapshot, nil
 }
 
-func (a *txAppender) verifyWavesTxSigAndData(tx proto.Transaction, params *appendTxParams, accountHasVerifierScript bool) error {
+// verifyWavesTxSigAndData checks cryptographic signatures of transaction by sending it to
+// verifier, and also validates transaction's data using tx.Validate() method.
+// For transactions with SmartAccount we don't check signature, but we
+// still validate transaction's data using tx.Validate() method.
+func (a *txAppender) verifyWavesTxSigAndData(
+	tx proto.Transaction, params *appendTxParams, accountHasVerifierScript bool,
+) error {
 	// Detect what signatures must be checked for this transaction.
 	// For transaction with SmartAccount we don't check signature.
 	checkTxSig := !accountHasVerifierScript
@@ -570,46 +570,102 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) (txS
 	if err := a.checkDuplicateTxIds(tx, a.recentTxIds, params.block.Timestamp); err != nil {
 		return txSnapshot{}, errs.Extend(err, "check duplicate tx ids")
 	}
+
+	// Perform state changes, save balance changes, write tx to storage.
+	txID, err := tx.GetID(a.settings.AddressSchemeCharacter)
+	if err != nil {
+		return txSnapshot{}, errs.Extend(err, "get transaction id")
+	}
+
+	snapshot, affectedAddressesNoMiner, err := a.doAppendTx(tx, txID, params)
+	if err != nil {
+		return txSnapshot{}, fmt.Errorf("failed to append transaction: %w", err)
+	}
+
+	// Count tx fee. This should not affect transaction execution. It only accumulates miner fee.
+	if !params.validatingUtx {
+		if mfErr := a.blockDiffer.countMinerFee(tx); mfErr != nil {
+			return txSnapshot{}, wrapErr(stateerr.TxCommitmentError, errors.Wrap(mfErr, "failed to count miner fee"))
+		}
+	}
+	// Store additional data for API: transaction by address.
+	if !params.validatingUtx && a.buildApiData {
+		if err = a.saveTransactionIdByAddresses(affectedAddressesNoMiner, txID, blockID); err != nil {
+			return txSnapshot{}, errs.Extend(err, "save transaction id by addresses")
+		}
+	}
+	return snapshot, nil
+}
+
+func (a *txAppender) doAppendTx(
+	tx proto.Transaction, txIDBytes []byte, params *appendTxParams,
+) (txSnapshot, []proto.WavesAddress, error) {
+	txID, err := crypto.NewDigestFromBytes(txIDBytes)
+	if err != nil {
+		return txSnapshot{}, nil, fmt.Errorf("failed to generate crypto.Digest from txID=%q: %w",
+			base58.Encode(txIDBytes), err,
+		)
+	}
+	// handle some abnormal transactions in mainnet
+	if !params.validatingUtx && a.settings.AddressSchemeCharacter == proto.MainNetScheme {
+		if txPatch, ok := abnormalTxsMainnet[txID]; ok { // apply abnormal snapshot to the state
+			if aErr := txPatch.snapshot.Apply(a.txHandler.sa, tx, params.validatingUtx); aErr != nil {
+				return txSnapshot{}, nil, errors.Wrap(aErr, "failed to apply transaction snapshot")
+			}
+			return txPatch.snapshot, txPatch.affectedAddressesNoMiner, nil
+		}
+		// is not abnormal tx, handle as regular
+	}
+	snapshot, affectedAddressesNoMiner, err := a.appendRegularTx(tx, params)
+	if err != nil {
+		return txSnapshot{}, nil, fmt.Errorf("failed to append regular transaction: %w", err)
+	}
+	return snapshot, affectedAddressesNoMiner, nil
+}
+
+// appendRegularTx returns snapshot of applied transaction
+// and list of affected addresses without miner's address (if it is in the list).
+func (a *txAppender) appendRegularTx(
+	tx proto.Transaction, params *appendTxParams,
+) (txSnapshot, []proto.WavesAddress, error) {
+	blockID := params.checkerInfo.blockID
+
 	// Verify tx signature and internal data correctness.
 	senderAddr, err := tx.GetSender(a.settings.AddressSchemeCharacter)
 	if err != nil {
-		return txSnapshot{}, errs.Extend(err, "failed to get sender addr by pk")
+		return txSnapshot{}, nil, errs.Extend(err, "failed to get sender addr by pk")
 	}
 
 	// senderWavesAddr needs only for newestAccountHasVerifier check
 	senderWavesAddr, err := senderAddr.ToWavesAddress(a.settings.AddressSchemeCharacter)
 	if err != nil {
-		return txSnapshot{}, errors.Wrapf(err, "failed to transform (%T) address type to WavesAddress type", senderAddr)
+		return txSnapshot{}, nil,
+			errors.Wrapf(err, "failed to transform (%T) address type to WavesAddress type", senderAddr)
 	}
 	accountHasVerifierScript, err := a.stor.scriptsStorage.newestAccountHasVerifier(senderWavesAddr)
 	if err != nil {
-		return txSnapshot{}, errs.Extend(err, "account has verifier")
+		return txSnapshot{}, nil, errs.Extend(err, "account has verifier")
 	}
 
 	if err = a.verifyWavesTxSigAndData(tx, params, accountHasVerifierScript); err != nil {
-		return txSnapshot{}, errs.Extend(err, "tx signature or data verification failed")
+		return txSnapshot{}, nil, errs.Extend(err, "tx signature or data verification failed")
 	}
 
 	// Check tx against state, check tx scripts, calculate balance changes.
 	applicationRes, invocationResult, needToValidateBalanceDiff, err :=
 		a.handleTxAndScripts(tx, params, accountHasVerifierScript, senderAddr)
 	if err != nil {
-		return txSnapshot{}, err
+		return txSnapshot{}, nil, err
 	}
 	if needToValidateBalanceDiff {
 		// Validate balance diff for negative balances.
 		if err = a.diffApplier.validateTxDiff(applicationRes.changes.diff, a.diffStor); err != nil {
-			return txSnapshot{}, errs.Extend(err, "validate transaction diff")
+			return txSnapshot{}, nil, errs.Extend(err, "validate transaction diff")
 		}
 	}
 	// Check complexity limits and scripts runs limits.
-	if err := a.checkScriptsLimits(a.totalScriptsRuns+applicationRes.totalScriptsRuns, blockID); err != nil {
-		return txSnapshot{}, errs.Extend(errors.Errorf("%s: %v", blockID.String(), err), "check scripts limits")
-	}
-	// Perform state changes, save balance changes, write tx to storage.
-	txID, err := tx.GetID(a.settings.AddressSchemeCharacter)
-	if err != nil {
-		return txSnapshot{}, errs.Extend(err, "get transaction id")
+	if slErr := a.checkScriptsLimits(a.totalScriptsRuns+applicationRes.totalScriptsRuns, blockID); slErr != nil {
+		return txSnapshot{}, nil, errs.Extend(fmt.Errorf("%s: %w", blockID.String(), slErr), "check scripts limits")
 	}
 
 	// invocationResult may be empty if it was not an Invoke Transaction
@@ -617,15 +673,9 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) (txS
 	if err != nil {
 		slog.Error("Failed to commit transaction after successful validation; this should NEVER happen",
 			logging.TxID(tx, a.settings.AddressSchemeCharacter), logging.Error(err))
-		return txSnapshot{}, err
+		return txSnapshot{}, nil, err
 	}
-	// Store additional data for API: transaction by address.
-	if !params.validatingUtx && a.buildApiData {
-		if err = a.saveTransactionIdByAddresses(applicationRes.changes.addresses(), txID, blockID); err != nil {
-			return txSnapshot{}, errs.Extend(err, "save transaction id by addresses")
-		}
-	}
-	return snapshot, nil
+	return snapshot, applicationRes.changes.addresses(), nil
 }
 
 func (a *txAppender) applySnapshotInLightNode(
