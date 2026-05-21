@@ -58,13 +58,18 @@ func buildGeneratorInfo(
 		return GeneratorInfo{}, fmt.Errorf("failed to convert address ID to Waves address for generator %d: %w",
 			index, aErr)
 	}
+	bal := g.Balance
+	banned := g.BanHeight != 0
+	if banned {
+		bal = 0
+	}
 	gi := GeneratorInfo{
 		Index:         index,
 		Address:       a,
 		PublicKey:     c.GeneratorPK,
 		BLSPublicKey:  c.EndorserPK,
-		Balance:       g.Balance,
-		Ban:           g.BanHeight != 0,
+		Balance:       bal,
+		Ban:           banned,
 		TransactionID: c.TransactionID,
 	}
 	return gi, nil
@@ -95,6 +100,20 @@ type generator struct {
 	AddressID proto.AddressID `cbor:"2,keyasint,omitempty"`
 }
 
+func (g *generator) string(scheme proto.Scheme) string {
+	var as string
+	if a, err := g.AddressID.ToWavesAddress(scheme); err != nil {
+		as = "⚠"
+	} else {
+		as = a.String()
+	}
+	bs := "✓"
+	if g.BanHeight != 0 {
+		bs = fmt.Sprintf("✗%d", g.BanHeight)
+	}
+	return fmt.Sprintf("%s%s(¤%d)", as, bs, g.Balance)
+}
+
 type generatorsRecord struct {
 	Generators          []generator `cbor:"0,keyasint,omitempty"`
 	BlockGeneratorIndex int32       `cbor:"1,keyasint,omitempty"`
@@ -120,8 +139,10 @@ func (r *generatorsRecord) unmarshalBinary(data []byte) error { return cbor.Unma
 
 func (r *generatorsRecord) size() int { return len(r.Generators) }
 
-func (r *generatorsRecord) string(scheme proto.Scheme) (string, error) {
+func (r *generatorsRecord) string(scheme proto.Scheme) string {
 	sb := strings.Builder{}
+	sb.WriteRune('▶')
+	sb.WriteString(strconv.Itoa(int(r.PeriodStart)))
 	sb.WriteRune('(')
 	sb.WriteString(strconv.Itoa(int(r.BlockGeneratorIndex)))
 	sb.WriteRune(')')
@@ -130,19 +151,10 @@ func (r *generatorsRecord) string(scheme proto.Scheme) (string, error) {
 		if i > 0 {
 			sb.WriteString(", ")
 		}
-		a, aErr := gen.AddressID.ToWavesAddress(scheme)
-		if aErr != nil {
-			return "", fmt.Errorf("failed to convert generator address ID to Waves address: %w", aErr)
-		}
-		sb.WriteString(a.String())
-		sb.WriteRune('(')
-		sb.WriteString(strconv.FormatUint(gen.Balance, 10))
-		sb.WriteRune(')')
+		sb.WriteString(gen.string(scheme))
 	}
 	sb.WriteRune(']')
-	sb.WriteRune('@')
-	sb.WriteString(strconv.Itoa(int(r.PeriodStart)))
-	return sb.String(), nil
+	return sb.String()
 }
 
 type generatorsBalancesRecordForStateHashes struct {
@@ -382,11 +394,7 @@ func (g *generatorsStorage) finishGeneratorsInitialization(
 	if sErr := g.saveGeneratorsRecord(rec, blockHeight, blockID); sErr != nil {
 		return fmt.Errorf("failed to save block generator record: %w", sErr)
 	}
-	str, err := rec.string(g.settings.AddressSchemeCharacter)
-	if err != nil {
-		return fmt.Errorf("failed to build generators set string for logging: %w", err)
-	}
-	slog.Debug(logMessage, slog.String("generators", str),
+	slog.Debug(logMessage, slog.String("generators", rec.string(g.settings.AddressSchemeCharacter)),
 		slog.Uint64("blockHeight", blockHeight), slog.String("blockID", blockID.String()),
 		slog.Uint64("blockchainHeight", blockchainHeight))
 	return g.pushLegacyStateHashRecord(shRec, blockHeight, blockID)
@@ -534,7 +542,7 @@ func (g *generatorsStorage) string(height proto.Height) (string, error) {
 		}
 		return "", fmt.Errorf("failed to build generators set string for height %d: %w", height, err)
 	}
-	return gs.string(g.settings.AddressSchemeCharacter)
+	return gs.string(g.settings.AddressSchemeCharacter), nil
 }
 
 func (g *generatorsStorage) generator(index uint32, height proto.Height) (GeneratorInfo, error) {
@@ -563,6 +571,8 @@ func (g *generatorsStorage) banGenerator(index uint32, height proto.Height, bloc
 	if bErr := gs.banGenerator(index, height); bErr != nil {
 		return fmt.Errorf("failed to ban: %w", bErr)
 	}
+	slog.Debug("Generator banned", "index", index, "height", height,
+		"generators", gs.string(g.settings.AddressSchemeCharacter))
 
 	// Save ban for processing of the future blocks.
 	key := generatorsKey{height: height}
