@@ -781,3 +781,27 @@ func TestTCPAddr_EmptyNoPort(t *testing.T) {
 		})
 	}
 }
+
+func Test_transformToStandardSig(t *testing.T) {
+	//nolint:lll
+	const (
+		// 7YVPfMYcuKqfZJXH9kJdvMQWzeLkvurkqz2PQupW2UEc
+		expectedHex1 = "0xa307e2c51d8e14c5243401956f8dfaa7deefd9a54fa2ab351820a01d4f1ac8d34cd7dd57c5f8440a8b14d80b32c1b12cb06111f9a72ee0ea739e36b3ec4dc1b31b"
+		toTransform1 = "0x0000000000000000000000000000000000000000000000000000000000000000a307e2c51d8e14c5243401956f8dfaa7deefd9a54fa2ab351820a01d4f1ac8d300000000000000000000000000000000000000000000000000000000000000004cd7dd57c5f8440a8b14d80b32c1b12cb06111f9a72ee0ea739e36b3ec4dc1b31b"
+		//// Whu126znDdAm4bSrGdd6JdKaGUk62Rvt7kLLG1ZA6Kh — left padding has not only zeroes as above
+		//expectedHex2 = "0xa307e2c51d8e14c5243401956f8dfaa7deefd9a54fa2ab351820a01d4f1ac8d34cd7dd57c5f8440a8b14d80b32c1b12b6b0feee05677812633709540bc8402f41b"
+		//toTransform2 = "0x0000000000000000000000000000000000000000000000000000000000000000a307e2c51d8e14c5243401956f8dfaa7deefd9a54fa2ab351820a01d4f1ac8d300000000000000000000000000000000000000000000000000000000000000014cd7dd57c5f8440a8b14d80b32c1b12b6b0feee05677812633709540bc8402f41b"
+	)
+	t.Run("1", func(t *testing.T) {
+		data, err := DecodeFromHexString(toTransform1)
+		require.NoError(t, err)
+		transformed := transformToStandardSig(data)
+		require.Equal(t, expectedHex1, EncodeToHexString(transformed))
+	})
+	//t.Run("2", func(t *testing.T) {
+	//	data, err := DecodeFromHexString(toTransform2)
+	//	require.NoError(t, err)
+	//	transformed := transformToStandardSig(data)
+	//	require.Equal(t, expectedHex2, EncodeToHexString(transformed))
+	//})
+}
