@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/ccoveille/go-safecast/v2"
-	"github.com/mr-tron/base58/base58"
+	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -728,7 +728,9 @@ func (a *txAppender) appendTxs(
 		txSnap, errAppendTx := a.appendTx(tx, appendTxArgs)
 		if errAppendTx != nil { // TODO: check error type for elided tx
 			if !isBlockWithChallenge {
-				return proto.BlockSnapshot{}, crypto.Digest{}, errAppendTx
+				return proto.BlockSnapshot{}, crypto.Digest{},
+					errors.Wrapf(errAppendTx, "failed to append tx %q at height %d", base58.Encode(txID),
+						blockInfo.Height)
 			}
 			slog.Debug("Elided tx detected", slog.String("ID", base58.Encode(txID)), logging.Error(errAppendTx))
 			txSnap = txSnapshot{

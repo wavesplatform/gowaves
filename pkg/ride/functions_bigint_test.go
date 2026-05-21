@@ -691,7 +691,7 @@ func BenchmarkBigIntToString(b *testing.B) {
 func TestStringToBigInt(t *testing.T) {
 	v, ok := new(big.Int).SetString("52785833603464895924505196455835395749861094195642486808108138863402869537852026544579466671752822414281401856143643660416162921950916138504990605852480", 10)
 	require.True(t, ok)
-	for _, test := range []struct {
+	for i, test := range []struct {
 		args []rideType
 		fail bool
 		r    rideType
@@ -706,24 +706,45 @@ func TestStringToBigInt(t *testing.T) {
 		{[]rideType{rideString("9223372036854775807")}, false, toRideBigInt(math.MaxInt64)},
 		{[]rideType{rideString("-9223372036854775808")}, false, toRideBigInt(math.MinInt64)},
 		{[]rideType{rideString("52785833603464895924505196455835395749861094195642486808108138863402869537852026544579466671752822414281401856143643660416162921950916138504990605852480")}, false, rideBigInt{v: v}},
+		{[]rideType{rideString("⓪①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳")}, true, nil},
+		{[]rideType{rideString("ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ")}, true, nil},
+		{[]rideType{rideString("ⅰⅱⅲⅳⅴⅵⅶⅷⅸⅹ")}, true, nil},
+		{[]rideType{rideString("⁰¹²³⁴⁵⁶⁷⁸⁹")}, true, nil},
+		{[]rideType{rideString("₀₁₂₃₄₅₆₇₈₉")}, true, nil},
+		{[]rideType{rideString("𝟎𝟏𝟐𝟑𝟒𝟓𝟔𝟕𝟖𝟗")}, true, nil},
+		{[]rideType{rideString("𝟘𝟙𝟚𝟛𝟜𝟝𝟞𝟟𝟠𝟡")}, true, nil},
+		{[]rideType{rideString("𝟢𝟣𝟤𝟥𝟦𝟧𝟨𝟩𝟪𝟫")}, true, nil},
+		{[]rideType{rideString("𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵")}, true, nil},
+		{[]rideType{rideString("𝟶𝟷𝟸𝟹𝟺𝟻𝟼𝟽𝟾𝟿")}, true, nil},
+		{[]rideType{rideString("０１２３４５６７８９")}, false, toRideBigInt(123456789)},
+		{[]rideType{rideString("٠١٢٣٤٥٦٧٨٩")}, false, toRideBigInt(123456789)},
+		{[]rideType{rideString("۰۱۲۳۴۵۶۷۸۹")}, false, toRideBigInt(123456789)},
+		{[]rideType{rideString("०१२३४५६७८९")}, false, toRideBigInt(123456789)},
+		{[]rideType{rideString("০১২৩৪৫৬৭৮৯")}, false, toRideBigInt(123456789)},
+		{[]rideType{rideString("๐๑๒๓๔๕๖๗๘๙")}, false, toRideBigInt(123456789)},
+		{[]rideType{rideString("௦௧௨௩௪௫௬௭௮௯")}, false, toRideBigInt(123456789)},
+		{[]rideType{rideString("၀၁၂၃၄၅၆၇၈၉")}, false, toRideBigInt(123456789)},
+		{[]rideType{rideString("០១២៣៤៥៦៧៨៩")}, false, toRideBigInt(123456789)},
 		{[]rideType{rideString("0"), rideInt(4)}, true, nil},
 		{[]rideType{rideInt(0)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := stringToBigInt(nil, test.args...)
-		if test.fail {
-			assert.Error(t, err)
-		} else {
-			require.NoError(t, err)
-			assert.True(t, test.r.eq(r), fmt.Sprintf("%s != %s", test.r, r))
-		}
+		t.Run(fmt.Sprintf("test_%d", i+1), func(t *testing.T) {
+			r, err := stringToBigInt(nil, test.args...)
+			if test.fail {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.True(t, test.r.eq(r), fmt.Sprintf("%s != %s", test.r, r))
+			}
+		})
 	}
 }
 
 func TestStringToBigIntOpt(t *testing.T) {
 	v, ok := new(big.Int).SetString("52785833603464895924505196455835395749861094195642486808108138863402869537852026544579466671752822414281401856143643660416162921950916138504990605852480", 10)
 	require.True(t, ok)
-	for _, test := range []struct {
+	for i, test := range []struct {
 		args []rideType
 		fail bool
 		r    rideType
@@ -738,17 +759,38 @@ func TestStringToBigIntOpt(t *testing.T) {
 		{[]rideType{rideString("9223372036854775807")}, false, toRideBigInt(math.MaxInt64)},
 		{[]rideType{rideString("-9223372036854775808")}, false, toRideBigInt(math.MinInt64)},
 		{[]rideType{rideString("52785833603464895924505196455835395749861094195642486808108138863402869537852026544579466671752822414281401856143643660416162921950916138504990605852480")}, false, rideBigInt{v: v}},
+		{[]rideType{rideString("⓪①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳")}, false, newUnit(nil)},
+		{[]rideType{rideString("ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ")}, false, newUnit(nil)},
+		{[]rideType{rideString("ⅰⅱⅲⅳⅴⅵⅶⅷⅸⅹ")}, false, newUnit(nil)},
+		{[]rideType{rideString("⁰¹²³⁴⁵⁶⁷⁸⁹")}, false, newUnit(nil)},
+		{[]rideType{rideString("₀₁₂₃₄₅₆₇₈₉")}, false, newUnit(nil)},
+		{[]rideType{rideString("𝟎𝟏𝟐𝟑𝟒𝟓𝟔𝟕𝟖𝟗")}, false, newUnit(nil)},
+		{[]rideType{rideString("𝟘𝟙𝟚𝟛𝟜𝟝𝟞𝟟𝟠𝟡")}, false, newUnit(nil)},
+		{[]rideType{rideString("𝟢𝟣𝟤𝟥𝟦𝟧𝟨𝟩𝟪𝟫")}, false, newUnit(nil)},
+		{[]rideType{rideString("𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵")}, false, newUnit(nil)},
+		{[]rideType{rideString("𝟶𝟷𝟸𝟹𝟺𝟻𝟼𝟽𝟾𝟿")}, false, newUnit(nil)},
+		{[]rideType{rideString("０１２３４５６７８９")}, false, toRideBigInt(123456789)},
+		{[]rideType{rideString("٠١٢٣٤٥٦٧٨٩")}, false, toRideBigInt(123456789)},
+		{[]rideType{rideString("۰۱۲۳۴۵۶۷۸۹")}, false, toRideBigInt(123456789)},
+		{[]rideType{rideString("०१२३४५६७८९")}, false, toRideBigInt(123456789)},
+		{[]rideType{rideString("০১২৩৪৫৬৭৮৯")}, false, toRideBigInt(123456789)},
+		{[]rideType{rideString("๐๑๒๓๔๕๖๗๘๙")}, false, toRideBigInt(123456789)},
+		{[]rideType{rideString("௦௧௨௩௪௫௬௭௮௯")}, false, toRideBigInt(123456789)},
+		{[]rideType{rideString("၀၁၂၃၄၅၆၇၈၉")}, false, toRideBigInt(123456789)},
+		{[]rideType{rideString("០១២៣៤៥៦៧៨៩")}, false, toRideBigInt(123456789)},
 		{[]rideType{rideString("0"), rideInt(4)}, false, newUnit(nil)},
 		{[]rideType{rideInt(0)}, false, newUnit(nil)},
 		{[]rideType{}, false, newUnit(nil)},
 	} {
-		r, err := stringToBigIntOpt(nil, test.args...)
-		if test.fail {
-			assert.Error(t, err)
-		} else {
-			require.NoError(t, err)
-			assert.True(t, test.r.eq(r), fmt.Sprintf("%s != %s", test.r, r))
-		}
+		t.Run(fmt.Sprintf("test_%d", i+1), func(t *testing.T) {
+			r, err := stringToBigIntOpt(nil, test.args...)
+			if test.fail {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.True(t, test.r.eq(r), fmt.Sprintf("%s != %s", test.r, r))
+			}
+		})
 	}
 }
 
