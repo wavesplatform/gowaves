@@ -415,7 +415,7 @@ func BenchmarkSplitString4C(b *testing.B) {
 }
 
 func TestParseInt(t *testing.T) {
-	for _, test := range []struct {
+	for i, test := range []struct {
 		args []rideType
 		fail bool
 		r    rideType
@@ -427,19 +427,49 @@ func TestParseInt(t *testing.T) {
 		{[]rideType{rideString("")}, false, rideUnit{}},
 		{[]rideType{rideString("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890")}, false, rideUnit{}},
 		{[]rideType{rideString("abc")}, false, rideUnit{}},
+		{[]rideType{rideString("⓪①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳")}, false, rideUnit{}},
+		{[]rideType{rideString("ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ")}, false, rideUnit{}},
+		{[]rideType{rideString("ⅰⅱⅲⅳⅴⅵⅶⅷⅸⅹ")}, false, rideUnit{}},
+		{[]rideType{rideString("⁰¹²³⁴⁵⁶⁷⁸⁹")}, false, rideUnit{}},
+		{[]rideType{rideString("₀₁₂₃₄₅₆₇₈₉")}, false, rideUnit{}},
+		{[]rideType{rideString("𝟎𝟏𝟐𝟑𝟒𝟓𝟔𝟕𝟖𝟗")}, false, rideUnit{}},
+		{[]rideType{rideString("𝟘𝟙𝟚𝟛𝟜𝟝𝟞𝟟𝟠𝟡")}, false, rideUnit{}},
+		{[]rideType{rideString("𝟢𝟣𝟤𝟥𝟦𝟧𝟨𝟩𝟪𝟫")}, false, rideUnit{}},
+		{[]rideType{rideString("𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵")}, false, rideUnit{}},
+		{[]rideType{rideString("𝟶𝟷𝟸𝟹𝟺𝟻𝟼𝟽𝟾𝟿")}, false, rideUnit{}},
+		{[]rideType{rideString("０１２３４５６７８９")}, false, rideInt(123456789)},
+		{[]rideType{rideString("٠١٢٣٤٥٦٧٨٩")}, false, rideInt(123456789)},
+		{[]rideType{rideString("۰۱۲۳۴۵۶۷۸۹")}, false, rideInt(123456789)},
+		{[]rideType{rideString("०१२३४५६७८९")}, false, rideInt(123456789)},
+		{[]rideType{rideString("০১২৩৪৫৬৭৮৯")}, false, rideInt(123456789)},
+		{[]rideType{rideString("๐๑๒๓๔๕๖๗๘๙")}, false, rideInt(123456789)},
+		{[]rideType{rideString("௦௧௨௩௪௫௬௭௮௯")}, false, rideInt(123456789)},
+		{[]rideType{rideString("၀၁၂၃၄၅၆၇၈၉")}, false, rideInt(123456789)},
+		{[]rideType{rideString("០១២៣៤៥៦៧៨៩")}, false, rideInt(123456789)},
+		{[]rideType{rideString("１２３")}, false, rideInt(123)},
+		{[]rideType{rideString("１００")}, false, rideInt(100)},
+		{[]rideType{rideString("-１２３")}, false, rideInt(-123)},
+		{[]rideType{rideString("+１２３")}, false, rideInt(123)},
+		{[]rideType{rideString("0１２３456")}, false, rideInt(123456)},
+		{[]rideType{rideString("１２٣٤")}, false, rideInt(1234)},
+		{[]rideType{rideString("١٢٣")}, false, rideInt(123)},
+		{[]rideType{rideString("-١٢٣")}, false, rideInt(-123)},
+		{[]rideType{rideString("-۱۲۳")}, false, rideInt(-123)},
 		{[]rideType{rideString("abc"), rideInt(0)}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := parseInt(nil, test.args...)
-		if test.fail {
-			assert.Error(t, err)
-		} else {
-			require.NoError(t, err)
-			assert.Equal(t, test.r, r)
-		}
+		t.Run(fmt.Sprintf("test_%d", i+1), func(t *testing.T) {
+			r, err := parseInt(nil, test.args...)
+			if test.fail {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, test.r, r)
+			}
+		})
 	}
 }
 
@@ -750,6 +780,26 @@ func TestReplaceAll(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, test.r, r)
 			}
+		})
+	}
+}
+
+func TestDigitsStringNormalization(t *testing.T) {
+	for i, test := range []struct {
+		s string
+		e string
+	}{
+		{"", ""},
+		{"123", "123"},
+		{"１２３", "123"},
+		{"-１２３", "-123"},
+		{"+１２３", "+123"},
+		{"0１２３456", "0123456"},
+	} {
+		t.Run(fmt.Sprintf("test_%d", i+1), func(t *testing.T) {
+			n, err := normalizeDigits(test.s)
+			require.NoError(t, err)
+			require.Equal(t, test.e, n)
 		})
 	}
 }
