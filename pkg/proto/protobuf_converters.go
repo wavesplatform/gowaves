@@ -1,6 +1,8 @@
 package proto
 
 import (
+	"bytes"
+
 	"github.com/ccoveille/go-safecast/v2"
 	"github.com/pkg/errors"
 
@@ -687,10 +689,34 @@ func (c *ProtobufConverter) signature(data []byte) crypto.Signature {
 	return sig
 }
 
-func (c *ProtobufConverter) ethSignature(data []byte) EthereumSignature {
+func transformToStandardSig(data []byte) []byte {
+	const (
+		paramSize        = 32
+		doubledParamSize = 2 * paramSize
+		doubledSigSize   = 1 + 2*doubledParamSize
+	)
+	if len(data) != doubledSigSize {
+		return data
+	}
+	r, s := data[:doubledParamSize], data[doubledParamSize:doubledSigSize-1]
+	var zeroPrefix [paramSize]byte
+	rc, cut := bytes.CutPrefix(r, zeroPrefix[:])
+	if !cut {
+		return data
+	}
+	sc, cut := bytes.CutPrefix(s, zeroPrefix[:])
+	if !cut {
+		return data
+	}
+	return bytes.Join([][]byte{rc, sc, data[doubledSigSize-1:]}, nil)
+}
+
+func (c *ProtobufConverter) ethOrderSignature(data []byte) EthereumSignature {
 	if c.err != nil {
 		return EthereumSignature{}
 	}
+
+	data = transformToStandardSig(data) // TODO: temporary change
 	sig, err := NewEthereumSignatureFromBytes(data)
 	if err != nil {
 		c.err = err
@@ -775,7 +801,7 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 		}
 		if sig, ok := o.Sender.(*g.Order_Eip712Signature); ok {
 			ethOrder := EthereumOrderV4{
-				Eip712Signature: c.ethSignature(sig.Eip712Signature),
+				Eip712Signature: c.ethOrderSignature(sig.Eip712Signature),
 				OrderV4:         orderV4,
 			}
 			if err := ethOrder.GenerateSenderPK(scheme); err != nil {
