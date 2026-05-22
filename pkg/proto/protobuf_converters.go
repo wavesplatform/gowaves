@@ -699,15 +699,7 @@ func transformToStandardSig(data []byte) []byte {
 		return data
 	}
 	r, s := data[:doubledParamSize], data[doubledParamSize:doubledSigSize-1]
-	var zeroPrefix [paramSize]byte
-	rc, cut := bytes.CutPrefix(r, zeroPrefix[:])
-	if !cut {
-		return data
-	}
-	sc, cut := bytes.CutPrefix(s, zeroPrefix[:])
-	if !cut {
-		return data
-	}
+	rc, sc := r[paramSize:], s[paramSize:] // cut left unnecessary part
 	return bytes.Join([][]byte{rc, sc, data[doubledSigSize-1:]}, nil)
 }
 
