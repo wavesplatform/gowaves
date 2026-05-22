@@ -1918,8 +1918,9 @@ func (w *ethereumPublicKeyBase58Wrapper) UnmarshalJSON(bytes []byte) error {
 }
 
 type EthereumOrderV4 struct {
-	SenderPK        ethereumPublicKeyBase58Wrapper `json:"senderPublicKey"`
-	Eip712Signature EthereumSignature              `json:"eip712Signature"`
+	SenderPK                 ethereumPublicKeyBase58Wrapper `json:"senderPublicKey"`
+	Eip712Signature          EthereumSignature              `json:"eip712Signature"`
+	origEip712SignatureBytes []byte                         // orig bytes for 129 bytes len sigs padded with some data
 	OrderV4
 }
 
@@ -1993,7 +1994,11 @@ func (o *EthereumOrderV4) Sign(_ Scheme, _ crypto.SecretKey) error {
 
 func (o *EthereumOrderV4) ToProtobuf(scheme Scheme) *g.Order {
 	res := o.OrderV4.ToProtobuf(scheme)
-	res.Sender = &g.Order_Eip712Signature{Eip712Signature: o.Eip712Signature.Bytes()}
+	sig := o.origEip712SignatureBytes // TODO: temporary change
+	if len(sig) == 0 {
+		sig = o.Eip712Signature.Bytes()
+	}
+	res.Sender = &g.Order_Eip712Signature{Eip712Signature: sig}
 	return res
 }
 
