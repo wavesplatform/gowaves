@@ -1959,7 +1959,6 @@ func (s *stateManager) resetDeposits(nextBlockID proto.BlockID, lastBlockHeight 
 		}
 		slog.Debug("Generator deposit successfully reset", "generator", addr.String(),
 			"deposit_before", before, "deposit_after", after)
-		return nil
 	}
 	return nil
 }
