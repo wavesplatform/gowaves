@@ -608,4 +608,43 @@ var abnormalTxsMainnet = map[crypto.Digest]struct {
 			proto.MustAddressFromString("3PDXC37iCjkanaENuTXWhvPRQDki6yQcga2"),
 		},
 	},
+	crypto.MustDigestFromBase58("Whu126znDdAm4bSrGdd6JdKaGUk62Rvt7kLLG1ZA6Kh"): {
+		snapshot: txSnapshot{
+			regular: []proto.AtomicSnapshot{
+				&proto.TransactionStatusSnapshot{Status: proto.TransactionSucceeded},
+				&proto.AssetBalanceSnapshot{
+					Address: proto.MustAddressFromString("3PHJZGJkQHDSTe1J1uoHdshhDoaBhZCzjns"),
+					AssetID: crypto.MustDigestFromBase58("4QMfJbtFQ6iKJLMvZ1BbE7Zqb6dho6zh2na8myzUGn1T"),
+					Balance: 950000000030,
+				},
+				&proto.AssetBalanceSnapshot{
+					Address: proto.MustAddressFromString("3P9CrEBAmFGg9HYG1ktCWt2t1aNuF5aZt4W"),
+					AssetID: crypto.MustDigestFromBase58("4QMfJbtFQ6iKJLMvZ1BbE7Zqb6dho6zh2na8myzUGn1T"),
+					Balance: 4999999970,
+				},
+				&proto.WavesBalanceSnapshot{
+					Address: proto.MustAddressFromString("3P9CrEBAmFGg9HYG1ktCWt2t1aNuF5aZt4W"),
+					Balance: 600000,
+				},
+				&proto.WavesBalanceSnapshot{
+					Address: proto.MustAddressFromString("3P2HNUd5VUPLMQkJmctTPEeeHumiPN2GkTb"),
+					Balance: 20156591858,
+				},
+				&proto.FilledVolumeFeeSnapshot{
+					OrderID:      crypto.MustDigestFromBase58("GUg4hL35o9thRdQR4WgsnqCTFoLRsFseX73xziaD6C5s"),
+					FilledVolume: 10,
+					FilledFee:    300000,
+				},
+				&proto.FilledVolumeFeeSnapshot{
+					OrderID:      crypto.MustDigestFromBase58("9g8PpNxFvBLzFaH1atrssyAJJAc9ajGHM2x6BNadCDyk"),
+					FilledVolume: 10,
+					FilledFee:    300000,
+				},
+			},
+		},
+		affectedAddressesNoMiner: []proto.WavesAddress{
+			proto.MustAddressFromString("3PHJZGJkQHDSTe1J1uoHdshhDoaBhZCzjns"),
+			proto.MustAddressFromString("3P9CrEBAmFGg9HYG1ktCWt2t1aNuF5aZt4W"),
+		},
+	},
 }
