@@ -6,6 +6,7 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 	btcECDSA "github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -143,6 +144,7 @@ func (es *EthereumSignature) UnmarshalJSON(bytes []byte) error {
 }
 
 func (es *EthereumSignature) RecoverEthereumPublicKey(digest []byte) (*EthereumPublicKey, error) {
+	// TODO: add check like in `VerifyEthereumSignature` for half order for S and `ValidateEthereumSignatureValues`
 	pk, err := crypto.ECDSARecoverPublicKey(digest, es.Bytes())
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to recover public from signature %s with digest %q",
