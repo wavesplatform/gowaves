@@ -793,8 +793,9 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 		}
 		if sig, ok := o.Sender.(*g.Order_Eip712Signature); ok {
 			ethOrder := EthereumOrderV4{
-				Eip712Signature: c.ethOrderSignature(sig.Eip712Signature),
-				OrderV4:         orderV4,
+				Eip712Signature:          c.ethOrderSignature(sig.Eip712Signature),
+				origEip712SignatureBytes: sig.Eip712Signature,
+				OrderV4:                  orderV4,
 			}
 			if err := ethOrder.GenerateSenderPK(scheme); err != nil {
 				c.err = err
