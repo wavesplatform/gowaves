@@ -9,15 +9,21 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+type depositResetter interface {
+	resetDeposit(addr proto.AddressID, nextBlockID proto.BlockID) (uint64, uint64, error)
+}
+
 type finalizer struct {
 	generators *generatorsStorage
 	finality   *finality
+	resetter   depositResetter
 }
 
-func newFinalizer(generators *generatorsStorage, finality *finality) *finalizer {
+func newFinalizer(generators *generatorsStorage, finality *finality, resetter depositResetter) *finalizer {
 	return &finalizer{
 		generators: generators,
 		finality:   finality,
+		resetter:   resetter,
 	}
 }
 
@@ -140,6 +146,15 @@ func (f *finalizer) processConflictingEndorsements(
 			return fmt.Errorf("failed to ban generator of conflicting endorsement with index %d: %w",
 				ce.EndorserIndex, bErr)
 		}
+		before, after, err := f.resetter.resetDeposit(gi.Address.ID(), blockID)
+		if err != nil {
+			return fmt.Errorf("failed to reset deposit of generator of conflicting endorsement with index %d: %w",
+				ce.EndorserIndex, err)
+		}
+		slog.Debug("Conflicting endorsement processed: generator banned and deposit reset",
+			slog.Uint64("blockHeight", blockHeight), slog.String("blockID", blockID.String()),
+			slog.String("generator", gi.Address.String()), slog.Uint64("depositBefore", before),
+			slog.Uint64("depositAfter", after))
 	}
 	return nil
 }

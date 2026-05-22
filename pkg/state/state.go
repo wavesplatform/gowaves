@@ -1925,31 +1925,41 @@ func (s *stateManager) resetDeposits(nextBlockID proto.BlockID, lastBlockHeight 
 	if err != nil {
 		return fmt.Errorf("failed to reset deposits: %w", err)
 	}
-	generators, err := s.stor.commitments.newestGenerators(start)
+	commitedGenerators, err := s.stor.commitments.newestGenerators(start)
 	if err != nil {
 		return fmt.Errorf("failed to reset deposits: %w", err)
 	}
-	for _, generator := range generators {
+	if len(commitedGenerators) == 0 { // No commitments on the period, nothing to reset.
+		slog.Debug("No commited generators for the period, skipping deposit reset", "height", lastBlockHeight)
+		return nil
+	}
+	periodGenerators, err := s.stor.generators.generators(lastBlockHeight)
+	if err != nil {
+		return fmt.Errorf("failed to reset deposits: %w", err)
+	}
+	if cgl, pgl := len(commitedGenerators), len(periodGenerators.Generators); cgl != pgl {
+		return fmt.Errorf(
+			"failed to reset deposits: committed generators count %d is not equal to period generators count %d",
+			cgl, pgl)
+	}
+	for i, generator := range commitedGenerators {
 		addr, adrErr := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, generator)
 		if adrErr != nil {
 			return fmt.Errorf("failed to reset deposits: %w", adrErr)
 		}
-		balance, bErr := s.stor.balances.newestWavesBalance(addr.ID())
-		if bErr != nil {
-			return fmt.Errorf("failed to reset deposits: %w", bErr)
+		pg := periodGenerators.Generators[i]
+		if pg.BanHeight != 0 {
+			slog.Debug("Skipping deposit reset for banned generator", "height", lastBlockHeight,
+				"banHeight", pg.BanHeight, "index", i, "generator", addr.String())
+			continue
 		}
-		balance.Deposit, err = common.SubInt(balance.Deposit, Deposit)
-		if err != nil {
-			return fmt.Errorf("failed to reset deposits: %w", err)
+		before, after, rstErr := s.stor.balances.resetDeposit(addr.ID(), nextBlockID)
+		if rstErr != nil {
+			return fmt.Errorf("failed to reset deposits for generator '%s': %w", addr.String(), rstErr)
 		}
-		v := wavesValue{
-			profile:       balance,
-			leaseChange:   false,
-			balanceChange: false,
-		}
-		if sbErr := s.stor.balances.setWavesBalance(addr.ID(), v, nextBlockID); sbErr != nil {
-			return fmt.Errorf("failed to reset deposits: %w", sbErr)
-		}
+		slog.Debug("Generator deposit successfully reset", "generator", addr.String(),
+			"deposit_before", before, "deposit_after", after)
+		return nil
 	}
 	return nil
 }
