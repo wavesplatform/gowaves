@@ -14,9 +14,10 @@ import (
 	"filippo.io/edwards25519/field"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"golang.org/x/crypto/blake2b"
 	"golang.org/x/crypto/sha3"
+
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -495,11 +496,44 @@ func Verify(publicKey PublicKey, sig Signature, data []byte) bool {
 	}
 	ss, err := edwards.NewScalar().SetCanonicalBytes(sig[32:])
 	if err != nil {
-		return false
+		// try to parse non-canonical s value, if it is not reduced by l but has no excess bits, as per XEdDSA spec
+		ss, err = newScalarNonCanonicalReducedBytes(sig[32:])
+		if err != nil {
+			return false
+		}
 	}
 	nap := new(edwards.Point).Negate(ap)
 	rp := new(edwards.Point).VarTimeDoubleScalarBaseMult(ks, nap, ss)
 	return bytes.Equal(sig[:32], rp.Bytes())
+}
+
+// newScalarNonCanonicalReducedBytes returns s = x mod l, where x is a 32-byte little-endian encoding of
+// s that may not be reduced by l (canonical form).
+//
+// The particular verification steps chosen by XEdDSA include
+// rejecting s if it has excess bits but not requiring it to be fully reduced.
+// Link: https://signal.org/docs/specifications/xeddsa/#curve25519
+func newScalarNonCanonicalReducedBytes(x []byte) (*edwards.Scalar, error) {
+	const (
+		reducedScalarSize = 32
+		uniformScalarSize = 64
+	)
+	if len(x) != reducedScalarSize {
+		return nil, errors.New("newScalarNonCanonicalReducedBytes: invalid scalar length")
+	}
+	// expand it to perform operations by `mod l` inside.
+	var wide [uniformScalarSize]byte
+	copy(wide[:reducedScalarSize], x)
+	ss, err := edwards.NewScalar().SetUniformBytes(wide[:]) // sets x mod l
+	if err != nil {
+		return nil, fmt.Errorf("newScalarNonCanonicalReducedBytes: %w", err)
+	}
+	ssBytesCanonical := ss.Bytes()                   // returns canonical reduced by l form
+	ss, err = ss.SetCanonicalBytes(ssBytesCanonical) // sets x and check that x is reduced by l or has no excess bits
+	if err != nil {
+		return nil, fmt.Errorf("newScalarNonCanonicalReducedBytes: %w", err)
+	}
+	return ss, nil
 }
 
 func publicKeyFromMontgomery(publicKey PublicKey, sb byte) []byte {
