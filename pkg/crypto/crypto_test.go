@@ -141,6 +141,7 @@ func TestSign(t *testing.T) {
 }
 
 func TestVerify(t *testing.T) {
+	//nolint:lll
 	tests := []struct {
 		pk      string
 		message string
@@ -150,21 +151,25 @@ func TestVerify(t *testing.T) {
 		{"CRxqEuxhdZBEHX42MU4FfyJxuHmbDBTaHMhM3Uki7pLw", "31Y6R7pHocjBqfz6zFEt2VSDoBWwCTcMChjEEpkhNAp4Kp67WQ2DZpA2YmcKCMtzvYRRfbPkRw9QiYuSpwxj6NVdrHt9nVm1EUN8kFSuYVqGjDtpSxE6mH1CmNvsUmMgMkovEVa5Z", "2MxM5vTBQcEw9TR53CQqF2WpbgshA8PojsGtY2BxqpGtWhDLhHjzYAei8qcKpotamhZR752v8Be3TSoQEYikJ5Wp"},
 		{"CRxqEuxhdZBEHX42MU4FfyJxuHmbDBTaHMhM3Uki7pLw", "ZWoJ9uCKXVC3m5LCoG9CsoDX8Q4RY4Syyhq6N9Wv2wrVDRPFMgMXsqp49hXa77Cr4UK8ZMzhP7yxs7QUA21fJyH67qkkKaCHMknGDGifBnY1svZmEndokx8PeatJ5upxGYrC8qhM66bpPFpfPxjUwTG9zTjHgHkjUyTLuC23", "kshMdg9J9iP9esY2oKpgqVWY1Ju2g7LAtkVRQnJX8DiaPgaebRL2fzJ9KvZf5gZg5qLJaFS27frhKvWn5AGQmp6"},
 		{"CRxqEuxhdZBEHX42MU4FfyJxuHmbDBTaHMhM3Uki7pLw", "ZWoJ9uCKXVC3m5LCoG9CsoDX8Q4RY4Syyhq6N9Wv2wrVDRPFMgMXsqp49hXa77Cr4UK8ZMzhP7yxs7QUA21fJyH67qkkKaCHMknGDGifBnY1svZmEndokx8PeatJ5upxGYrC8qhM66bpPFpfPxjUwTG9zTjHgHkjUyTLuC23", "4NskSm9LqD4c5oqUH6S6D7Xwq1oiEa39KTiBdMBQ4GNEDtfwWt6T7kV6Zf99wfB6nboUwBCuATKj2dzPWZUL94hv"},
+		// testcase below has been taken from second order of mainnet exchange transaction "64Mhr6pJeX21guka35pGFb2dqppwBMGGagNF57Zq8qvD"
+		{"J3qN131GYh3swtQZcgtRDguVdJ8LyqfSpnUccNxWNegi", "9htZdMPTdrZSPbggHoLMsdw2tQVJE41WjcLGQkYJjPvTv9Tju94PdnhEWXfemb7VzJcdtZLXqaxWbvAX2uKJrfEjWon9MpHtivaGnCwewoGQ49uvSwuaHP4VgNdY6oL2f7nGmJNfpy4QEuXqah7vnczwhq9jwPQEhEQsfx4Pzh3G8t2Ascj4xmTDWYqrkH4B", "4emUeYCTG3XDkvxNNi8bHFh6AhC45DbkM3nh1VwuckKe1UU19TqdUXUrQHbaTFDds48Nw5w3JoX1hZWdDCope14n"},
 	}
-	for _, tc := range tests {
-		pkBytes, err := base58.Decode(tc.pk)
-		if assert.NoError(t, err) {
-			var p PublicKey
-			copy(p[:], pkBytes[:DigestSize])
-			messageBytes, err1 := base58.Decode(tc.message)
-			signatureBytes, err2 := base58.Decode(tc.sig)
-			if assert.NoError(t, err1) && assert.NoError(t, err2) {
-				var sig Signature
-				copy(sig[:], signatureBytes[:SignatureSize])
-				assert.Nil(t, err)
-				assert.True(t, Verify(p, sig, messageBytes))
+	for i, tc := range tests {
+		t.Run(fmt.Sprintf("case#%d", i), func(t *testing.T) {
+			pkBytes, err := base58.Decode(tc.pk)
+			if assert.NoError(t, err) {
+				var p PublicKey
+				copy(p[:], pkBytes[:DigestSize])
+				messageBytes, err1 := base58.Decode(tc.message)
+				signatureBytes, err2 := base58.Decode(tc.sig)
+				if assert.NoError(t, err1) && assert.NoError(t, err2) {
+					var sig Signature
+					copy(sig[:], signatureBytes[:SignatureSize])
+					assert.Nil(t, err)
+					assert.True(t, Verify(p, sig, messageBytes))
+				}
 			}
-		}
+		})
 	}
 }
 
