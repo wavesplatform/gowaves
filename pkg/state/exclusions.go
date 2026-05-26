@@ -647,4 +647,22 @@ var abnormalTxsMainnet = map[crypto.Digest]struct {
 			proto.MustAddressFromString("3P9CrEBAmFGg9HYG1ktCWt2t1aNuF5aZt4W"),
 		},
 	},
+	crypto.MustDigestFromBase58("6zuQB4ydmTFvKDKKHFAYMkMqY6hn13R8V6CkMy2zpgD2"): {
+		snapshot: txSnapshot{
+			regular: []proto.AtomicSnapshot{
+				&proto.TransactionStatusSnapshot{Status: proto.TransactionSucceeded},
+				&proto.WavesBalanceSnapshot{
+					Address: proto.MustAddressFromString("3PNR77UH13UYMCWsXakafUVugvfZmhtvrhT"),
+					Balance: 2296585,
+				},
+				&proto.WavesBalanceSnapshot{
+					Address: proto.MustAddressFromString("3PFyoZZiRDg92kd25VNoDbRiqtTpj7kCKL1"),
+					Balance: 2449802187416,
+				},
+			},
+		},
+		affectedAddressesNoMiner: []proto.WavesAddress{
+			proto.MustAddressFromString("3PNR77UH13UYMCWsXakafUVugvfZmhtvrhT"),
+		},
+	},
 }
