@@ -114,6 +114,6 @@ jobs:
         with:
           nancyVersion: latest
           goListFile: go.list
-          nancyCommand: sleuth --username ${{ vars.OSSINDEX_USER }} --token ${{ secrets.OSSINDEX_TOKEN }}
+          nancyCommand: sleuth --guide-token ${{ secrets.GUIDE_TOKEN }}
       - name: govulncheck
         run: go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./...
