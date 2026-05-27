@@ -23,6 +23,7 @@ var ErrNoGeneratorsSet = errors.New("no generators set found")
 type generationBalanceManager interface {
 	newestGeneratingBalance(proto.AddressID, proto.Height) (uint64, error)
 	burnDeposit(proto.AddressID, proto.BlockID) error
+	resetDeposit(addr proto.AddressID, nextBlockID proto.BlockID) (uint64, uint64, error)
 }
 
 // commitmentsProvider is an interface that abstracts the retrieval of generator commitments for a given
@@ -462,7 +463,21 @@ func (g *generatorsStorage) punish(pg *generatorsRecord, blockchainHeight proto.
 				return fmt.Errorf("failed to burn deposit of previous generator with index %d: %w",
 					i, bErr)
 			}
-			// TODO: Reset deposit here?
+			// Reset deposit here.
+			before, after, err := g.balances.resetDeposit(cg.AddressID, blockID)
+			if err != nil {
+				return fmt.Errorf("failed to reset deposit of previous generator with index %d: %w",
+					i, err)
+			}
+			a, aErr := cg.AddressID.ToWavesAddress(g.settings.AddressSchemeCharacter)
+			if aErr != nil {
+				return fmt.Errorf("failed to derive Waves address of previous generator with index %d: %w",
+					i, aErr)
+			}
+			slog.Debug("Conflicting endorsement processed: generator banned and deposit reset",
+				slog.Uint64("blockchainHeight", blockchainHeight), slog.String("blockID", blockID.String()),
+				slog.String("generator", a.String()), slog.Uint64("depositBefore", before),
+				slog.Uint64("depositAfter", after))
 		}
 	}
 	return nil

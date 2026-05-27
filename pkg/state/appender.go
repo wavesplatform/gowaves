@@ -105,7 +105,7 @@ func newTxAppender(
 	}
 	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier)
 	ethKindResolver := proto.NewEthereumTransactionKindResolver(state, settings.AddressSchemeCharacter)
-	finalizer := newFinalizer(stor.generators, stor.finality, stor.balances)
+	finalizer := newFinalizer(stor.generators, stor.finality)
 	return &txAppender{
 		sc:                 sc,
 		ia:                 ia,
