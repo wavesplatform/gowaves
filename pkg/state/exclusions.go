@@ -51,7 +51,7 @@ const (
 	nextHeightAfterLastAbnormalTxMainnet = lastAbnormalTxsMainnetHeight + 1
 )
 
-type abnormalTxType struct {
+type abnormalTxInfo struct {
 	snapshot                 txSnapshot
 	affectedAddressesNoMiner []proto.WavesAddress
 }
@@ -60,10 +60,10 @@ type abnormalTxType struct {
 var (
 	abnormalTxsMainnetInitializer sync.Once
 	abnormalTxsMainnetCleaner     sync.Once
-	abnormalTxsMainnet            map[crypto.Digest]abnormalTxType
+	abnormalTxsMainnet            map[crypto.Digest]abnormalTxInfo
 )
 
-func getAbnormalTxMainnet(txID crypto.Digest) (abnormalTxType, bool) {
+func getAbnormalTxMainnet(txID crypto.Digest) (abnormalTxInfo, bool) {
 	abnormalTxsMainnetInitializer.Do(func() { abnormalTxsMainnet = newAbnormalTxsMainnet() })
 	tx, ok := abnormalTxsMainnet[txID]
 	return tx, ok
@@ -74,8 +74,8 @@ func cleanAbnormalTxsMainnet() {
 }
 
 //nolint:funlen // abnormal txs generator
-func newAbnormalTxsMainnet() map[crypto.Digest]abnormalTxType {
-	return map[crypto.Digest]abnormalTxType{
+func newAbnormalTxsMainnet() map[crypto.Digest]abnormalTxInfo {
+	return map[crypto.Digest]abnormalTxInfo{
 		crypto.MustDigestFromBase58("7CGkoGMTqJ9hor87qXftUXWABxxoXqEPt4hWS43M34bs"): {
 			snapshot: txSnapshot{
 				regular: []proto.AtomicSnapshot{

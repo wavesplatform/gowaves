@@ -600,20 +600,19 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) (txS
 func (a *txAppender) doAppendTx(
 	tx proto.Transaction, txIDBytes []byte, params *appendTxParams,
 ) (txSnapshot, []proto.WavesAddress, error) {
-	txID, err := crypto.NewDigestFromBytes(txIDBytes)
-	if err != nil {
-		return txSnapshot{}, nil, fmt.Errorf("failed to generate crypto.Digest from txID=%q: %w",
-			base58.Encode(txIDBytes), err,
-		)
-	}
+	blockHeight := params.blockInfo.Height
 	// handle some abnormal transactions in mainnet
 	if !params.validatingUtx && a.settings.AddressSchemeCharacter == proto.MainNetScheme &&
-		params.blockInfo.Height >= firstAbnormalTxsMainnetHeight &&
-		params.blockInfo.Height <= nextHeightAfterLastAbnormalTxMainnet {
-		if params.blockInfo.Height == nextHeightAfterLastAbnormalTxMainnet {
-			cleanAbnormalTxsMainnet() // clean unnecessary map
+		blockHeight >= firstAbnormalTxsMainnetHeight &&
+		blockHeight <= nextHeightAfterLastAbnormalTxMainnet {
+		txPatch, ok, err := tryGetAbnormalMainnetTxPatch(txIDBytes, blockHeight)
+		if err != nil {
+			return txSnapshot{}, nil, errors.Wrapf(err,
+				"failed to get abnormal transaction patch for txID %q at height %d",
+				base58.Encode(txIDBytes), blockHeight,
+			)
 		}
-		if txPatch, ok := getAbnormalTxMainnet(txID); ok { // apply abnormal snapshot to the state
+		if ok { // apply abnormal snapshot to the state
 			if aErr := txPatch.snapshot.Apply(a.txHandler.sa, tx, params.validatingUtx); aErr != nil {
 				return txSnapshot{}, nil, errors.Wrap(aErr, "failed to apply transaction snapshot")
 			}
@@ -626,6 +625,20 @@ func (a *txAppender) doAppendTx(
 		return txSnapshot{}, nil, fmt.Errorf("failed to append regular transaction: %w", err)
 	}
 	return snapshot, affectedAddressesNoMiner, nil
+}
+
+func tryGetAbnormalMainnetTxPatch(txIDBytes []byte, blockHeight proto.Height) (abnormalTxInfo, bool, error) {
+	if blockHeight == nextHeightAfterLastAbnormalTxMainnet {
+		cleanAbnormalTxsMainnet() // clean unnecessary map
+	}
+	txID, err := crypto.NewDigestFromBytes(txIDBytes)
+	if err != nil {
+		return abnormalTxInfo{}, false, fmt.Errorf("failed to generate crypto.Digest from txID=%q: %w",
+			base58.Encode(txIDBytes), err,
+		)
+	}
+	txPatch, ok := getAbnormalTxMainnet(txID)
+	return txPatch, ok, nil
 }
 
 // appendRegularTx returns snapshot of applied transaction
