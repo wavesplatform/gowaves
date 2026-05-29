@@ -15,9 +15,7 @@ var (
 	secp256k1halfN = new(big.Int).Div(secp256k1N, big2)
 )
 
-// ValidateEthereumSignatureValues verifies whether the signature values are valid with
-// the given chain rules. The v value is assumed to be either 0 or 1.
-func ValidateEthereumSignatureValues(v byte, r, s *big.Int) bool {
+func validateEthereumSignatureRS(r, s *big.Int) bool {
 	if r.Cmp(big1) < 0 || s.Cmp(big1) < 0 {
 		return false
 	}
@@ -27,7 +25,13 @@ func ValidateEthereumSignatureValues(v byte, r, s *big.Int) bool {
 		return false
 	}
 	// Frontier: allow s to be in full N range
-	return r.Cmp(secp256k1N) < 0 && s.Cmp(secp256k1N) < 0 && (v == 0 || v == 1)
+	return r.Cmp(secp256k1N) < 0 && s.Cmp(secp256k1N) < 0
+}
+
+// ValidateEthereumSignatureValues verifies whether the signature values are valid with
+// the given chain rules. The v value is assumed to be either 0 or 1.
+func ValidateEthereumSignatureValues(v byte, r, s *big.Int) bool {
+	return validateEthereumSignatureRS(r, s) && (v == 0 || v == 1)
 }
 
 // VerifyEthereumSignature checks that the given public key created signature over hash.
@@ -144,7 +148,9 @@ func (es *EthereumSignature) UnmarshalJSON(bytes []byte) error {
 }
 
 func (es *EthereumSignature) RecoverEthereumPublicKey(digest []byte) (*EthereumPublicKey, error) {
-	// TODO: add check like in `VerifyEthereumSignature` for half order for S and `ValidateEthereumSignatureValues`
+	if !validateEthereumSignatureRS(es.R(), es.S()) {
+		return nil, errors.Wrap(ErrInvalidSig, "failed to recover Ethereum public key")
+	}
 	pk, err := crypto.ECDSARecoverPublicKey(digest, es.Bytes())
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to recover public from signature %s with digest %q",
