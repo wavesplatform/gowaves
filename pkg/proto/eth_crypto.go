@@ -50,14 +50,14 @@ func VerifyEthereumSignature(pubKey *EthereumPublicKey, rBig, sBig *big.Int, has
 
 // EthereumSignature represents ethereum signature (v, r, s signature values).
 type EthereumSignature struct {
-	sig [ethereumSignatureLength]byte
+	sig [EthereumSignatureLength]byte
 }
 
 func NewEthereumSignatureFromVRS(v byte, r, s *big.Int) (EthereumSignature, error) {
 	if !ValidateEthereumSignatureValues(v, r, s) {
 		return EthereumSignature{}, ErrInvalidSig
 	}
-	var sig [ethereumSignatureLength]byte
+	var sig [EthereumSignatureLength]byte
 	// encode the signature in uncompressed format
 	rBytes, sBytes := r.Bytes(), s.Bytes()
 	copy(sig[32-len(rBytes):32], rBytes)
@@ -122,8 +122,8 @@ func (es *EthereumSignature) MarshalBinary() (data []byte, err error) {
 
 func (es *EthereumSignature) UnmarshalBinary(data []byte) error {
 	sigLen := len(data)
-	if sigLen != ethereumSignatureLength {
-		return errors.Errorf("eip712Signature should be of length %d", ethereumSignatureLength)
+	if sigLen != EthereumSignatureLength {
+		return errors.Errorf("eip712Signature should be of length %d", EthereumSignatureLength)
 	}
 	copy(es.sig[:], data)
 	return nil

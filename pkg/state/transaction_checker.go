@@ -807,19 +807,27 @@ func (tc *transactionChecker) checkEnoughVolume(order proto.Order, newFee, newAm
 	return nil
 }
 
-func checkOrderWithMetamaskFeature(o proto.Order, metamaskActivated bool) error {
-	if metamaskActivated {
-		return nil
-	}
-	if o.GetVersion() >= 4 {
-		if m := o.GetPriceMode(); m != proto.OrderPriceModeDefault {
-			return errors.Errorf("invalid order prce mode before metamask feature activation: got %q, want %q",
-				m.String(), proto.OrderPriceModeDefault.String(),
-			)
+func checkOrderWithFeatures(o proto.Order, metamaskActivated, deterministicFinalityActivated bool) error {
+	eo, isEthOrder := o.(*proto.EthereumOrderV4)
+	if !metamaskActivated { // check order before metamask activation
+		if o.GetVersion() >= proto.OrderVersionV4 {
+			if m := o.GetPriceMode(); m != proto.OrderPriceModeDefault {
+				return errors.Errorf("invalid order price mode before metamask feature activation: got %q, want %q",
+					m.String(), proto.OrderPriceModeDefault.String(),
+				)
+			}
+		}
+		if isEthOrder {
+			return errors.New("ethereum order is not allowed before metamask feature activation")
 		}
 	}
-	if _, ok := o.(*proto.EthereumOrderV4); ok {
-		return errors.New("ethereum order is not allowed before metamask feature activation")
+	// check ethereum order sig size since deterministic finality feature activation
+	if isEthOrder && deterministicFinalityActivated {
+		if origEthSigBytes := eo.OrigEip712SignatureBytes(); len(origEthSigBytes) != proto.EthereumSignatureLength {
+			return errors.Errorf("invalid original EIP-712 signature length for ethereum order: got %d, want %d",
+				len(origEthSigBytes), proto.EthereumSignatureLength,
+			)
+		}
 	}
 	return nil
 }
@@ -858,10 +866,14 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	if err != nil {
 		return nil, err
 	}
-	if errO1 := checkOrderWithMetamaskFeature(o1, metamaskActivated); errO1 != nil {
+	deterministicFinalityActivated, err := tc.stor.features.newestIsActivated(int16(settings.DeterministicFinality))
+	if err != nil {
+		return nil, err
+	}
+	if errO1 := checkOrderWithFeatures(o1, metamaskActivated, deterministicFinalityActivated); errO1 != nil {
 		return nil, errors.Wrap(errO1, "order1 metamask feature checks failed")
 	}
-	if errO2 := checkOrderWithMetamaskFeature(o2, metamaskActivated); errO2 != nil {
+	if errO2 := checkOrderWithFeatures(o2, metamaskActivated, deterministicFinalityActivated); errO2 != nil {
 		return nil, errors.Wrap(errO2, "order2 metamask feature checks failed")
 	}
 
