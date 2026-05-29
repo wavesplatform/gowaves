@@ -32,13 +32,14 @@ type commitmentsProvider interface {
 }
 
 type GeneratorInfo struct {
-	Index         uint32             `json:"-"`
-	Address       proto.WavesAddress `json:"address"`
-	PublicKey     crypto.PublicKey   `json:"-"`
-	BLSPublicKey  bls.PublicKey      `json:"-"`
-	Balance       uint64             `json:"balance"`
-	Ban           bool               `json:"-"`
-	TransactionID crypto.Digest      `json:"transactionId"`
+	Index          uint32             `json:"-"`
+	Address        proto.WavesAddress `json:"address"`
+	PublicKey      crypto.PublicKey   `json:"-"`
+	BLSPublicKey   bls.PublicKey      `json:"-"`
+	Balance        uint64             `json:"balance"`
+	Ban            bool               `json:"-"`
+	ConflictHeight uint64             `json:"conflictHeight,omitempty"`
+	TransactionID  crypto.Digest      `json:"transactionId"`
 }
 
 func buildGeneratorInfo(
@@ -64,13 +65,14 @@ func buildGeneratorInfo(
 		bal = 0
 	}
 	gi := GeneratorInfo{
-		Index:         index,
-		Address:       a,
-		PublicKey:     c.GeneratorPK,
-		BLSPublicKey:  c.EndorserPK,
-		Balance:       bal,
-		Ban:           banned,
-		TransactionID: c.TransactionID,
+		Index:          index,
+		Address:        a,
+		PublicKey:      c.GeneratorPK,
+		BLSPublicKey:   c.EndorserPK,
+		Balance:        bal,
+		Ban:            banned,
+		ConflictHeight: g.BanHeight,
+		TransactionID:  c.TransactionID,
 	}
 	return gi, nil
 }
