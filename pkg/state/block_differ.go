@@ -271,6 +271,9 @@ func (d *blockDiffer) createPenaltiesDiff(
 	}
 	for _, gr := range generators.Generators {
 		if gr.BanHeight == parentHeight {
+			if diff == nil {
+				diff = newTxDiff()
+			}
 			wavesKey := wavesBalanceKey{gr.AddressID}
 			bd := balanceDiff{balance: internal.NewIntChange(int64(-Deposit))}
 			d.appendBlockInfoToBalanceDiff(&bd, blockHeader)
