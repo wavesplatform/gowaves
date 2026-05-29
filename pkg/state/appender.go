@@ -607,8 +607,13 @@ func (a *txAppender) doAppendTx(
 		)
 	}
 	// handle some abnormal transactions in mainnet
-	if !params.validatingUtx && a.settings.AddressSchemeCharacter == proto.MainNetScheme {
-		if txPatch, ok := abnormalTxsMainnet[txID]; ok { // apply abnormal snapshot to the state
+	if !params.validatingUtx && a.settings.AddressSchemeCharacter == proto.MainNetScheme &&
+		params.blockInfo.Height >= firstAbnormalTxsMainnetHeight &&
+		params.blockInfo.Height <= nextHeightAfterLastAbnormalTxMainnet {
+		if params.blockInfo.Height == nextHeightAfterLastAbnormalTxMainnet {
+			cleanAbnormalTxsMainnet() // clean unnecessary map
+		}
+		if txPatch, ok := getAbnormalTxMainnet(txID); ok { // apply abnormal snapshot to the state
 			if aErr := txPatch.snapshot.Apply(a.txHandler.sa, tx, params.validatingUtx); aErr != nil {
 				return txSnapshot{}, nil, errors.Wrap(aErr, "failed to apply transaction snapshot")
 			}
