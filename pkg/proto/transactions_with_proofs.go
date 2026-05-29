@@ -1839,6 +1839,7 @@ func (tx *ExchangeWithProofs) UnmarshalJSON(data []byte) (err error) {
 			if orderInfo.Eip712Signature != nil {
 				ethOrder := new(EthereumOrderV4)
 				ethOrder.Proofs = NewProofs()
+				ethOrder.origEip712SignatureBytes = orderInfo.Eip712Signature.Bytes() // set for compatibility
 				order = ethOrder
 			} else {
 				order = new(OrderV4)
