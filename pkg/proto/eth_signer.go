@@ -8,14 +8,16 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/umbracle/fastrlp"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
 var ErrInvalidChainId = errors.New("invalid chain id for signer")
 
 const (
-	EthereumPublicKeyLength = 64
-	ethereumSignatureLength = 64 + 1 // 64 bytes ECDSA signature + 1 byte recovery id
+	EthereumPublicKeyLength    = 64
+	ethereumSignatureParamSize = 32                               // r or s size in bytes
+	EthereumSignatureLength    = ethereumSignatureParamSize*2 + 1 // 64 bytes ECDSA signature + 1 byte recovery id
 
 	ethereumPublicKeyUncompressedPrefix byte = 0x4         // prefix which means this is an uncompressed point
 	ethereumPublicKeyBytesUncompressed       = 1 + 32 + 32 // 0x4 prefix + x_coordinate bytes + y_coordinate bytes
@@ -495,9 +497,9 @@ func (fs FrontierSigner) Hash(tx *EthereumTransaction) EthereumHash {
 // Note, the produced signature conforms to the secp256k1 curve R, S and V values,
 // where the V value will be 27 or 28 for legacy reasons, if legacyV==true.
 func decodeSignature(sig []byte, legacyV bool) (r, s, v *big.Int, err error) {
-	if len(sig) != ethereumSignatureLength {
+	if len(sig) != EthereumSignatureLength {
 		return nil, nil, nil,
-			errors.Errorf("wrong size for signature: got %d, want %d", len(sig), ethereumSignatureLength)
+			errors.Errorf("wrong size for signature: got %d, want %d", len(sig), EthereumSignatureLength)
 	}
 	r = new(big.Int).SetBytes(sig[:32])
 	s = new(big.Int).SetBytes(sig[32:64])
