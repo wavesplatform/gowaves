@@ -598,6 +598,67 @@ func TestCheckUnorderedExchangeV3WithProofs(t *testing.T) {
 	assert.NoErrorf(t, err, "failed on with incorrect order of orders after activation of BlockV5")
 }
 
+func TestCheckEthExchangeWithPaddedOrderSig(t *testing.T) {
+	// 'Whu126znDdAm4bSrGdd6JdKaGUk62Rvt7kLLG1ZA6Kh' == real mainnet tx with padded ethereum order2 sig
+	//nolint:lll
+	const signedTxPbBase64 = "Cv0DCFcSIP1QhcVoqOY4mVQ1fVdVV4PkkNdb91o9gGpfSVsq/WRrGgQQ4KcSIMmbi7TkMygD2gbGAwgKEKCNBhjgpxIg4KcSKsgBCFcSIP1QhcVoqOY4mVQ1fVdVV4PkkNdb91o9gGpfSVsq/WRrGiD9UIXFaKjmOJlUNX1XVVeD5JDXW/daPYBqX0lbKv1kayIiCiAyjse5/6KS+I6Ks76HspXb625CfKJGCEjlq7kNtgBSFjAKOKCNBkDJm4u05DNI5PfmteQzUgQQ4KcSWANiQIrsR98dmGoG4BNtQzdTGkUR/E4Eo2Ve5ZTAs494SNxRZVAYgTOIK/SH9ueVpveyI05KSuqdbgz5/WK2fop5AAIq6gEIVxog/VCFxWio5jiZVDV9V1VXg+SQ11v3Wj2Aal9JWyr9ZGsiIgogMo7Huf+ikviOirO+h7KV2+tuQnyiRghI5au5DbYAUhYoATAKOKCNBkDkmou05DNI5PfmteQzUgQQ4KcSWARqgQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKMH4sUdjhTFJDQBlW+N+qfe79mlT6KrNRggoB1PGsjTAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFM191XxfhECosU2AsywbEraw/u4FZ3gSYzcJVAvIQC9BsSQIw5MKiJHmFXm1PIEYJnLg4hKQ/jbXxkT4sg5wscXXMS6EZ2KTKNia+Hnfy3G+4dgRqfSkuhfZ6M3OvrDTMj6AE="
+	pbData, decErr := base64.StdEncoding.DecodeString(signedTxPbBase64)
+	require.NoError(t, decErr)
+	tx, decErr := proto.SignedTxFromProtobuf(pbData)
+	require.NoError(t, decErr)
+
+	createEnv := func(t *testing.T, fs ...settings.Feature) (*checkerTestObjects, *checkerInfo) {
+		info := defaultCheckerInfo()
+		to := createCheckerTestObjects(t, info)
+		// assetID from tx above
+		assetID, idErr := crypto.NewDigestFromBase58("4QMfJbtFQ6iKJLMvZ1BbE7Zqb6dho6zh2na8myzUGn1T")
+		require.NoError(t, idErr)
+		to.stor.createAsset(t, assetID)
+		// basic features
+		to.stor.activateFeature(t, int16(settings.SmartAccountTrading))
+		to.stor.activateFeature(t, int16(settings.SmartAssets))
+		to.stor.activateFeature(t, int16(settings.OrderV3))
+		to.stor.activateFeature(t, int16(settings.BlockV5))
+		// extra features
+		for _, f := range fs {
+			to.stor.activateFeature(t, int16(f))
+		}
+		return to, info
+	}
+	t.Run("NoRideV6", func(t *testing.T) {
+		const expErrStr = "order2 metamask feature checks failed: " +
+			"ethereum order is not allowed before metamask feature activation"
+		t.Run("NoDeterministicFinalityActivation", func(t *testing.T) {
+			to, info := createEnv(t)
+			_, err := to.tc.checkExchangeWithProofs(tx, info)
+			assert.EqualError(t, err, expErrStr)
+		})
+		// TODO: uncomment when DeterministicFinality feature will be set to implemented.
+		/*
+			t.Run("DeterministicFinalityActivated", func(t *testing.T) {
+				to, info := createEnv(t, settings.DeterministicFinality)
+				_, err := to.tc.checkExchangeWithProofs(tx, info)
+				assert.EqualError(t, err, expErrStr)
+			})
+		*/
+	})
+	t.Run("NoDeterministicFinalityActivation", func(t *testing.T) {
+		to, info := createEnv(t, settings.RideV6)
+		_, err := to.tc.checkExchangeWithProofs(tx, info)
+		assert.NoError(t, err)
+	})
+	// TODO: uncomment when DeterministicFinality feature will be set to implemented.
+	/*
+		t.Run("DeterministicFinalityActivated", func(t *testing.T) {
+			const expErrStr = "order2 metamask feature checks failed: " +
+				"invalid original EIP-712 signature length for ethereum order: got 129, want 65"
+			to, info := createEnv(t, settings.RideV6, settings.DeterministicFinality)
+			_, err := to.tc.checkExchangeWithProofs(tx, info)
+			assert.EqualError(t, err, expErrStr)
+		})
+	*/
+}
+
 func TestCheckLeaseWithSig(t *testing.T) {
 	info := defaultCheckerInfo()
 	to := createCheckerTestObjects(t, info)

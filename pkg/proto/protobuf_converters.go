@@ -689,17 +689,21 @@ func (c *ProtobufConverter) signature(data []byte) crypto.Signature {
 	return sig
 }
 
+// transformToStandardSig transforms signature from protobuf message to standard 65 bytes format
+// (r[32] + s[32] + v[1]) if it is in 65 bytes format with r and s values padded with 32 bytes prefix data.
+// This transformation is required due to the bug in Scala implementation, which allows
+// signature values to be padded with 32 bytes prefix data.
+// Padded signatures are disallowed since deterministic finality feature (25) activation.
 func transformToStandardSig(data []byte) []byte {
 	const (
-		paramSize        = 32
-		doubledParamSize = 2 * paramSize
+		doubledParamSize = 2 * ethereumSignatureParamSize
 		doubledSigSize   = 1 + 2*doubledParamSize
 	)
-	if len(data) != doubledSigSize {
+	if len(data) != doubledSigSize { // handle case when sig values padded with 32 bytes prefix data.
 		return data
 	}
 	r, s := data[:doubledParamSize], data[doubledParamSize:doubledSigSize-1]
-	rc, sc := r[paramSize:], s[paramSize:] // cut left unnecessary part
+	rc, sc := r[ethereumSignatureParamSize:], s[ethereumSignatureParamSize:] // cut left unnecessary part
 	return bytes.Join([][]byte{rc, sc, data[doubledSigSize-1:]}, nil)
 }
 
@@ -708,7 +712,7 @@ func (c *ProtobufConverter) ethOrderSignature(data []byte) EthereumSignature {
 		return EthereumSignature{}
 	}
 
-	data = transformToStandardSig(data) // TODO: temporary change
+	data = transformToStandardSig(data)
 	sig, err := NewEthereumSignatureFromBytes(data)
 	if err != nil {
 		c.err = err
