@@ -1005,9 +1005,22 @@ func (a *txAppender) createInitialDiffAndStateHash(
 	if err != nil {
 		return txSnapshot{}, crypto.Digest{}, err
 	}
-
+	// Create penalties diff.
+	// This deducts the Deposit amount from generators of conflicting endorsements in the previous block.
+	penaltiesDiff, err := a.blockDiffer.createPenaltiesDiff(
+		params.blockHeader,
+		params.currentBlockHeight,
+		params.hasParent,
+	)
+	if err != nil {
+		return txSnapshot{}, crypto.Digest{}, err
+	}
+	combinedDiff, err := minerAndRewardDiff.combine(penaltiesDiff)
+	if err != nil {
+		return txSnapshot{}, crypto.Digest{}, err
+	}
 	// create the initial snapshot
-	initialSnapshot, err := a.txHandler.tp.createInitialBlockSnapshot(minerAndRewardDiff.balancesChanges())
+	initialSnapshot, err := a.txHandler.tp.createInitialBlockSnapshot(combinedDiff.balancesChanges())
 	if err != nil {
 		return txSnapshot{}, crypto.Digest{}, errors.Wrap(err, "failed to create initial snapshot")
 	}

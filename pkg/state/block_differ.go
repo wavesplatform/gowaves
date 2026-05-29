@@ -247,6 +247,41 @@ func (d *blockDiffer) createMinerAndRewardDiff(
 	return minerDiff, nil
 }
 
+// createPenaltiesDiff creates txDiff for the generators penalties for the previous block.
+// This function MUST NOT modify the state.
+func (d *blockDiffer) createPenaltiesDiff(
+	blockHeader *proto.BlockHeader, blockHeight proto.Height, hasParent bool,
+) (txDiff, error) {
+	if !hasParent {
+		return txDiff{}, nil
+	}
+	activated := d.stor.features.newestIsActivatedAtHeight(int16(settings.DeterministicFinality), blockHeight)
+	if !activated {
+		return txDiff{}, nil
+	}
+	var diff txDiff
+
+	parentHeight := blockHeight - 1
+	generators, err := d.stor.generators.generators(parentHeight)
+	if err != nil {
+		if errors.Is(err, ErrNoGeneratorsSet) {
+			return txDiff{}, nil
+		}
+		return txDiff{}, err
+	}
+	for _, gr := range generators.Generators {
+		if gr.BanHeight == parentHeight {
+			wavesKey := wavesBalanceKey{gr.AddressID}
+			bd := balanceDiff{balance: internal.NewIntChange(int64(-Deposit))}
+			d.appendBlockInfoToBalanceDiff(&bd, blockHeader)
+			if apErr := diff.appendBalanceDiff(wavesKey.bytes(), bd); apErr != nil {
+				return txDiff{}, apErr
+			}
+		}
+	}
+	return diff, nil
+}
+
 // addBlockReward adds block reward to the miner's balance.
 // This method does not modify the state.
 // All changes are applied to the passed txDiff.

@@ -22,7 +22,6 @@ var ErrNoGeneratorsSet = errors.New("no generators set found")
 
 type generationBalanceManager interface {
 	newestGeneratingBalance(proto.AddressID, proto.Height) (uint64, error)
-	burnDeposit(proto.AddressID, proto.BlockID) error
 	resetDeposit(addr proto.AddressID, nextBlockID proto.BlockID) (uint64, uint64, error)
 }
 
@@ -453,17 +452,16 @@ func (g *generatorsStorage) copyGeneratorsSetAndUpdateBalances(
 		blockchainHeight, blockID, "Generators set updated")
 }
 
+// punish processes generators of conflicting endorsements for the block at blockchain (previous) height and resets
+// their deposits. The burn of Deposit (actual punishment) happens in the pkg/state/block_differ.go:252 while creating
+// initial snapshot.
 func (g *generatorsStorage) punish(pg *generatorsRecord, blockchainHeight proto.Height, blockID proto.BlockID) error {
 	if pg == nil { // Sanity check.
 		return nil
 	}
 	for i, cg := range pg.Generators {
-		if cg.BanHeight == blockchainHeight { // Burn deposit for the generator banned on previous block.
-			if bErr := g.balances.burnDeposit(cg.AddressID, blockID); bErr != nil {
-				return fmt.Errorf("failed to burn deposit of previous generator with index %d: %w",
-					i, bErr)
-			}
-			// Reset deposit here.
+		if cg.BanHeight == blockchainHeight {
+			// Reset deposit for the generators banned on previous block.
 			before, after, err := g.balances.resetDeposit(cg.AddressID, blockID)
 			if err != nil {
 				return fmt.Errorf("failed to reset deposit of previous generator with index %d: %w",
@@ -474,7 +472,7 @@ func (g *generatorsStorage) punish(pg *generatorsRecord, blockchainHeight proto.
 				return fmt.Errorf("failed to derive Waves address of previous generator with index %d: %w",
 					i, aErr)
 			}
-			slog.Debug("Conflicting endorsement processed: generator banned and deposit reset",
+			slog.Debug("Conflicting endorsement processed: generator deposit reset",
 				slog.Uint64("blockchainHeight", blockchainHeight), slog.String("blockID", blockID.String()),
 				slog.String("generator", a.String()), slog.Uint64("depositBefore", before),
 				slog.Uint64("depositAfter", after))

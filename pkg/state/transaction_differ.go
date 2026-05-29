@@ -315,6 +315,15 @@ func (diff txDiff) removeByKey(key []byte) {
 	delete(diff, string(key))
 }
 
+func (diff txDiff) combine(other txDiff) (txDiff, error) {
+	for k, v := range other {
+		if apErr := diff.appendBalanceDiffStr(k, v); apErr != nil {
+			return nil, apErr
+		}
+	}
+	return diff, nil
+}
+
 type transactionDiffer struct {
 	stor     *blockchainEntitiesStorage
 	settings *settings.BlockchainSettings
