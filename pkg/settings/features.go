@@ -29,6 +29,7 @@ const (
 	LightNode               // 22
 	BoostBlockReward        // 23
 	ecrecoverFix            // 24, intentionally package private
+	DeterministicFinality   // 25 Deterministic Finality and RideV9
 	InvokeExpression        // 25
 )
 
@@ -62,6 +63,7 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	LightNode:                       {true, "Light Node"},
 	BoostBlockReward:                {true, "Boost Block Reward"},
 	ecrecoverFix:                    {true, "Fixed ecrecover function"},
+	DeterministicFinality:           {false, "Deterministic Finality and Ride V9"},
 	InvokeExpression:                {false, "InvokeExpression"},
 }
 
