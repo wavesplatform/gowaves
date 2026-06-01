@@ -332,7 +332,7 @@ func (a *NGState) endorseParentWithEachKey(
 }
 
 func (a *NGState) BlockEndorsement(blockEndorsement *proto.BlockEndorsement) (State, Async, error) {
-	slog.Debug("Received a block endorsement:",
+	slog.Debug("Received a block endorsement",
 		"EndorserIndex", blockEndorsement.EndorserIndex,
 		"FinalizedBlockID", blockEndorsement.FinalizedBlockID,
 		"FinalizedBlockHeight", blockEndorsement.FinalizedBlockHeight,
@@ -340,7 +340,7 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.BlockEndorsement) (St
 		"Signature", blockEndorsement.Signature.String())
 	id, idErr := endorsementID(blockEndorsement)
 	if idErr != nil {
-		return a, nil, a.Errorf(errors.Wrap(idErr, "failed to compute endorsement id"))
+		return a, nil, a.Errorf(errors.Wrap(idErr, "failed to compute endorsement ID"))
 	}
 	if a.baseInfo.endorsementIDsCache.SeenEndorsement(id) {
 		slog.Debug("Duplicate block endorsement received, skipping",
@@ -362,6 +362,24 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.BlockEndorsement) (St
 	if err != nil {
 		return a, nil, a.Errorf(errors.Wrapf(err, "failed to find generator by index"))
 	}
+	if gi.Ban {
+		slog.Debug("Block endorsement from banned generator received",
+			"EndorserIndex", blockEndorsement.EndorserIndex,
+			"FinalizedBlockID", blockEndorsement.FinalizedBlockID,
+			"FinalizedBlockHeight", blockEndorsement.FinalizedBlockHeight,
+			"EndorsedBlockID", blockEndorsement.EndorsedBlockID,
+			"Signature", blockEndorsement.Signature.String())
+		return a, nil, a.Errorf(errors.Errorf("generator with index %d is banned", generatorIndex))
+	}
+	if gi.Balance == 0 {
+		slog.Debug("Block endorsement from generator with insufficient balance received",
+			"EndorserIndex", blockEndorsement.EndorserIndex,
+			"FinalizedBlockID", blockEndorsement.FinalizedBlockID,
+			"FinalizedBlockHeight", blockEndorsement.FinalizedBlockHeight,
+			"EndorsedBlockID", blockEndorsement.EndorsedBlockID,
+			"Signature", blockEndorsement.Signature.String())
+		return a, nil, a.Errorf(errors.Errorf("generator with index %d has insufficient balance", generatorIndex))
+	}
 	localFinalizedHeight, err := a.baseInfo.storage.LastFinalizedHeight()
 	if err != nil {
 		return a, nil, a.Errorf(errors.Wrapf(err, "failed to get last finalized height for endorser address"))
@@ -370,33 +388,30 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.BlockEndorsement) (St
 	if err != nil {
 		return a, nil, a.Errorf(errors.Wrapf(err, "failed to get last finalized block header for endorser address"))
 	}
-	// TODO check if generator is in the generator set.
-	endorserPK := gi.BLSPublicKey
-	balance := gi.Balance
-	added, addErr := a.baseInfo.endorsements.Add(blockEndorsement, endorserPK,
-		localFinalizedHeight, localFinalizedBlockHeader.BlockID(), balance, top.Parent)
+	added, addErr := a.baseInfo.endorsements.Add(blockEndorsement, gi.BLSPublicKey,
+		localFinalizedHeight, localFinalizedBlockHeader.BlockID(), gi.Balance, top.Parent)
 	if addErr != nil {
 		return a, nil, errors.Errorf("failed to add an endorsement, %v", addErr)
 	}
 
 	a.baseInfo.endorsementIDsCache.RememberEndorsement(id)
 	if !added {
-		slog.Debug("Block endorsement was ignored or conflicting:",
+		slog.Debug("Block endorsement was ignored or conflicting",
 			"EndorserIndex", blockEndorsement.EndorserIndex,
 			"FinalizedBlockID", blockEndorsement.FinalizedBlockID,
 			"FinalizedBlockHeight", blockEndorsement.FinalizedBlockHeight,
 			"EndorsedBlockID", blockEndorsement.EndorsedBlockID,
 			"Signature", blockEndorsement.Signature.String())
-		return newNGState(a.baseInfo), nil, nil
+		return a, nil, nil
 	}
 	a.baseInfo.actions.SendEndorseBlock(blockEndorsement)
-	slog.Debug("Forwarded a block endorsement:",
+	slog.Debug("Forwarded a block endorsement",
 		"EndorserIndex", blockEndorsement.EndorserIndex,
 		"FinalizedBlockID", blockEndorsement.FinalizedBlockID,
 		"FinalizedBlockHeight", blockEndorsement.FinalizedBlockHeight,
 		"EndorsedBlockID", blockEndorsement.EndorsedBlockID,
 		"Signature", blockEndorsement.Signature.String())
-	return newNGState(a.baseInfo), nil, nil
+	return a, nil, nil
 }
 
 func (a *NGState) getCurrentFinalizationVoting(height proto.Height) (*proto.FinalizationVoting, error) {
@@ -543,7 +558,7 @@ func (a *NGState) addAndBroadcastOwnEndorsement(
 	a.baseInfo.endorsementIDsCache.RememberEndorsement(id)
 	if !added {
 		// This should probably never happen.
-		slog.Debug("I formed a bad endorsement:",
+		slog.Debug("Invalid block endorsement was formed",
 			"EndorserIndex", parentBlockEndorsement.EndorserIndex,
 			"FinalizedBlockID", parentBlockEndorsement.FinalizedBlockID,
 			"FinalizedBlockHeight", parentBlockEndorsement.FinalizedBlockHeight,
@@ -552,7 +567,7 @@ func (a *NGState) addAndBroadcastOwnEndorsement(
 		return nil
 	}
 	a.baseInfo.actions.SendEndorseBlock(parentBlockEndorsement)
-	slog.Debug("Sent a block endorsement:",
+	slog.Debug("Sent a block endorsement",
 		"EndorserIndex", parentBlockEndorsement.EndorserIndex,
 		"FinalizedBlockID", parentBlockEndorsement.FinalizedBlockID,
 		"FinalizedBlockHeight", parentBlockEndorsement.FinalizedBlockHeight,
