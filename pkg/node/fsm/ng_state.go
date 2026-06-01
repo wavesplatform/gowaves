@@ -380,16 +380,32 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.BlockEndorsement) (St
 			"Signature", blockEndorsement.Signature.String())
 		return a, nil, a.Errorf(errors.Errorf("generator with index %d has insufficient balance", generatorIndex))
 	}
+	conflict, err := a.isConflictingEndorsement(blockEndorsement)
+	if err != nil {
+		return a, nil, a.Errorf(errors.Wrapf(err, "failed to check if endorsement is conflicting"))
+	}
+	if conflict {
+		slog.Info("Conflicting endorsement detected", slog.Any("endorserIndex", blockEndorsement.EndorserIndex),
+			slog.Any("finalizedBlockHeight", blockEndorsement.FinalizedBlockHeight),
+			slog.String("finalizedBlockID", blockEndorsement.FinalizedBlockID.String()),
+			slog.String("endorsedBlockID", blockEndorsement.EndorsedBlockID.String()),
+		)
+		a.baseInfo.endorsements.AddConflict(blockEndorsement)
+		a.baseInfo.actions.SendEndorseBlock(blockEndorsement)
+		slog.Debug("Forwarded a block endorsement",
+			"EndorserIndex", blockEndorsement.EndorserIndex,
+			"FinalizedBlockID", blockEndorsement.FinalizedBlockID,
+			"FinalizedBlockHeight", blockEndorsement.FinalizedBlockHeight,
+			"EndorsedBlockID", blockEndorsement.EndorsedBlockID,
+			"Signature", blockEndorsement.Signature.String())
+		return a, nil, nil
+	}
 	localFinalizedHeight, err := a.baseInfo.storage.LastFinalizedHeight()
 	if err != nil {
-		return a, nil, a.Errorf(errors.Wrapf(err, "failed to get last finalized height for endorser address"))
-	}
-	localFinalizedBlockHeader, err := a.baseInfo.storage.LastFinalizedBlock()
-	if err != nil {
-		return a, nil, a.Errorf(errors.Wrapf(err, "failed to get last finalized block header for endorser address"))
+		return a, nil, a.Errorf(errors.Wrapf(err, "failed to get last local finalized height"))
 	}
 	added, addErr := a.baseInfo.endorsements.Add(blockEndorsement, gi.BLSPublicKey,
-		localFinalizedHeight, localFinalizedBlockHeader.BlockID(), gi.Balance, top.Parent)
+		localFinalizedHeight, gi.Balance, top.Parent)
 	if addErr != nil {
 		return a, nil, errors.Errorf("failed to add an endorsement, %v", addErr)
 	}
@@ -412,6 +428,22 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.BlockEndorsement) (St
 		"EndorsedBlockID", blockEndorsement.EndorsedBlockID,
 		"Signature", blockEndorsement.Signature.String())
 	return a, nil, nil
+}
+
+func (a *NGState) isConflictingEndorsement(endorsement *proto.BlockEndorsement) (bool, error) {
+	localFinalizedHeight, err := a.baseInfo.storage.LastFinalizedHeight()
+	if err != nil {
+		return false, fmt.Errorf("failed to retrieve last local finalized height: %w", err)
+	}
+	localHeaderByRemoteFinalizedHeight, err := a.baseInfo.storage.HeaderByHeight(
+		proto.Height(endorsement.FinalizedBlockHeight),
+	)
+	if err != nil {
+		return false, fmt.Errorf("failed to retrieve header by height for endorsement: %w", err)
+	}
+	efh := proto.Height(endorsement.FinalizedBlockHeight)
+	return efh <= localFinalizedHeight && endorsement.FinalizedBlockID != localHeaderByRemoteFinalizedHeight.BlockID(),
+		nil
 }
 
 func (a *NGState) getCurrentFinalizationVoting(height proto.Height) (*proto.FinalizationVoting, error) {
@@ -547,7 +579,6 @@ func (a *NGState) addAndBroadcastOwnEndorsement(
 		parentBlockEndorsement,
 		endorser.BLSPublicKey,
 		proto.Height(parentBlockEndorsement.FinalizedBlockHeight),
-		parentBlockEndorsement.FinalizedBlockID,
 		endorser.Balance,
 		top.Parent,
 	)

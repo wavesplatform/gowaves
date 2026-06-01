@@ -118,21 +118,13 @@ func NewEndorsementPool(maxGenerators int) (*EndorsementPool, error) {
 }
 
 // Add inserts an endorsement into the heap with priority based on balance desc, seq asc.
-func (p *EndorsementPool) Add(e *proto.BlockEndorsement, pk bls.PublicKey,
-	lastFinalizedHeight proto.Height, lastFinalizedBlockID proto.BlockID, balance uint64,
-	parentBlockID proto.BlockID) (bool, error) {
+func (p *EndorsementPool) Add(
+	e *proto.BlockEndorsement, pk bls.PublicKey, lastFinalizedHeight proto.Height, balance uint64,
+	parentBlockID proto.BlockID,
+) (bool, error) {
 	k := makeKey(e.EndorsedBlockID, e.EndorserIndex)
-
 	p.mu.Lock()
 	defer p.mu.Unlock()
-
-	if proto.Height(e.FinalizedBlockHeight) <= lastFinalizedHeight &&
-		e.FinalizedBlockID != lastFinalizedBlockID {
-		p.conflicts = append(p.conflicts, *e)
-		slog.Debug("endorsement is conflicting because the block finalized IDs don't match", "index",
-			e.EndorserIndex)
-		return false, nil
-	}
 
 	if p.ShouldIgnoreEndorsement(e, pk, lastFinalizedHeight, parentBlockID) {
 		return false, nil
@@ -183,6 +175,12 @@ func (p *EndorsementPool) Add(e *proto.BlockEndorsement, pk bls.PublicKey,
 	heap.Push(&p.h, item)
 	p.byKey[k] = item
 	return true, nil
+}
+
+func (p *EndorsementPool) AddConflict(e *proto.BlockEndorsement) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.conflicts = append(p.conflicts, *e)
 }
 
 func (p *EndorsementPool) GetAll() []proto.BlockEndorsement {

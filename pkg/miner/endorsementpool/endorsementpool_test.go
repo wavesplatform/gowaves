@@ -87,7 +87,7 @@ func addToPool(
 	balance uint64,
 ) {
 	t.Helper()
-	_, err := pool.Add(e, pk, finalizedHeightEndorsement, e.FinalizedBlockID, balance, e.EndorsedBlockID)
+	_, err := pool.Add(e, pk, finalizedHeightEndorsement, balance, e.EndorsedBlockID)
 	require.NoError(t, err)
 }
 
@@ -217,7 +217,7 @@ func TestEndorsementPool_ShouldIgnoreEndorsement(t *testing.T) {
 	require.True(t, pool.ShouldIgnoreEndorsement(future, pk1, 5, endorsedIDA))
 
 	base := newSignedEndorsement(t, 0, finalizedID, 5, endorsedIDA, sk1)
-	_, err = pool.Add(base, pk1, 5, finalizedID, 100, endorsedIDA)
+	_, err = pool.Add(base, pk1, 5, 100, endorsedIDA)
 	require.NoError(t, err)
 
 	otherRound := newSignedEndorsement(t, 1, finalizedID, 5, endorsedIDB, sk1)
@@ -257,10 +257,10 @@ func TestEndorsementPool_SwitchRoundDropsStaleEndorsements(t *testing.T) {
 	// Round #1.
 	e00 := newSignedEndorsement(t, 0, finalizedID0, 10, endorsedID0, sk0)
 	e10 := newSignedEndorsement(t, 1, finalizedID0, 10, endorsedID0, sk1)
-	added, err := pool.Add(e00, pk0, 10, finalizedID0, 100, endorsedID0)
+	added, err := pool.Add(e00, pk0, 10, 100, endorsedID0)
 	require.NoError(t, err)
 	require.True(t, added)
-	added, err = pool.Add(e10, pk1, 10, finalizedID0, 100, endorsedID0)
+	added, err = pool.Add(e10, pk1, 10, 100, endorsedID0)
 	require.NoError(t, err)
 	require.True(t, added)
 	require.Equal(t, 2, pool.Len())
@@ -269,10 +269,10 @@ func TestEndorsementPool_SwitchRoundDropsStaleEndorsements(t *testing.T) {
 	// Pool must switch rounds and replace previous endorsements.
 	e01 := newSignedEndorsement(t, 0, finalizedID1, 11, endorsedID1, sk0)
 	e11 := newSignedEndorsement(t, 1, finalizedID1, 11, endorsedID1, sk1)
-	added, err = pool.Add(e01, pk0, 11, finalizedID1, 100, endorsedID1)
+	added, err = pool.Add(e01, pk0, 11, 100, endorsedID1)
 	require.NoError(t, err)
 	require.True(t, added)
-	added, err = pool.Add(e11, pk1, 11, finalizedID1, 100, endorsedID1)
+	added, err = pool.Add(e11, pk1, 11, 100, endorsedID1)
 	require.NoError(t, err)
 	require.True(t, added)
 
