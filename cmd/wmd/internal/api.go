@@ -94,7 +94,7 @@ func NewDataFeedAPI(
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
+	r.Use(middleware.ClientIPFromRemoteAddr) // Works only if the server directly connected to internet.
 	r.Use(Logger(slog.New(loggerHandler)))
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Compress(flate.DefaultCompression))
