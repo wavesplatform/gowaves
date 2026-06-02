@@ -267,6 +267,14 @@ func (a *MicroBlock) MarshalBinary(scheme Scheme) ([]byte, error) {
 	return buf.Bytes(), err
 }
 
+func (a *MicroBlock) String() string {
+	return fmt.Sprintf("MicroBlock{Version: %d, Reference: %s, TotalResBlockSigField: %s, TotalBlockID: %s, "+
+		"TransactionCount: %d, SenderPK: %s, Signature: %s, StateHash: %s, PartialFinalization: %s}",
+		a.VersionField, a.Reference.String(), a.TotalResBlockSigField.String(), a.TotalBlockID.String(),
+		a.TransactionCount, a.SenderPK.String(), a.Signature.String(), a.StateHash.String(),
+		a.PartialFinalization.String())
+}
+
 // MicroBlockMessage represents a MicroBlock message.
 type MicroBlockMessage struct {
 	Body BytesPayload

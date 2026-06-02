@@ -652,14 +652,14 @@ func (a *NGState) mineMicro(
 	}
 	var blockFinalization *proto.FinalizationVoting
 	if finalityActivated {
-		// TODO: remove height parameter from the following function. Micro-block mining is operates only current
+		// TODO: remove height parameter from the following function. Micro-block mining operates only on current
 		//  generator set.
 		blockFinalization, err = a.getCurrentFinalizationVoting(height)
 		if err != nil && !errors.Is(err, errNoFinalization) && !errors.Is(err, errNoEndorsements) {
 			return a, nil, a.Errorf(err)
 		}
 		if blockFinalization != nil {
-			slog.Debug("formed non-nil block finalization field")
+			slog.Debug("Formed non-empty block finalization field")
 		}
 	}
 	block, micro, rest, err := a.baseInfo.microMiner.Micro(minedBlock, rest, keyPair,
@@ -682,7 +682,7 @@ func (a *NGState) mineMicro(
 
 	finNonNil := block.FinalizationVoting != nil
 	if finNonNil {
-		slog.Debug("mining micro, finalization voting not nil")
+		slog.Debug("Mined micro-block with non-empty finalization voting")
 	}
 	err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
 		_, er := a.baseInfo.blocksApplier.ApplyMicro(s, block)

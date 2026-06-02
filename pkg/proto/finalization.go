@@ -109,6 +109,12 @@ func (e *BlockEndorsement) ToProtobuf() (*g.EndorseBlock, error) {
 	return eb, nil
 }
 
+func (e *BlockEndorsement) String() string {
+	return fmt.Sprintf("BlockEndorsement{EndorserIndex: %d, FinalizedBlockID: %s, FinalizedBlockHeight: %d, "+
+		"EndorsedBlockID: %s, Signature: %s}", e.EndorserIndex, e.FinalizedBlockID.String(),
+		e.FinalizedBlockHeight, e.EndorsedBlockID.String(), e.Signature.String())
+}
+
 type FinalizationVoting struct {
 	EndorserIndexes                []uint32           `json:"endorserIndexes,omitempty"`
 	FinalizedBlockHeight           Height             `json:"finalizedHeight"`
@@ -217,6 +223,12 @@ func (f *FinalizationVoting) ToProtobuf() (*g.FinalizationVoting, error) {
 		ConflictEndorsements:           conflictEndorsements,
 	}
 	return &finalizationVoting, nil
+}
+
+func (f *FinalizationVoting) String() string {
+	return fmt.Sprintf("FinalizationVoting{EndorserIndexes: %v, FinalizedBlockHeight: %d, "+
+		"AggregatedEndorsementSignature: %s, ConflictEndorsements: %v}", f.EndorserIndexes, f.FinalizedBlockHeight,
+		f.AggregatedEndorsementSignature, f.ConflictEndorsements)
 }
 
 func CombineFinalizationVoting(voting1, voting2 *FinalizationVoting) *FinalizationVoting {
