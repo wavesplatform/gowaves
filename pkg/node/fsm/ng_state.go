@@ -349,6 +349,8 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.BlockEndorsement) (St
 		return a, nil, nil
 	}
 
+	defer a.baseInfo.endorsementIDsCache.RememberEndorsement(id)
+
 	top := a.baseInfo.storage.TopBlock()
 	h, err := a.baseInfo.storage.Height()
 	if err != nil {
@@ -409,10 +411,8 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.BlockEndorsement) (St
 	if addErr != nil {
 		return a, nil, errors.Errorf("failed to add an endorsement, %v", addErr)
 	}
-
-	a.baseInfo.endorsementIDsCache.RememberEndorsement(id)
 	if !added {
-		slog.Debug("Block endorsement was ignored or conflicting",
+		slog.Debug("Block endorsement was ignored",
 			"EndorserIndex", blockEndorsement.EndorserIndex,
 			"FinalizedBlockID", blockEndorsement.FinalizedBlockID,
 			"FinalizedBlockHeight", blockEndorsement.FinalizedBlockHeight,
