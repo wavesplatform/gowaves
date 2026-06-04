@@ -697,6 +697,7 @@ func (a *NGState) mineMicro(
 	a.baseInfo.scheduler.Reschedule()
 	metrics.MicroBlockApplied(micro)
 	a.baseInfo.CleanUtx()
+	a.baseInfo.endorsements.CleanAll()
 	inv := proto.NewUnsignedMicroblockInv(
 		micro.SenderPK,
 		block.BlockID(),
@@ -781,6 +782,7 @@ func (a *NGState) checkAndAppendMicroBlock(
 	}
 	metrics.MicroBlockApplied(micro)
 	a.baseInfo.CleanUtx()
+	a.baseInfo.endorsements.CleanAll()
 	return newBlock, nil
 }
 

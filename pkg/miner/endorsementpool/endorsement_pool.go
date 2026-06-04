@@ -5,6 +5,7 @@ import (
 	"container/heap"
 	"errors"
 	"log/slog"
+	"slices"
 	"sync"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -213,12 +214,12 @@ func (p *EndorsementPool) FormFinalization() (proto.FinalizationVoting, error) {
 	if err != nil {
 		return proto.FinalizationVoting{}, err
 	}
-
+	fh := proto.Height(p.h[0].eb.FinalizedBlockHeight)
 	return proto.FinalizationVoting{
 		AggregatedEndorsementSignature: aggregatedSignature,
-		FinalizedBlockHeight:           proto.Height(p.h[0].eb.FinalizedBlockHeight),
+		FinalizedBlockHeight:           fh,
 		EndorserIndexes:                endorsersIndexes,
-		ConflictEndorsements:           p.conflicts,
+		ConflictEndorsements:           slices.Clone(p.conflicts),
 	}, nil
 }
 
@@ -243,6 +244,7 @@ func (p *EndorsementPool) CleanAll() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	slog.Debug("Removing endorsements from pool", "len", len(p.h))
 	p.byKey = make(map[key]*heapItemEndorsement)
 	p.h = nil
 	p.conflicts = nil
