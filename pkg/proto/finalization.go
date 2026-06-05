@@ -118,13 +118,13 @@ func (e *BlockEndorsement) String() string {
 type FinalizationVoting struct {
 	EndorserIndexes                []uint32           `json:"endorserIndexes,omitempty"`
 	FinalizedBlockHeight           Height             `json:"finalizedHeight"`
-	AggregatedEndorsementSignature bls.Signature      `json:"aggregatedEndorsementSignature"`
+	AggregatedEndorsementSignature *bls.Signature     `json:"aggregatedEndorsementSignature"`
 	ConflictEndorsements           []BlockEndorsement `json:"conflictEndorsements,omitempty"`
 }
 
 func (f *FinalizationVoting) IsEmpty() bool {
 	return len(f.EndorserIndexes) == 0 && f.FinalizedBlockHeight == 0 && len(f.ConflictEndorsements) == 0 &&
-		(f.AggregatedEndorsementSignature == bls.Signature{})
+		(f.AggregatedEndorsementSignature == nil)
 }
 
 // Validate checks that FinalizationVoting doesn't have any duplicate endorsers indexes.
@@ -216,10 +216,14 @@ func (f *FinalizationVoting) ToProtobuf() (*g.FinalizationVoting, error) {
 	if err != nil {
 		return nil, errors.Errorf("finalized block height conversion error: %v", err)
 	}
+	var sb []byte
+	if f.AggregatedEndorsementSignature != nil {
+		sb = f.AggregatedEndorsementSignature.Bytes()
+	}
 	finalizationVoting := g.FinalizationVoting{
 		EndorserIndexes:                indexes,
 		FinalizedBlockHeight:           finalizedBlockHeight,
-		AggregatedEndorsementSignature: f.AggregatedEndorsementSignature.Bytes(),
+		AggregatedEndorsementSignature: sb,
 		ConflictEndorsements:           conflictEndorsements,
 	}
 	return &finalizationVoting, nil

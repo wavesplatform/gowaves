@@ -1813,7 +1813,7 @@ func (c *ProtobufConverter) FinalizationVoting(finalizationVoting *g.Finalizatio
 	}
 	return FinalizationVoting{
 		EndorserIndexes:                indexes,
-		AggregatedEndorsementSignature: aggregatedSignature,
+		AggregatedEndorsementSignature: &aggregatedSignature,
 		ConflictEndorsements:           conflictEndorsements,
 		FinalizedBlockHeight:           finalizedBlockHeight,
 	}, nil

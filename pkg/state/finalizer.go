@@ -90,7 +90,11 @@ func (f *finalizer) processBlockFinalization(
 	if err != nil {
 		return fmt.Errorf("failed to serialize local endorsement crypto message: %w", err)
 	}
-	if !bls.VerifyAggregate(pks, mb, finalizationVoting.AggregatedEndorsementSignature) {
+	var sig bls.Signature
+	if finalizationVoting.AggregatedEndorsementSignature != nil {
+		sig = *finalizationVoting.AggregatedEndorsementSignature
+	}
+	if !bls.VerifyAggregate(pks, mb, sig) {
 		return errors.New("invalid aggregated signature of finalization voting")
 	}
 

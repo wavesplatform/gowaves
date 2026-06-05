@@ -216,7 +216,7 @@ func TestMicroBlockSignature(t *testing.T) {
 
 	finalization := FinalizationVoting{
 		EndorserIndexes:                []uint32{1, 2, 3},
-		AggregatedEndorsementSignature: aggSig,
+		AggregatedEndorsementSignature: &aggSig,
 		FinalizedBlockHeight:           1,
 		ConflictEndorsements: []BlockEndorsement{
 			{

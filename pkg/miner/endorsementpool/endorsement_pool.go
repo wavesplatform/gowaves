@@ -198,20 +198,25 @@ func (p *EndorsementPool) FormFinalization() (proto.FinalizationVoting, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if len(p.h) == 0 {
+	if len(p.h) == 0 && len(p.conflicts) == 0 {
 		return proto.FinalizationVoting{}, errors.New("failed to form finalization: pool is empty")
 	}
 
-	signatures := make([]bls.Signature, 0, len(p.h))
-	endorsersIndexes := make([]uint32, 0, len(p.h))
-
-	for _, it := range p.h {
-		signatures = append(signatures, it.eb.Signature)
-		endorsersIndexes = append(endorsersIndexes, it.eb.EndorserIndex)
-	}
-	aggregatedSignature, err := bls.AggregateSignatures(signatures)
-	if err != nil {
-		return proto.FinalizationVoting{}, err
+	var signatures []bls.Signature
+	var endorsersIndexes []uint32
+	var aggregatedSignature *bls.Signature
+	if len(p.h) > 0 {
+		signatures = make([]bls.Signature, 0, len(p.h))
+		endorsersIndexes = make([]uint32, 0, len(p.h))
+		for _, it := range p.h {
+			signatures = append(signatures, it.eb.Signature)
+			endorsersIndexes = append(endorsersIndexes, it.eb.EndorserIndex)
+		}
+		sig, err := bls.AggregateSignatures(signatures)
+		if err != nil {
+			return proto.FinalizationVoting{}, err
+		}
+		aggregatedSignature = &sig
 	}
 	fh := proto.Height(p.h[0].eb.FinalizedBlockHeight)
 	return proto.FinalizationVoting{
