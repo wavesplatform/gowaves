@@ -221,14 +221,6 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	}
 	metrics.BlockApplied(block, blockHeight)
 	a.baseInfo.endorsements.CleanAll()
-
-	// Retrieve parent's block header, we need it to save generator's public key in endorsements manager.
-	parentHeader, err := a.baseInfo.storage.Header(block.Parent)
-	if err != nil {
-		return a, nil, a.Errorf(errors.Wrapf(err, "failed to retrieve parent block %s", block.Parent))
-	}
-	a.baseInfo.endorsements.SaveBlockGenerator(&parentHeader.GeneratorPublicKey)
-
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.scheduler.Reschedule()
@@ -524,12 +516,6 @@ func (a *NGState) MinedBlock(
 		"blockID", block.ID.String())
 
 	a.baseInfo.endorsements.CleanAll()
-	parentBlock, err := a.baseInfo.storage.Block(block.Parent)
-	if err != nil {
-		return a, nil, a.Errorf(errors.Wrapf(err, "failed to retrieve parent block %s", block.Parent))
-	}
-	a.baseInfo.endorsements.SaveBlockGenerator(&parentBlock.GeneratorPublicKey)
-
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.actions.SendBlock(block)
