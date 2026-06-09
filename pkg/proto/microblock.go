@@ -269,11 +269,14 @@ func (a *MicroBlock) MarshalBinary(scheme Scheme) ([]byte, error) {
 }
 
 func (a *MicroBlock) String() string {
+	pf := "nil"
+	if a.PartialFinalization != nil {
+		pf = a.PartialFinalization.String()
+	}
 	return fmt.Sprintf("MicroBlock{Version: %d, Reference: %s, TotalResBlockSigField: %s, TotalBlockID: %s, "+
 		"TransactionCount: %d, SenderPK: %s, Signature: %s, StateHash: %s, PartialFinalization: %s}",
 		a.VersionField, a.Reference.String(), a.TotalResBlockSigField.String(), a.TotalBlockID.String(),
-		a.TransactionCount, a.SenderPK.String(), a.Signature.String(), a.StateHash.String(),
-		a.PartialFinalization.String())
+		a.TransactionCount, a.SenderPK.String(), a.Signature.String(), a.StateHash.String(), pf)
 }
 
 // MicroBlockMessage represents a MicroBlock message.
