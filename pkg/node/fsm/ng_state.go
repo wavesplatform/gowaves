@@ -636,20 +636,19 @@ func (a *NGState) mineMicro(
 	if err != nil {
 		return a, nil, a.Errorf(err)
 	}
-	var blockFinalization *proto.FinalizationVoting
+	var finalizationVoting *proto.FinalizationVoting
 	if finalityActivated {
 		// TODO: remove height parameter from the following function. Micro-block mining operates only on current
 		//  generator set.
-		blockFinalization, err = a.getCurrentFinalizationVoting(height)
+		finalizationVoting, err = a.getCurrentFinalizationVoting(height)
 		if err != nil && !errors.Is(err, errNoFinalization) && !errors.Is(err, errNoEndorsements) {
 			return a, nil, a.Errorf(err)
 		}
-		if blockFinalization != nil {
+		if finalizationVoting != nil {
 			slog.Debug("Formed non-empty block finalization field")
 		}
 	}
-	block, micro, rest, err := a.baseInfo.microMiner.Micro(minedBlock, rest, keyPair,
-		blockFinalization)
+	block, micro, rest, err := a.baseInfo.microMiner.Micro(minedBlock, rest, keyPair, finalizationVoting)
 	switch {
 	case errors.Is(err, miner.ErrNoTransactions) || errors.Is(err, miner.ErrBlockIsFull): // no txs to include in micro
 		a.baseInfo.logger.Debug(
@@ -738,10 +737,7 @@ func (a *NGState) checkAndAppendMicroBlock(
 	if !ok {
 		return nil, errors.Errorf("microblock '%s' has invalid signature", micro.TotalBlockID.String())
 	}
-	newTrs := top.Transactions.Join(micro.Transactions)
-	fv := proto.CombineFinalizationVoting(top.FinalizationVoting, micro.PartialFinalization)
-	newBlock, err := proto.CreateBlock(newTrs, top.Timestamp, top.Parent, top.GeneratorPublicKey, top.NxtConsensus,
-		top.Version, top.Features, top.RewardVote, a.baseInfo.scheme, micro.StateHash, fv)
+	newBlock, err := proto.AppendMicroBlock(top, micro, a.baseInfo.scheme)
 	if err != nil {
 		return nil, err
 	}

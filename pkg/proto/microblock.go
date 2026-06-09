@@ -21,7 +21,7 @@ const (
 )
 
 type MicroBlock struct {
-	VersionField byte
+	VersionField BlockVersion
 	// Reference for previous block.
 	Reference BlockID
 	// Block signature.
@@ -126,12 +126,13 @@ func (a *MicroBlock) UnmarshalBinary(b []byte, scheme Scheme) error {
 	var err error
 	d := deserializer.NewDeserializer(b)
 
-	a.VersionField, err = d.Byte()
+	v, err := d.Byte()
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal microblock version")
 	}
+	a.VersionField = BlockVersion(v)
 
-	proto := a.VersionField >= byte(ProtobufBlockVersion)
+	proto := a.VersionField >= ProtobufBlockVersion
 	if proto {
 		ref, err := d.Digest()
 		if err != nil {
@@ -225,13 +226,13 @@ func (a *MicroBlock) WriteTo(scheme Scheme, w io.Writer) (int64, error) {
 
 func (a *MicroBlock) WriteWithoutSignature(scheme Scheme, w io.Writer) (int64, error) {
 	s := serializer.NewNonFallable(w)
-	s.Byte(a.VersionField)
+	s.Byte(byte(a.VersionField))
 	s.Bytes(a.Reference.Bytes())
 	s.Bytes(a.TotalResBlockSigField.Bytes())
 	// Serialize transactions in separate buffer to get the size
 	txsBuf := new(bytes.Buffer)
 	txsSerializer := serializer.NewNonFallable(txsBuf)
-	proto := a.VersionField >= byte(ProtobufBlockVersion)
+	proto := a.VersionField >= ProtobufBlockVersion
 	if _, err := a.Transactions.WriteTo(proto, scheme, txsSerializer); err != nil {
 		return 0, err
 	}
@@ -659,4 +660,29 @@ func (m *PBMicroBlockMessage) SetPayload(payload Payload) (Message, error) {
 		return m, nil
 	}
 	return nil, fmt.Errorf("invalid payload type %T", payload)
+}
+
+// AppendMicroBlock combines a block and a microblock into a new block.
+// It checks that the microblock reference matches the block ID, combines transactions and finalization voting.
+// NOTE that this function does nothing with new block signature and ID.
+func AppendMicroBlock(block *Block, microBlock *MicroBlock, scheme Scheme) (*Block, error) {
+	if block == nil {
+		return nil, errors.New("no block provided")
+	}
+	if microBlock == nil {
+		return nil, errors.New("no microblock provided")
+	}
+	if block.ID != microBlock.Reference {
+		return nil, fmt.Errorf("microblock reference '%s' does not match block ID '%s'",
+			microBlock.Reference.String(), block.ID.String())
+	}
+
+	txs := block.Transactions.Join(microBlock.Transactions)
+	fv := CombineFinalizationVoting(block.FinalizationVoting, microBlock.PartialFinalization)
+	newBlock, err := CreateBlock(txs, block.Timestamp, block.Parent, block.GeneratorPublicKey, block.NxtConsensus,
+		block.Version, block.Features, block.RewardVote, scheme, microBlock.StateHash, fv)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new block: %w", err)
+	}
+	return newBlock, nil
 }

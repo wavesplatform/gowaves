@@ -42,7 +42,7 @@ func (a *MicroMiner) Micro(
 	minedBlock *proto.Block,
 	rest proto.MiningLimits,
 	keyPair proto.KeyPair,
-	blockFinalization *proto.FinalizationVoting,
+	finalizationVoting *proto.FinalizationVoting,
 ) (*proto.Block, *proto.MicroBlock, proto.MiningLimits, error) {
 	const minTransactionSize = 40
 
@@ -92,12 +92,12 @@ func (a *MicroMiner) Micro(
 		transactions[i] = appliedTx.T
 	}
 
-	newBlock, sh, err := a.createNewBlock(minedBlock, keyPair, transactions, blockFinalization, txSnapshots, height)
+	newBlock, sh, err := a.createNewBlock(minedBlock, keyPair, transactions, finalizationVoting, txSnapshots, height)
 	if err != nil {
 		return nil, nil, rest, err
 	}
 
-	micro, err := a.createMicroBlock(newBlock, keyPair, transactions, blockFinalization, sh, txCount)
+	micro, err := a.createMicroBlock(newBlock, keyPair, transactions, finalizationVoting, sh, txCount)
 	if err != nil {
 		return nil, nil, rest, err
 	}
@@ -108,7 +108,7 @@ func (a *MicroMiner) Micro(
 		ClassicAmountOfTxsInBlock:   rest.ClassicAmountOfTxsInBlock,
 		MaxTxsSizeInBytes:           rest.MaxTxsSizeInBytes - binSize,
 	}
-	return newBlock, &micro, newRest, nil
+	return newBlock, micro, newRest, nil
 }
 
 // --- helpers ---
@@ -245,7 +245,7 @@ func (a *MicroMiner) createNewBlock(
 	minedBlock *proto.Block,
 	keyPair proto.KeyPair,
 	transactions []proto.Transaction,
-	blockFinalizationVoting *proto.FinalizationVoting,
+	finalizationVoting *proto.FinalizationVoting,
 	txSnapshots [][]proto.AtomicSnapshot,
 	height uint64,
 ) (*proto.Block, *crypto.Digest, error) {
@@ -268,11 +268,12 @@ func (a *MicroMiner) createNewBlock(
 	}
 
 	newTransactions := minedBlock.Transactions.Join(transactions)
+	fv := proto.CombineFinalizationVoting(minedBlock.FinalizationVoting, finalizationVoting)
 	newBlock, err := proto.CreateBlock(
 		newTransactions, minedBlock.Timestamp, minedBlock.Parent,
 		minedBlock.GeneratorPublicKey, minedBlock.NxtConsensus,
 		minedBlock.Version, minedBlock.Features, minedBlock.RewardVote,
-		a.scheme, sh, blockFinalizationVoting,
+		a.scheme, sh, fv,
 	)
 	if err != nil {
 		return nil, nil, err
@@ -297,9 +298,9 @@ func (a *MicroMiner) createMicroBlock(
 	partialFinalization *proto.FinalizationVoting,
 	sh *crypto.Digest,
 	txCount int,
-) (proto.MicroBlock, error) {
-	micro := proto.MicroBlock{
-		VersionField:          byte(newBlock.Version),
+) (*proto.MicroBlock, error) {
+	micro := &proto.MicroBlock{
+		VersionField:          newBlock.Version,
 		SenderPK:              keyPair.Public,
 		Transactions:          transactions,
 		TransactionCount:      uint32(txCount),
@@ -310,7 +311,7 @@ func (a *MicroMiner) createMicroBlock(
 		PartialFinalization:   partialFinalization,
 	}
 	if err := micro.Sign(a.scheme, keyPair.Secret); err != nil {
-		return proto.MicroBlock{}, err
+		return nil, err
 	}
 	a.logger.Debug("Micro block mined", "micro", micro)
 	return micro, nil
