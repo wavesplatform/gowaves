@@ -52,7 +52,7 @@ require (
 	golang.org/x/crypto v0.52.0
 	golang.org/x/exp v0.0.0-20260527015227-08cc5374adb3
 	golang.org/x/sync v0.20.0
-	golang.org/x/sys v0.45.0
+	golang.org/x/sys v0.46.0
 	google.golang.org/grpc v1.81.1
 	google.golang.org/protobuf v1.36.11
 )
