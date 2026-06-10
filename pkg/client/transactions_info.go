@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -112,6 +113,10 @@ func guessTransactionInfoType(t *proto.TransactionTypeVersion) (TransactionInfo,
 		out = &UpdateAssetInfoTransactionInfo{}
 	case proto.EthereumMetamaskTransaction: // 18
 		out = &EthereumTransactionInfo{}
+	case proto.CommitToGenerationTransaction: // 19
+		out = &CommitToGenerationTransactionInfo{}
+	case proto.InvokeExpressionTransaction: // 20 Not used yet.
+		out = nil // Do nothing.
 	}
 	if out == nil {
 		return nil, errors.Errorf("unknown transaction type %d version %d", t.Type, t.Version)
@@ -624,4 +629,21 @@ func (txInfo *UpdateAssetInfoTransactionInfo) getTransactionObject() proto.Trans
 
 func (txInfo *UpdateAssetInfoTransactionInfo) UnmarshalJSON(data []byte) error {
 	return transactionInfoUnmarshalJSON(data, txInfo)
+}
+
+type CommitToGenerationTransactionInfo struct {
+	proto.CommitToGenerationWithProofs
+	transactionInfoCommonImpl
+}
+
+func (i *CommitToGenerationTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
+	return &i.transactionInfoCommonImpl
+}
+
+func (i *CommitToGenerationTransactionInfo) getTransactionObject() proto.Transaction {
+	return &i.CommitToGenerationWithProofs
+}
+
+func (i *CommitToGenerationTransactionInfo) UnmarshalJSON(data []byte) error {
+	return transactionInfoUnmarshalJSON(data, i)
 }

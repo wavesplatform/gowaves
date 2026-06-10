@@ -1265,6 +1265,57 @@ func (_c *MockState_BlockchainSettings_Call) RunAndReturn(run func() (*settings.
 	return _c
 }
 
+// CheckRollbackHeightAuto provides a mock function for the type MockState
+func (_mock *MockState) CheckRollbackHeightAuto(height proto.Height) error {
+	ret := _mock.Called(height)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CheckRollbackHeightAuto")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(proto.Height) error); ok {
+		r0 = returnFunc(height)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockState_CheckRollbackHeightAuto_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CheckRollbackHeightAuto'
+type MockState_CheckRollbackHeightAuto_Call struct {
+	*mock.Call
+}
+
+// CheckRollbackHeightAuto is a helper method to define mock.On call
+//   - height proto.Height
+func (_e *MockState_Expecter) CheckRollbackHeightAuto(height interface{}) *MockState_CheckRollbackHeightAuto_Call {
+	return &MockState_CheckRollbackHeightAuto_Call{Call: _e.mock.On("CheckRollbackHeightAuto", height)}
+}
+
+func (_c *MockState_CheckRollbackHeightAuto_Call) Run(run func(height proto.Height)) *MockState_CheckRollbackHeightAuto_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 proto.Height
+		if args[0] != nil {
+			arg0 = args[0].(proto.Height)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockState_CheckRollbackHeightAuto_Call) Return(err error) *MockState_CheckRollbackHeightAuto_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockState_CheckRollbackHeightAuto_Call) RunAndReturn(run func(height proto.Height) error) *MockState_CheckRollbackHeightAuto_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Close provides a mock function for the type MockState
 func (_mock *MockState) Close() error {
 	ret := _mock.Called()
@@ -1305,6 +1356,68 @@ func (_c *MockState_Close_Call) Return(err error) *MockState_Close_Call {
 }
 
 func (_c *MockState_Close_Call) RunAndReturn(run func() error) *MockState_Close_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CommittedGenerators provides a mock function for the type MockState
+func (_mock *MockState) CommittedGenerators(height proto.Height) ([]GeneratorInfo, error) {
+	ret := _mock.Called(height)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CommittedGenerators")
+	}
+
+	var r0 []GeneratorInfo
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(proto.Height) ([]GeneratorInfo, error)); ok {
+		return returnFunc(height)
+	}
+	if returnFunc, ok := ret.Get(0).(func(proto.Height) []GeneratorInfo); ok {
+		r0 = returnFunc(height)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]GeneratorInfo)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(proto.Height) error); ok {
+		r1 = returnFunc(height)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockState_CommittedGenerators_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CommittedGenerators'
+type MockState_CommittedGenerators_Call struct {
+	*mock.Call
+}
+
+// CommittedGenerators is a helper method to define mock.On call
+//   - height proto.Height
+func (_e *MockState_Expecter) CommittedGenerators(height interface{}) *MockState_CommittedGenerators_Call {
+	return &MockState_CommittedGenerators_Call{Call: _e.mock.On("CommittedGenerators", height)}
+}
+
+func (_c *MockState_CommittedGenerators_Call) Run(run func(height proto.Height)) *MockState_CommittedGenerators_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 proto.Height
+		if args[0] != nil {
+			arg0 = args[0].(proto.Height)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockState_CommittedGenerators_Call) Return(generatorInfos []GeneratorInfo, err error) *MockState_CommittedGenerators_Call {
+	_c.Call.Return(generatorInfos, err)
+	return _c
+}
+
+func (_c *MockState_CommittedGenerators_Call) RunAndReturn(run func(height proto.Height) ([]GeneratorInfo, error)) *MockState_CommittedGenerators_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1537,6 +1650,66 @@ func (_c *MockState_EstimatorVersion_Call) Return(n int, err error) *MockState_E
 }
 
 func (_c *MockState_EstimatorVersion_Call) RunAndReturn(run func() (int, error)) *MockState_EstimatorVersion_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// FindGenerator provides a mock function for the type MockState
+func (_mock *MockState) FindGenerator(fn func(GeneratorInfo) bool) (GeneratorInfo, error) {
+	ret := _mock.Called(fn)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindGenerator")
+	}
+
+	var r0 GeneratorInfo
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(func(GeneratorInfo) bool) (GeneratorInfo, error)); ok {
+		return returnFunc(fn)
+	}
+	if returnFunc, ok := ret.Get(0).(func(func(GeneratorInfo) bool) GeneratorInfo); ok {
+		r0 = returnFunc(fn)
+	} else {
+		r0 = ret.Get(0).(GeneratorInfo)
+	}
+	if returnFunc, ok := ret.Get(1).(func(func(GeneratorInfo) bool) error); ok {
+		r1 = returnFunc(fn)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockState_FindGenerator_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindGenerator'
+type MockState_FindGenerator_Call struct {
+	*mock.Call
+}
+
+// FindGenerator is a helper method to define mock.On call
+//   - fn func(GeneratorInfo) bool
+func (_e *MockState_Expecter) FindGenerator(fn interface{}) *MockState_FindGenerator_Call {
+	return &MockState_FindGenerator_Call{Call: _e.mock.On("FindGenerator", fn)}
+}
+
+func (_c *MockState_FindGenerator_Call) Run(run func(fn func(GeneratorInfo) bool)) *MockState_FindGenerator_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 func(GeneratorInfo) bool
+		if args[0] != nil {
+			arg0 = args[0].(func(GeneratorInfo) bool)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockState_FindGenerator_Call) Return(generatorInfo GeneratorInfo, err error) *MockState_FindGenerator_Call {
+	_c.Call.Return(generatorInfo, err)
+	return _c
+}
+
+func (_c *MockState_FindGenerator_Call) RunAndReturn(run func(fn func(GeneratorInfo) bool) (GeneratorInfo, error)) *MockState_FindGenerator_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2524,24 +2697,132 @@ func (_c *MockState_IsAssetExist_Call) RunAndReturn(run func(assetID proto.Asset
 	return _c
 }
 
+// LastFinalizedBlock provides a mock function for the type MockState
+func (_mock *MockState) LastFinalizedBlock() (*proto.BlockHeader, error) {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for LastFinalizedBlock")
+	}
+
+	var r0 *proto.BlockHeader
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func() (*proto.BlockHeader, error)); ok {
+		return returnFunc()
+	}
+	if returnFunc, ok := ret.Get(0).(func() *proto.BlockHeader); ok {
+		r0 = returnFunc()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*proto.BlockHeader)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func() error); ok {
+		r1 = returnFunc()
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockState_LastFinalizedBlock_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LastFinalizedBlock'
+type MockState_LastFinalizedBlock_Call struct {
+	*mock.Call
+}
+
+// LastFinalizedBlock is a helper method to define mock.On call
+func (_e *MockState_Expecter) LastFinalizedBlock() *MockState_LastFinalizedBlock_Call {
+	return &MockState_LastFinalizedBlock_Call{Call: _e.mock.On("LastFinalizedBlock")}
+}
+
+func (_c *MockState_LastFinalizedBlock_Call) Run(run func()) *MockState_LastFinalizedBlock_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockState_LastFinalizedBlock_Call) Return(blockHeader *proto.BlockHeader, err error) *MockState_LastFinalizedBlock_Call {
+	_c.Call.Return(blockHeader, err)
+	return _c
+}
+
+func (_c *MockState_LastFinalizedBlock_Call) RunAndReturn(run func() (*proto.BlockHeader, error)) *MockState_LastFinalizedBlock_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// LastFinalizedHeight provides a mock function for the type MockState
+func (_mock *MockState) LastFinalizedHeight() (proto.Height, error) {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for LastFinalizedHeight")
+	}
+
+	var r0 proto.Height
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func() (proto.Height, error)); ok {
+		return returnFunc()
+	}
+	if returnFunc, ok := ret.Get(0).(func() proto.Height); ok {
+		r0 = returnFunc()
+	} else {
+		r0 = ret.Get(0).(proto.Height)
+	}
+	if returnFunc, ok := ret.Get(1).(func() error); ok {
+		r1 = returnFunc()
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockState_LastFinalizedHeight_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LastFinalizedHeight'
+type MockState_LastFinalizedHeight_Call struct {
+	*mock.Call
+}
+
+// LastFinalizedHeight is a helper method to define mock.On call
+func (_e *MockState_Expecter) LastFinalizedHeight() *MockState_LastFinalizedHeight_Call {
+	return &MockState_LastFinalizedHeight_Call{Call: _e.mock.On("LastFinalizedHeight")}
+}
+
+func (_c *MockState_LastFinalizedHeight_Call) Run(run func()) *MockState_LastFinalizedHeight_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockState_LastFinalizedHeight_Call) Return(v proto.Height, err error) *MockState_LastFinalizedHeight_Call {
+	_c.Call.Return(v, err)
+	return _c
+}
+
+func (_c *MockState_LastFinalizedHeight_Call) RunAndReturn(run func() (proto.Height, error)) *MockState_LastFinalizedHeight_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // LegacyStateHashAtHeight provides a mock function for the type MockState
-func (_mock *MockState) LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error) {
+func (_mock *MockState) LegacyStateHashAtHeight(height proto.Height) (proto.StateHash, error) {
 	ret := _mock.Called(height)
 
 	if len(ret) == 0 {
 		panic("no return value specified for LegacyStateHashAtHeight")
 	}
 
-	var r0 *proto.StateHash
+	var r0 proto.StateHash
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(proto.Height) (*proto.StateHash, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(proto.Height) (proto.StateHash, error)); ok {
 		return returnFunc(height)
 	}
-	if returnFunc, ok := ret.Get(0).(func(proto.Height) *proto.StateHash); ok {
+	if returnFunc, ok := ret.Get(0).(func(proto.Height) proto.StateHash); ok {
 		r0 = returnFunc(height)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*proto.StateHash)
+			r0 = ret.Get(0).(proto.StateHash)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(proto.Height) error); ok {
@@ -2576,12 +2857,12 @@ func (_c *MockState_LegacyStateHashAtHeight_Call) Run(run func(height proto.Heig
 	return _c
 }
 
-func (_c *MockState_LegacyStateHashAtHeight_Call) Return(stateHash *proto.StateHash, err error) *MockState_LegacyStateHashAtHeight_Call {
+func (_c *MockState_LegacyStateHashAtHeight_Call) Return(stateHash proto.StateHash, err error) *MockState_LegacyStateHashAtHeight_Call {
 	_c.Call.Return(stateHash, err)
 	return _c
 }
 
-func (_c *MockState_LegacyStateHashAtHeight_Call) RunAndReturn(run func(height proto.Height) (*proto.StateHash, error)) *MockState_LegacyStateHashAtHeight_Call {
+func (_c *MockState_LegacyStateHashAtHeight_Call) RunAndReturn(run func(height proto.Height) (proto.StateHash, error)) *MockState_LegacyStateHashAtHeight_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3840,16 +4121,16 @@ func (_c *MockState_RewardVotes_Call) RunAndReturn(run func(height proto.Height)
 }
 
 // RollbackTo provides a mock function for the type MockState
-func (_mock *MockState) RollbackTo(removalEdge proto.BlockID) error {
-	ret := _mock.Called(removalEdge)
+func (_mock *MockState) RollbackTo(removalEdge proto.BlockID, isAutoRollback bool) error {
+	ret := _mock.Called(removalEdge, isAutoRollback)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RollbackTo")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(proto.BlockID) error); ok {
-		r0 = returnFunc(removalEdge)
+	if returnFunc, ok := ret.Get(0).(func(proto.BlockID, bool) error); ok {
+		r0 = returnFunc(removalEdge, isAutoRollback)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3863,18 +4144,24 @@ type MockState_RollbackTo_Call struct {
 
 // RollbackTo is a helper method to define mock.On call
 //   - removalEdge proto.BlockID
-func (_e *MockState_Expecter) RollbackTo(removalEdge interface{}) *MockState_RollbackTo_Call {
-	return &MockState_RollbackTo_Call{Call: _e.mock.On("RollbackTo", removalEdge)}
+//   - isAutoRollback bool
+func (_e *MockState_Expecter) RollbackTo(removalEdge interface{}, isAutoRollback interface{}) *MockState_RollbackTo_Call {
+	return &MockState_RollbackTo_Call{Call: _e.mock.On("RollbackTo", removalEdge, isAutoRollback)}
 }
 
-func (_c *MockState_RollbackTo_Call) Run(run func(removalEdge proto.BlockID)) *MockState_RollbackTo_Call {
+func (_c *MockState_RollbackTo_Call) Run(run func(removalEdge proto.BlockID, isAutoRollback bool)) *MockState_RollbackTo_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 proto.BlockID
 		if args[0] != nil {
 			arg0 = args[0].(proto.BlockID)
 		}
+		var arg1 bool
+		if args[1] != nil {
+			arg1 = args[1].(bool)
+		}
 		run(
 			arg0,
+			arg1,
 		)
 	})
 	return _c
@@ -3885,22 +4172,22 @@ func (_c *MockState_RollbackTo_Call) Return(err error) *MockState_RollbackTo_Cal
 	return _c
 }
 
-func (_c *MockState_RollbackTo_Call) RunAndReturn(run func(removalEdge proto.BlockID) error) *MockState_RollbackTo_Call {
+func (_c *MockState_RollbackTo_Call) RunAndReturn(run func(removalEdge proto.BlockID, isAutoRollback bool) error) *MockState_RollbackTo_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // RollbackToHeight provides a mock function for the type MockState
-func (_mock *MockState) RollbackToHeight(height proto.Height) error {
-	ret := _mock.Called(height)
+func (_mock *MockState) RollbackToHeight(height proto.Height, isAutoRollback bool) error {
+	ret := _mock.Called(height, isAutoRollback)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RollbackToHeight")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(proto.Height) error); ok {
-		r0 = returnFunc(height)
+	if returnFunc, ok := ret.Get(0).(func(proto.Height, bool) error); ok {
+		r0 = returnFunc(height, isAutoRollback)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3914,18 +4201,24 @@ type MockState_RollbackToHeight_Call struct {
 
 // RollbackToHeight is a helper method to define mock.On call
 //   - height proto.Height
-func (_e *MockState_Expecter) RollbackToHeight(height interface{}) *MockState_RollbackToHeight_Call {
-	return &MockState_RollbackToHeight_Call{Call: _e.mock.On("RollbackToHeight", height)}
+//   - isAutoRollback bool
+func (_e *MockState_Expecter) RollbackToHeight(height interface{}, isAutoRollback interface{}) *MockState_RollbackToHeight_Call {
+	return &MockState_RollbackToHeight_Call{Call: _e.mock.On("RollbackToHeight", height, isAutoRollback)}
 }
 
-func (_c *MockState_RollbackToHeight_Call) Run(run func(height proto.Height)) *MockState_RollbackToHeight_Call {
+func (_c *MockState_RollbackToHeight_Call) Run(run func(height proto.Height, isAutoRollback bool)) *MockState_RollbackToHeight_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 proto.Height
 		if args[0] != nil {
 			arg0 = args[0].(proto.Height)
 		}
+		var arg1 bool
+		if args[1] != nil {
+			arg1 = args[1].(bool)
+		}
 		run(
 			arg0,
+			arg1,
 		)
 	})
 	return _c
@@ -3936,7 +4229,7 @@ func (_c *MockState_RollbackToHeight_Call) Return(err error) *MockState_Rollback
 	return _c
 }
 
-func (_c *MockState_RollbackToHeight_Call) RunAndReturn(run func(height proto.Height) error) *MockState_RollbackToHeight_Call {
+func (_c *MockState_RollbackToHeight_Call) RunAndReturn(run func(height proto.Height, isAutoRollback bool) error) *MockState_RollbackToHeight_Call {
 	_c.Call.Return(run)
 	return _c
 }

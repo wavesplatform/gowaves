@@ -3,7 +3,6 @@ package ride
 import (
 	"fmt"
 	"math/big"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -3407,7 +3406,7 @@ func TestConvertToActionLease(t *testing.T) {
 		},
 	}
 	for i, tc := range tests {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			env := newTestEnv(t).withLibVersion(ast.LibV6).withScheme(scheme).withTransactionID(txID).
 				withAlias(recipient, recipientAlias).toEnv()
 			action, err := convertToAction(env, tc.rt)

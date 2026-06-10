@@ -81,6 +81,7 @@ const (
 	ContentIDMicroBlockSnapshotRequest PeerMessageID = 35
 	ContentIDBlockSnapshot             PeerMessageID = 36
 	ContentIDMicroBlockSnapshot        PeerMessageID = 37
+	ContentIDEndorseBlock              PeerMessageID = 38
 )
 
 func ProtocolVersion() Version {
@@ -2145,6 +2146,8 @@ func CreateMessageByContentID(contentID PeerMessageID) (Message, error) {
 		return &BlockSnapshotMessage{}, nil
 	case ContentIDMicroBlockSnapshot:
 		return &MicroBlockSnapshotMessage{}, nil
+	case ContentIDEndorseBlock:
+		return &EndorseBlockMessage{}, nil
 	default:
 		return nil, fmt.Errorf("unexpected content ID %d", contentID)
 	}
@@ -2221,4 +2224,62 @@ func unmarshalBlockIDs(data []byte) ([]BlockID, error) {
 		pos += l
 	}
 	return ids, nil
+}
+
+type EndorseBlockMessage struct {
+	Bytes BytesPayload
+}
+
+// MarshalBinary encodes EndorseBlockMessage to binary form.
+func (m *EndorseBlockMessage) MarshalBinary() ([]byte, error) {
+	h, err := NewHeader(ContentIDEndorseBlock, m.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	hdr, err := h.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	hdr = append(hdr, m.Bytes...)
+	return hdr, nil
+}
+
+// UnmarshalBinary decodes EndorseBlockMessage from binary form.
+func (m *EndorseBlockMessage) UnmarshalBinary(data []byte) error {
+	var h Header
+	if err := h.UnmarshalBinary(data); err != nil {
+		return err
+	}
+	if h.Magic != headerMagic {
+		return fmt.Errorf("wrong magic in Header: %x", h.Magic)
+	}
+	if h.ContentID != ContentIDEndorseBlock {
+		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
+	}
+	if common.SafeIntToUint32(len(data)) < maxHeaderLength+h.payloadLength {
+		return errors.New("EndorseBlockMessage UnmarshalBinary: invalid data size")
+	}
+	m.Bytes = make([]byte, h.payloadLength)
+	copy(m.Bytes, data[maxHeaderLength:maxHeaderLength+h.payloadLength])
+	return nil
+}
+
+// ReadFrom reads EndorseBlockMessage from io.Reader.
+func (m *EndorseBlockMessage) ReadFrom(r io.Reader) (int64, error) {
+	return ReadMessage(r, ContentIDEndorseBlock, "EndorseBlockMessage", &m.Bytes)
+}
+
+// WriteTo writes EndorseBlockMessage to io.Writer.
+func (m *EndorseBlockMessage) WriteTo(w io.Writer) (int64, error) {
+	return WriteMessage(w, ContentIDEndorseBlock, "EndorseBlockMessage", &m.Bytes)
+}
+
+func (m *EndorseBlockMessage) IsMessage() {}
+
+func (m *EndorseBlockMessage) SetPayload(payload Payload) (Message, error) {
+	if p, ok := payload.(*BytesPayload); ok {
+		m.Bytes = *p
+		return m, nil
+	}
+	return nil, fmt.Errorf("invalid payload type %T", payload)
 }

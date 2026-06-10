@@ -411,3 +411,60 @@ func (_c *MockstateInfoProvider_NewestMinerGeneratingBalance_Call) RunAndReturn(
 	_c.Call.Return(run)
 	return _c
 }
+
+// NewestMinimalGeneratingBalanceAtHeight provides a mock function for the type MockstateInfoProvider
+func (_mock *MockstateInfoProvider) NewestMinimalGeneratingBalanceAtHeight(height proto.Height, timestamp uint64) uint64 {
+	ret := _mock.Called(height, timestamp)
+
+	if len(ret) == 0 {
+		panic("no return value specified for NewestMinimalGeneratingBalanceAtHeight")
+	}
+
+	var r0 uint64
+	if returnFunc, ok := ret.Get(0).(func(proto.Height, uint64) uint64); ok {
+		r0 = returnFunc(height, timestamp)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+	return r0
+}
+
+// MockstateInfoProvider_NewestMinimalGeneratingBalanceAtHeight_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NewestMinimalGeneratingBalanceAtHeight'
+type MockstateInfoProvider_NewestMinimalGeneratingBalanceAtHeight_Call struct {
+	*mock.Call
+}
+
+// NewestMinimalGeneratingBalanceAtHeight is a helper method to define mock.On call
+//   - height proto.Height
+//   - timestamp uint64
+func (_e *MockstateInfoProvider_Expecter) NewestMinimalGeneratingBalanceAtHeight(height interface{}, timestamp interface{}) *MockstateInfoProvider_NewestMinimalGeneratingBalanceAtHeight_Call {
+	return &MockstateInfoProvider_NewestMinimalGeneratingBalanceAtHeight_Call{Call: _e.mock.On("NewestMinimalGeneratingBalanceAtHeight", height, timestamp)}
+}
+
+func (_c *MockstateInfoProvider_NewestMinimalGeneratingBalanceAtHeight_Call) Run(run func(height proto.Height, timestamp uint64)) *MockstateInfoProvider_NewestMinimalGeneratingBalanceAtHeight_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 proto.Height
+		if args[0] != nil {
+			arg0 = args[0].(proto.Height)
+		}
+		var arg1 uint64
+		if args[1] != nil {
+			arg1 = args[1].(uint64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockstateInfoProvider_NewestMinimalGeneratingBalanceAtHeight_Call) Return(v uint64) *MockstateInfoProvider_NewestMinimalGeneratingBalanceAtHeight_Call {
+	_c.Call.Return(v)
+	return _c
+}
+
+func (_c *MockstateInfoProvider_NewestMinimalGeneratingBalanceAtHeight_Call) RunAndReturn(run func(height proto.Height, timestamp uint64) uint64) *MockstateInfoProvider_NewestMinimalGeneratingBalanceAtHeight_Call {
+	_c.Call.Return(run)
+	return _c
+}

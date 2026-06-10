@@ -481,6 +481,8 @@ func (fs FrontierSigner) Hash(tx *EthereumTransaction) EthereumHash {
 	case EthereumAccessListTxType, EthereumDynamicFeeTxType:
 		rlpData = append(rlpData, byte(tx.EthereumTxType()))
 		rlpData = hashValues.MarshalTo(rlpData)
+	case UndefinedTxType:
+		return EthereumHash{} // The same as default.
 	default:
 		// This _should_ not happen, but in case someone sends in a bad
 		// json struct via RPC, it's probably more prudent to return an

@@ -3,7 +3,6 @@ package wallet
 import (
 	"encoding/binary"
 	"encoding/json"
-
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )

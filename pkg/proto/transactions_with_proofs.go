@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/jinzhu/copier"
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
@@ -1609,28 +1611,28 @@ func (tx *ExchangeWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
 	var o2b []byte
 	var err error
 	switch tx.Order1.GetVersion() {
-	case 1:
+	case OrderVersionV1:
 		o1b, err = tx.marshalAsOrderV1(tx.Order1)
-	case 2:
+	case OrderVersionV2:
 		o1b, err = tx.marshalAsOrderV2(tx.Order1)
-	case 3:
+	case OrderVersionV3:
 		o1b, err = tx.marshalAsOrderV3(tx.Order1)
-	default:
-		err = errors.Errorf("invalid Order1 version %d", tx.Order1.GetVersion())
+	case OrderVersionV4:
+		err = fmt.Errorf("first order of version 4 is not supported")
 	}
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal buy order to bytes")
 	}
 	o1l := uint32(len(o1b))
 	switch tx.Order2.GetVersion() {
-	case 1:
+	case OrderVersionV1:
 		o2b, err = tx.marshalAsOrderV1(tx.Order2)
-	case 2:
+	case OrderVersionV2:
 		o2b, err = tx.marshalAsOrderV2(tx.Order2)
-	case 3:
+	case OrderVersionV3:
 		o2b, err = tx.marshalAsOrderV3(tx.Order2)
-	default:
-		err = errors.Errorf("invalid Order2 version %d", tx.Order2.GetVersion())
+	case OrderVersionV4:
+		err = fmt.Errorf("second order of version 4 is not supported")
 	}
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal sell order to bytes")
@@ -3382,8 +3384,8 @@ func (tx *DataWithProofs) bodyUnmarshalBinary(data []byte) error {
 			var se StringDataEntry
 			err = se.UnmarshalBinary(data)
 			e = &se
-		default:
-			return errors.Errorf("unsupported ValueType %d", t)
+		case DataDelete:
+			return errors.New("value of type DataDelete is not supported")
 		}
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal DataWithProofs transaction body from bytes")
@@ -5320,6 +5322,236 @@ func (tx *InvokeExpressionTransactionWithProofs) ToProtobuf(scheme Scheme) (*g.T
 	return res, nil
 }
 func (tx *InvokeExpressionTransactionWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	if tx.Proofs == nil {
+		return nil, errors.New("no proofs provided")
+	}
+	return &g.SignedTransaction{
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
+		Proofs:      tx.Proofs.Bytes(),
+	}, nil
+}
+
+// CommitToGenerationWithProofs is the transaction that every block generator should issue in order to participate in
+// the block generation process.
+// _Proof of BLS key possession_ is included in the transaction to prove that the generator owns the private key
+// corresponding to the public key that is used in the generation process. Content of fields `GenerationPeriodStart` and
+// `EndorserPublicKey` are concatenated and signed, the signature is included in the field `CommitmentSignature`.
+// Fee for this transaction is paid in Waves only.
+type CommitToGenerationWithProofs struct {
+	ID                    *crypto.Digest   `json:"id,omitempty"`
+	Type                  TransactionType  `json:"type"`
+	Version               byte             `json:"version,omitempty"`
+	SenderPK              crypto.PublicKey `json:"senderPublicKey"`
+	Fee                   uint64           `json:"fee"`
+	Timestamp             uint64           `json:"timestamp,omitempty"`
+	Proofs                *ProofsV1        `json:"proofs,omitempty"`
+	GenerationPeriodStart uint32           `json:"generationPeriodStart"`
+	EndorserPublicKey     bls.PublicKey    `json:"endorserPublicKey"`
+	CommitmentSignature   bls.Signature    `json:"commitmentSignature"`
+}
+
+// NewUnsignedCommitToGenerationWithProofs creates new CommitToGenerationWithProofs transaction without
+// calculation of ID and signature.
+func NewUnsignedCommitToGenerationWithProofs(
+	v byte, senderPK crypto.PublicKey, generationPeriodStart uint32, endorserPK bls.PublicKey,
+	commitmentSignature bls.Signature, fee, timestamp uint64,
+) *CommitToGenerationWithProofs {
+	return &CommitToGenerationWithProofs{
+		Type:                  CommitToGenerationTransaction,
+		Version:               v,
+		SenderPK:              senderPK,
+		Fee:                   fee,
+		Timestamp:             timestamp,
+		GenerationPeriodStart: generationPeriodStart,
+		EndorserPublicKey:     endorserPK,
+		CommitmentSignature:   commitmentSignature,
+	}
+}
+
+func (tx *CommitToGenerationWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
+	b, err := MarshalTxBody(scheme, tx)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to verify signature of CommitToGenerationWithProofs")
+	}
+	return tx.Proofs.Verify(publicKey, b)
+}
+
+func (tx CommitToGenerationWithProofs) GetTypeInfo() TransactionTypeInfo {
+	return TransactionTypeInfo{tx.Type, Proof}
+}
+
+func (tx CommitToGenerationWithProofs) GetType() TransactionType {
+	return tx.Type
+}
+
+func (tx CommitToGenerationWithProofs) GetVersion() byte {
+	return tx.Version
+}
+
+func (tx *CommitToGenerationWithProofs) GetID(scheme Scheme) ([]byte, error) {
+	if tx.ID == nil {
+		if err := tx.GenerateID(scheme); err != nil {
+			return nil, err
+		}
+	}
+	return tx.ID.Bytes(), nil
+}
+
+func (tx CommitToGenerationWithProofs) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, tx.SenderPK)
+}
+
+func (tx CommitToGenerationWithProofs) GetSenderPK() crypto.PublicKey {
+	return tx.SenderPK
+}
+
+func (tx CommitToGenerationWithProofs) GetFee() uint64 {
+	return tx.Fee
+}
+
+func (tx CommitToGenerationWithProofs) GetFeeAsset() OptionalAsset {
+	return NewOptionalAssetWaves()
+}
+
+func (tx CommitToGenerationWithProofs) GetTimestamp() uint64 {
+	return tx.Timestamp
+}
+
+func (tx *CommitToGenerationWithProofs) Validate(_ TransactionValidationParams) (Transaction, error) {
+	// Assume Scala version errors are fixed, so skip TransactionValidationParams check.
+	if tx.Version < 1 || tx.Version > MaxCommitToGenerationTransactionVersion {
+		return tx, errors.Errorf("unexpected version %d for CommitToGenerationWithProofs", tx.Version)
+	}
+	if tx.Fee == 0 {
+		return tx, errors.New("fee should be positive")
+	}
+	if !validJVMLong(tx.Fee) {
+		return tx, errors.New("fee is too big")
+	}
+	if tx.GenerationPeriodStart == 0 {
+		return tx, errors.New("generation period start should be positive")
+	}
+	if !validJVMInt(tx.GenerationPeriodStart) {
+		return tx, errors.New("generation period start is too big")
+	}
+	ok, err := bls.VerifyPoP(tx.EndorserPublicKey, tx.GenerationPeriodStart, tx.CommitmentSignature)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to verify commitment signature")
+	}
+	if !ok {
+		return nil, errors.New("invalid commitment signature")
+	}
+	return tx, nil
+}
+
+func (tx *CommitToGenerationWithProofs) GenerateID(scheme Scheme) error {
+	if tx.ID == nil {
+		body, err := MarshalTxBody(scheme, tx)
+		if err != nil {
+			return err
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+	return nil
+}
+
+func (tx *CommitToGenerationWithProofs) Sign(scheme Scheme, sk crypto.SecretKey) error {
+	b, err := MarshalTxBody(scheme, tx)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign CommitToGenerationWithProofs transaction")
+	}
+	if tx.Proofs == nil {
+		tx.Proofs = NewProofs()
+	}
+	err = tx.Proofs.Sign(sk, b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign CommitToGenerationWithProofs transaction")
+	}
+	if tx.ID.IsZero() {
+		d, fhErr := crypto.FastHash(b)
+		if fhErr != nil {
+			return errors.Wrap(fhErr, "failed to sign CommitToGenerationWithProofs transaction")
+		}
+		tx.ID = &d
+	}
+	return nil
+}
+
+func (tx *CommitToGenerationWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
+func (tx *CommitToGenerationWithProofs) MarshalBinary(Scheme) ([]byte, error) {
+	return nil, errors.New("binary format is not defined for CommitToGeneration transaction")
+}
+
+func (tx *CommitToGenerationWithProofs) UnmarshalBinary([]byte, Scheme) error {
+	return errors.New("binary format is not defined for CommitToGeneration transaction")
+}
+
+func (tx *CommitToGenerationWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
+	return nil, errors.New("binary format is not defined for CommitToGeneration transaction")
+}
+
+func (tx *CommitToGenerationWithProofs) BinarySize() int {
+	return 0
+}
+
+func (tx *CommitToGenerationWithProofs) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalTxDeterministic(tx, scheme)
+}
+
+func (tx *CommitToGenerationWithProofs) UnmarshalFromProtobuf(data []byte) error {
+	t, err := TxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	commitToGeneration, ok := t.(*CommitToGenerationWithProofs)
+	if !ok {
+		return errors.New("failed to convert result to CommitToGenerationWithProofs")
+	}
+	*tx = *commitToGeneration
+	return nil
+}
+
+func (tx *CommitToGenerationWithProofs) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalSignedTxDeterministic(tx, scheme)
+}
+
+func (tx *CommitToGenerationWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
+	t, err := SignedTxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	commitToGeneration, ok := t.(*CommitToGenerationWithProofs)
+	if !ok {
+		return errors.New("failed to convert result to CommitToGenerationWithProofs")
+	}
+	*tx = *commitToGeneration
+	return nil
+}
+func (tx *CommitToGenerationWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	txData := &g.Transaction_CommitToGeneration{CommitToGeneration: &g.CommitToGenerationTransactionData{
+		GenerationPeriodStart: tx.GenerationPeriodStart,
+		EndorserPublicKey:     tx.EndorserPublicKey.Bytes(),
+		CommitmentSignature:   tx.CommitmentSignature.Bytes(),
+	}}
+	aa, err := safecast.Convert[int64](tx.Fee)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert fee to int64: %w", err)
+	}
+	fee := &g.Amount{AssetId: nil, Amount: aa}
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+func (tx *CommitToGenerationWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
 	unsigned, err := tx.ToProtobuf(scheme)
 	if err != nil {
 		return nil, err

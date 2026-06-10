@@ -18,20 +18,6 @@ var (
 	notFound = errors.New("not found")
 )
 
-// BadRequestError represents a bad request error.
-// Deprecated: don't use this error type in new code. Create a new error type or value in 'pkg/api/errors' package.
-type BadRequestError struct {
-	inner error
-}
-
-func wrapToBadRequestError(err error) *BadRequestError {
-	return &BadRequestError{inner: err}
-}
-
-func (e *BadRequestError) Error() string {
-	return e.inner.Error()
-}
-
 // AuthError represents an authentication error or problem.
 // Deprecated: don't use this error type in new code. Create a new error type or value in 'pkg/api/errors' package.
 type AuthError struct {
@@ -62,17 +48,18 @@ func (eh *ErrorHandler) Handle(w http.ResponseWriter, r *http.Request, err error
 	}
 	// target errors
 	var (
-		badRequestError *BadRequestError
-		authError       *AuthError
-		unknownError    *apiErrs.UnknownError
-		apiError        apiErrs.ApiError
+		badRequestError  *apiErrs.BadRequestError
+		authError        *AuthError
+		unknownError     *apiErrs.UnknownError
+		apiError         apiErrs.ApiError
+		unavailableError *apiErrs.UnavailableError
 		// check that all targets implement the error interface
-		_, _, _, _ = error(badRequestError), error(authError), error(unknownError), error(apiError)
+		_, _, _, _, _ = error(badRequestError), error(authError), error(unknownError),
+			error(apiError), error(unavailableError)
 	)
 	switch {
 	case errors.As(err, &badRequestError):
-		// nickeskov: this error type will be removed in future
-		http.Error(w, fmt.Sprintf("Failed to complete request: %s", badRequestError.Error()), http.StatusBadRequest)
+		eh.sendApiErrJSON(w, r, badRequestError)
 	case errors.As(err, &authError):
 		// nickeskov: this error type will be removed in future
 		http.Error(w, fmt.Sprintf("Failed to complete request: %s", authError.Error()), http.StatusForbidden)
@@ -86,6 +73,8 @@ func (eh *ErrorHandler) Handle(w http.ResponseWriter, r *http.Request, err error
 		eh.sendApiErrJSON(w, r, unknownError)
 	case errors.As(err, &apiError):
 		eh.sendApiErrJSON(w, r, apiError)
+	case errors.As(err, &unavailableError):
+		eh.sendApiErrJSON(w, r, unavailableError)
 	default:
 		eh.logger.Error("InternalServerError",
 			slog.String("proto", r.Proto),

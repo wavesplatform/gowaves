@@ -94,7 +94,7 @@ func run() error {
 
 	slog.Info("Current height", "height", curHeight)
 
-	err = s.RollbackToHeight(*height)
+	err = s.RollbackToHeight(*height, false)
 	if err != nil {
 		return fmt.Errorf("failed to rollback: %w", err)
 	}
