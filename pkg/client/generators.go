@@ -18,8 +18,10 @@ func NewGenerators(options Options) *Generators {
 }
 
 type GeneratorInfoResponse struct {
-	Address string `json:"address"`
-	Balance uint64 `json:"balance"`
+	Address        string `json:"address"`
+	Balance        uint64 `json:"balance"`
+	ConflictHeight uint64 `json:"conflictHeight,omitempty"`
+	TransactionID  string `json:"transactionId"`
 }
 
 // CommitmentGeneratorsAt returns the list of committed generators for the given height.

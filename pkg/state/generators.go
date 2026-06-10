@@ -595,6 +595,18 @@ func (g *generatorsStorage) banGenerator(index uint32, height proto.Height, bloc
 	if err != nil {
 		return fmt.Errorf("failed to marshal generators record for height %d: %w", height, err)
 	}
+	// Update Legacy StateHash record after banning the generator.
+	if g.calculateHashes {
+		generatorsBalancesLSHRecord := newGeneratorsBalancesRecordForStateHashes(len(gs.Generators))
+		for _, g := range gs.Generators {
+			if g.BanHeight == 0 && g.Balance > 0 {
+				generatorsBalancesLSHRecord.append(g.Balance)
+			}
+		}
+		if lshErr := g.pushLegacyStateHashRecord(generatorsBalancesLSHRecord, height, blockID); lshErr != nil {
+			return fmt.Errorf("failed to push legacy state hash record: %w", lshErr)
+		}
+	}
 	return g.hs.addNewEntry(generators, key.bytes(), data, blockID)
 }
 
