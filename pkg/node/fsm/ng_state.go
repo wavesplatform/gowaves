@@ -515,7 +515,7 @@ func (a *NGState) MinedBlock(
 	slog.Info("Generated key block successfully applied to state", "state", a.String(),
 		"blockID", block.ID.String())
 
-	a.baseInfo.endorsements.CleanAll()
+	a.baseInfo.endorsements.CleanProcessed()
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.actions.SendBlock(block)

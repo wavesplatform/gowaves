@@ -63,12 +63,14 @@ func (h *endorsementMinHeap) Pop() any {
 }
 
 type EndorsementPool struct {
-	mu              sync.Mutex
-	seq             uint64
-	byKey           map[key]*heapItemEndorsement
-	h               endorsementMinHeap
-	conflicts       []proto.BlockEndorsement
-	maxEndorsements int
+	mu                   sync.Mutex
+	seq                  uint64
+	byKey                map[key]*heapItemEndorsement
+	h                    endorsementMinHeap
+	conflicts            []proto.BlockEndorsement
+	maxEndorsements      int
+	processedKeys        map[key]struct{}
+	processedConflictLen int
 }
 
 func sameRound(a, b *proto.BlockEndorsement) bool {
@@ -218,6 +220,13 @@ func (p *EndorsementPool) FormFinalization() (proto.FinalizationVoting, error) {
 		}
 		aggregatedSignature = &sig
 	}
+	// Tag the current heap items and conflict count so CleanProcessed knows what to remove.
+	p.processedKeys = make(map[key]struct{}, len(p.h))
+	for _, it := range p.h {
+		p.processedKeys[makeKey(it.eb.EndorsedBlockID, it.eb.EndorserIndex)] = struct{}{}
+	}
+	p.processedConflictLen = len(p.conflicts)
+
 	fh := proto.Height(p.h[0].eb.FinalizedBlockHeight)
 	return proto.FinalizationVoting{
 		AggregatedEndorsementSignature: aggregatedSignature,
@@ -252,6 +261,41 @@ func (p *EndorsementPool) CleanAll() {
 	p.byKey = make(map[key]*heapItemEndorsement)
 	p.h = nil
 	p.conflicts = nil
+	p.processedKeys = nil
+	p.processedConflictLen = 0
+}
+
+// CleanProcessed removes only the endorsements (normal and conflicting) that were
+// tagged by the most recent FormFinalization call, leaving any newly arrived items intact.
+func (p *EndorsementPool) CleanProcessed() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if len(p.processedKeys) == 0 && p.processedConflictLen == 0 {
+		return
+	}
+
+	newH := make(endorsementMinHeap, 0, len(p.h))
+	newByKey := make(map[key]*heapItemEndorsement, len(p.byKey))
+	for _, it := range p.h {
+		k := makeKey(it.eb.EndorsedBlockID, it.eb.EndorserIndex)
+		if _, processed := p.processedKeys[k]; !processed {
+			newH = append(newH, it)
+			newByKey[k] = it
+		}
+	}
+	heap.Init(&newH)
+	p.h = newH
+	p.byKey = newByKey
+
+	if p.processedConflictLen >= len(p.conflicts) {
+		p.conflicts = nil
+	} else {
+		p.conflicts = p.conflicts[p.processedConflictLen:]
+	}
+
+	p.processedKeys = nil
+	p.processedConflictLen = 0
 }
 
 func (p *EndorsementPool) Verify() (bool, error) {

@@ -235,4 +235,5 @@ type EndorsementPool interface {
 	Verify() (bool, error)
 	Len() int
 	CleanAll()
+	CleanProcessed()
 }

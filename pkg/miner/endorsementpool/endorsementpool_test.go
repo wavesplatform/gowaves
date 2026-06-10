@@ -227,6 +227,198 @@ func TestEndorsementPool_ShouldIgnoreEndorsement(t *testing.T) {
 	require.False(t, pool.ShouldIgnoreEndorsement(conflictFinalized, pk1, 5, endorsedIDA))
 }
 
+func TestEndorsementPool_CleanProcessed_RemovesOnlyProcessedItems(t *testing.T) {
+	pool, err := endorsementpool.NewEndorsementPool(5)
+	require.NoError(t, err)
+
+	sk1, err := bls.GenerateSecretKey([]byte("cp-sk-1"))
+	require.NoError(t, err)
+	pk1, err := sk1.PublicKey()
+	require.NoError(t, err)
+	sk2, err := bls.GenerateSecretKey([]byte("cp-sk-2"))
+	require.NoError(t, err)
+	pk2, err := sk2.PublicKey()
+	require.NoError(t, err)
+	sk3, err := bls.GenerateSecretKey([]byte("cp-sk-3"))
+	require.NoError(t, err)
+	pk3, err := sk3.PublicKey()
+	require.NoError(t, err)
+
+	finalizedDigest, err := crypto.FastHash([]byte("cp-finalized"))
+	require.NoError(t, err)
+	endorsedDigest, err := crypto.FastHash([]byte("cp-endorsed"))
+	require.NoError(t, err)
+	finalizedID := proto.NewBlockIDFromDigest(finalizedDigest)
+	endorsedID := proto.NewBlockIDFromDigest(endorsedDigest)
+
+	e1 := newSignedEndorsement(t, 1, finalizedID, 1, endorsedID, sk1)
+	e2 := newSignedEndorsement(t, 2, finalizedID, 1, endorsedID, sk2)
+	addToPool(t, pool, e1, pk1, 100)
+	addToPool(t, pool, e2, pk2, 200)
+	require.Equal(t, 2, pool.Len())
+
+	_, err = pool.FormFinalization()
+	require.NoError(t, err)
+
+	// e3 arrives after FormFinalization and must survive CleanProcessed.
+	e3 := newSignedEndorsement(t, 3, finalizedID, 1, endorsedID, sk3)
+	addToPool(t, pool, e3, pk3, 150)
+	require.Equal(t, 3, pool.Len())
+
+	pool.CleanProcessed()
+
+	require.Equal(t, 1, pool.Len())
+	remaining := pool.GetAll()
+	require.Len(t, remaining, 1)
+	require.Equal(t, uint32(3), remaining[0].EndorserIndex)
+}
+
+func TestEndorsementPool_CleanProcessed_PreservesConflictsArrivedAfterFormFinalization(t *testing.T) {
+	pool, err := endorsementpool.NewEndorsementPool(5)
+	require.NoError(t, err)
+
+	sk1, err := bls.GenerateSecretKey([]byte("cp-conf-sk-1"))
+	require.NoError(t, err)
+	pk1, err := sk1.PublicKey()
+	require.NoError(t, err)
+
+	finalizedDigest, err := crypto.FastHash([]byte("cp-conf-finalized"))
+	require.NoError(t, err)
+	endorsedDigest, err := crypto.FastHash([]byte("cp-conf-endorsed"))
+	require.NoError(t, err)
+	finalizedID := proto.NewBlockIDFromDigest(finalizedDigest)
+	endorsedID := proto.NewBlockIDFromDigest(endorsedDigest)
+
+	e1 := newSignedEndorsement(t, 1, finalizedID, 1, endorsedID, sk1)
+	addToPool(t, pool, e1, pk1, 100)
+
+	// Conflict added before FormFinalization — should be removed by CleanProcessed.
+	conflictBefore := newSignedEndorsement(t, 99, finalizedID, 1, endorsedID, sk1)
+	pool.AddConflict(conflictBefore)
+
+	_, err = pool.FormFinalization()
+	require.NoError(t, err)
+
+	// Conflict added after FormFinalization — must survive CleanProcessed.
+	conflictAfter := newSignedEndorsement(t, 100, finalizedID, 1, endorsedID, sk1)
+	pool.AddConflict(conflictAfter)
+
+	pool.CleanProcessed()
+
+	conflicts := pool.ConflictEndorsements()
+	require.Len(t, conflicts, 1)
+	require.Equal(t, uint32(100), conflicts[0].EndorserIndex)
+}
+
+func TestEndorsementPool_CleanAll_RemovesEverythingWithoutFormFinalization(t *testing.T) {
+	pool, err := endorsementpool.NewEndorsementPool(5)
+	require.NoError(t, err)
+
+	sk1, err := bls.GenerateSecretKey([]byte("ca-noff-sk-1"))
+	require.NoError(t, err)
+	pk1, err := sk1.PublicKey()
+	require.NoError(t, err)
+	sk2, err := bls.GenerateSecretKey([]byte("ca-noff-sk-2"))
+	require.NoError(t, err)
+	pk2, err := sk2.PublicKey()
+	require.NoError(t, err)
+
+	finalizedDigest, err := crypto.FastHash([]byte("ca-noff-finalized"))
+	require.NoError(t, err)
+	endorsedDigest, err := crypto.FastHash([]byte("ca-noff-endorsed"))
+	require.NoError(t, err)
+	finalizedID := proto.NewBlockIDFromDigest(finalizedDigest)
+	endorsedID := proto.NewBlockIDFromDigest(endorsedDigest)
+
+	e1 := newSignedEndorsement(t, 1, finalizedID, 1, endorsedID, sk1)
+	e2 := newSignedEndorsement(t, 2, finalizedID, 1, endorsedID, sk2)
+	addToPool(t, pool, e1, pk1, 100)
+	addToPool(t, pool, e2, pk2, 200)
+	pool.AddConflict(newSignedEndorsement(t, 99, finalizedID, 1, endorsedID, sk1))
+	require.Equal(t, 2, pool.Len())
+	require.Len(t, pool.ConflictEndorsements(), 1)
+
+	pool.CleanAll()
+
+	require.Equal(t, 0, pool.Len())
+	require.Empty(t, pool.ConflictEndorsements())
+}
+
+func TestEndorsementPool_CleanAll_RemovesEverythingAfterFormFinalization(t *testing.T) {
+	pool, err := endorsementpool.NewEndorsementPool(5)
+	require.NoError(t, err)
+
+	sk1, err := bls.GenerateSecretKey([]byte("ca-ff-sk-1"))
+	require.NoError(t, err)
+	pk1, err := sk1.PublicKey()
+	require.NoError(t, err)
+	sk2, err := bls.GenerateSecretKey([]byte("ca-ff-sk-2"))
+	require.NoError(t, err)
+	pk2, err := sk2.PublicKey()
+	require.NoError(t, err)
+	sk3, err := bls.GenerateSecretKey([]byte("ca-ff-sk-3"))
+	require.NoError(t, err)
+	pk3, err := sk3.PublicKey()
+	require.NoError(t, err)
+
+	finalizedDigest, err := crypto.FastHash([]byte("ca-ff-finalized"))
+	require.NoError(t, err)
+	endorsedDigest, err := crypto.FastHash([]byte("ca-ff-endorsed"))
+	require.NoError(t, err)
+	finalizedID := proto.NewBlockIDFromDigest(finalizedDigest)
+	endorsedID := proto.NewBlockIDFromDigest(endorsedDigest)
+
+	e1 := newSignedEndorsement(t, 1, finalizedID, 1, endorsedID, sk1)
+	e2 := newSignedEndorsement(t, 2, finalizedID, 1, endorsedID, sk2)
+	addToPool(t, pool, e1, pk1, 100)
+	addToPool(t, pool, e2, pk2, 200)
+	pool.AddConflict(newSignedEndorsement(t, 99, finalizedID, 1, endorsedID, sk1))
+
+	_, err = pool.FormFinalization()
+	require.NoError(t, err)
+
+	// e3 and a new conflict arrive after FormFinalization.
+	e3 := newSignedEndorsement(t, 3, finalizedID, 1, endorsedID, sk3)
+	addToPool(t, pool, e3, pk3, 150)
+	pool.AddConflict(newSignedEndorsement(t, 100, finalizedID, 1, endorsedID, sk1))
+
+	pool.CleanAll()
+
+	require.Equal(t, 0, pool.Len())
+	require.Empty(t, pool.ConflictEndorsements())
+}
+
+func TestEndorsementPool_CleanProcessed_IsNoOpWithoutFormFinalization(t *testing.T) {
+	pool, err := endorsementpool.NewEndorsementPool(5)
+	require.NoError(t, err)
+
+	sk1, err := bls.GenerateSecretKey([]byte("cp-noop-sk-1"))
+	require.NoError(t, err)
+	pk1, err := sk1.PublicKey()
+	require.NoError(t, err)
+	sk2, err := bls.GenerateSecretKey([]byte("cp-noop-sk-2"))
+	require.NoError(t, err)
+	pk2, err := sk2.PublicKey()
+	require.NoError(t, err)
+
+	finalizedDigest, err := crypto.FastHash([]byte("cp-noop-finalized"))
+	require.NoError(t, err)
+	endorsedDigest, err := crypto.FastHash([]byte("cp-noop-endorsed"))
+	require.NoError(t, err)
+	finalizedID := proto.NewBlockIDFromDigest(finalizedDigest)
+	endorsedID := proto.NewBlockIDFromDigest(endorsedDigest)
+
+	e1 := newSignedEndorsement(t, 1, finalizedID, 1, endorsedID, sk1)
+	e2 := newSignedEndorsement(t, 2, finalizedID, 1, endorsedID, sk2)
+	addToPool(t, pool, e1, pk1, 100)
+	addToPool(t, pool, e2, pk2, 200)
+	require.Equal(t, 2, pool.Len())
+
+	pool.CleanProcessed()
+
+	require.Equal(t, 2, pool.Len(), "CleanProcessed without prior FormFinalization must leave pool unchanged")
+}
+
 func TestEndorsementPool_SwitchRoundDropsStaleEndorsements(t *testing.T) {
 	pool, err := endorsementpool.NewEndorsementPool(2)
 	require.NoError(t, err)
