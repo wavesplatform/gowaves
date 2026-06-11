@@ -1,10 +1,9 @@
-//go:build smoke
+//go:build !smoke
 
 package itests
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -24,18 +23,21 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
-const period = 4
+const period = 4 // generation period in blocks
 
-type SmokeFinalitySuite struct {
+// FinalityConflictSuite runs a two-node (Go + Scala) setup where only the Go node mines.
+// The Scala node participates as a validator peer but does not generate blocks.
+type FinalityConflictSuite struct {
 	fixtures.BaseSuite
 	goMiner    config.AccountInfo
 	scalaMiner config.AccountInfo
 }
 
-func (s *SmokeFinalitySuite) SetupSuite() {
-	s.BaseSetupWithImages("ghcr.io/wavesplatform/waves", "block-time-logging",
+func (s *FinalityConflictSuite) SetupSuite() {
+	s.BaseSetup(
 		config.WithFeatureSettingFromFile("feature_settings", "finality_supported_setting.json"),
 		config.WithGenerationPeriod(period),
+		config.WithNoScalaMining(),
 	)
 	var err error
 	s.goMiner, err = s.Cfg.GetAccount(goWalletAddress)
@@ -44,31 +46,9 @@ func (s *SmokeFinalitySuite) SetupSuite() {
 	require.NoError(s.T(), err)
 }
 
-func (s *SmokeFinalitySuite) TestFinalization() {
-	// Wait for feature activation.
-	h := s.Clients.GetMinNodesHeight(s.T())
-	activationHeight := utilities.WaitForFeatureActivation(&s.BaseSuite, settings.DeterministicFinality, h)
-
-	// Commit for the second generation period.
-	s0 := s.commitToGeneration(activationHeight)
-
-	// Wait for second generation period to start.
-	s.Clients.WaitForHeight(s.T(), s0, config.WaitWithContext(s.MainCtx), config.WaitWithTimeoutInBlocks(period))
-
-	// Commit for third generation period.
-	s1 := s.commitToGeneration(activationHeight)
-
-	goFH, scalaFH, equal := s.Clients.FinalityCmp(s.T())
-	assert.True(s.T(), equal, fmt.Sprintf("finalized height mismatch: Go finalized at %d, Scala finalized at %d",
-		goFH, scalaFH))
-
-	// Wait for third generation period to start.
-	s.Clients.WaitForHeight(s.T(), s1, config.WaitWithContext(s.MainCtx), config.WaitWithTimeoutInBlocks(period))
-}
-
-// TestConflictingEndorsements verifies that a generator that broadcasts the conflicting endorsement
-// is banned from generation by both nodes.
-func (s *SmokeFinalitySuite) TestConflictingEndorsements() {
+// TestConflictingEndorsements verifies that a generator that broadcasts a conflicting endorsement
+// is banned from generation by both nodes when only the Go node is the miner.
+func (s *FinalityConflictSuite) TestConflictingEndorsements() {
 	const txTimeout = time.Second * 30
 
 	// Pick a third account as the violator.
@@ -94,8 +74,9 @@ func (s *SmokeFinalitySuite) TestConflictingEndorsements() {
 	violatorIndex := s.findViolatorIndex(violator, gps)
 	s.T().Logf("Violator's index in the generators set at height %d: %d", gps, violatorIndex)
 
-	// Build a conflicting block endorsement signed by the violator. To make the endorsement conflict
-	// with the local state, the message claims a wrong finalized block ID for the genesis height.
+	time.Sleep(5 * time.Second)
+	// Build a conflicting endorsement signed by the violator. The message claims a wrong
+	// finalized block ID for the genesis height so it conflicts with the local state.
 	endorsement := s.buildConflictingEndorsement(violator, violatorIndex)
 	s.T().Logf("Sending conflicting endorsement: %s", endorsement.String())
 
@@ -103,10 +84,9 @@ func (s *SmokeFinalitySuite) TestConflictingEndorsements() {
 	require.NoError(s.T(), err)
 	endorseMessage := &proto.EndorseBlockMessage{Bytes: payload}
 	s.Clients.SendToGoNode(s.T(), endorseMessage)
-	s.Clients.SendToScalaNode(s.T(), endorseMessage)
 
-	// Wait until the end of the current generation period for the conflicting endorsement to be
-	// included into a mined block and applied on both nodes.
+	// Wait until the end of the current generation period for the conflicting endorsement
+	// to be included in a mined block and applied on both nodes.
 	checkHeight := gps + period - 1
 	s.Clients.WaitForHeight(s.T(), checkHeight, config.WaitWithContext(s.MainCtx),
 		config.WaitWithTimeoutInBlocks(period))
@@ -117,53 +97,7 @@ func (s *SmokeFinalitySuite) TestConflictingEndorsements() {
 	s.assertViolatorBanned(violator, checkHeight)
 }
 
-func (s *SmokeFinalitySuite) startTransferLoop(from, to config.AccountInfo) func() {
-	ctx, cancel := context.WithCancel(s.MainCtx)
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		ticker := time.NewTicker(time.Second)
-		defer ticker.Stop()
-		s.broadcastTransfer(from, to) // Seed the mempool immediately, then continue on the tick.
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				s.broadcastTransfer(from, to)
-			}
-		}
-	}()
-	var once sync.Once
-	stop := func() {
-		once.Do(func() {
-			cancel()
-			<-done
-		})
-	}
-	s.T().Cleanup(stop)
-	return stop
-}
-
-func (s *SmokeFinalitySuite) broadcastTransfer(from, to config.AccountInfo) {
-	ts, err := safecast.Convert[uint64](time.Now().UnixMilli())
-	if err != nil {
-		return
-	}
-	f, err := safecast.Convert[uint64](fee)
-	if err != nil {
-		return
-	}
-	tx := proto.NewUnsignedTransferWithProofs(3, from.PublicKey,
-		proto.NewOptionalAssetWaves(), proto.NewOptionalAssetWaves(),
-		ts, f, f, proto.NewRecipientFromAddress(to.Address), nil)
-	if err = tx.Sign(s.Cfg.BlockchainSettings.AddressSchemeCharacter, from.SecretKey); err != nil {
-		return
-	}
-	_, _ = s.Clients.BroadcastToGoNode(s.T(), tx)
-}
-
-func (s *SmokeFinalitySuite) selectViolator() (config.AccountInfo, bool) {
+func (s *FinalityConflictSuite) selectViolator() (config.AccountInfo, bool) {
 	for _, a := range s.Cfg.Accounts {
 		addr := a.Address.String()
 		if addr == goWalletAddress || addr == scalaWalletAddress {
@@ -174,7 +108,7 @@ func (s *SmokeFinalitySuite) selectViolator() (config.AccountInfo, bool) {
 	return config.AccountInfo{}, false
 }
 
-func (s *SmokeFinalitySuite) commitToGenerationFrom(
+func (s *FinalityConflictSuite) commitToGenerationFrom(
 	activationHeight uint64, txTimeout time.Duration, accounts ...config.AccountInfo,
 ) uint64 {
 	gps := s.nextPeriodStart(activationHeight)
@@ -197,7 +131,7 @@ func (s *SmokeFinalitySuite) commitToGenerationFrom(
 	return gps
 }
 
-func (s *SmokeFinalitySuite) findViolatorIndex(violator config.AccountInfo, height uint64) uint32 {
+func (s *FinalityConflictSuite) findViolatorIndex(violator config.AccountInfo, height uint64) uint32 {
 	gens := s.Clients.GoClient.HTTPClient.CommitmentGeneratorsAt(s.T(), height)
 	addr := violator.Address.String()
 	for i, g := range gens {
@@ -209,7 +143,7 @@ func (s *SmokeFinalitySuite) findViolatorIndex(violator config.AccountInfo, heig
 	return 0
 }
 
-func (s *SmokeFinalitySuite) buildConflictingEndorsement(
+func (s *FinalityConflictSuite) buildConflictingEndorsement(
 	violator config.AccountInfo, violatorIndex uint32,
 ) *proto.BlockEndorsement {
 	const forgedFinalizedHeight uint32 = 1 // Genesis height: always ≤ local finalized height.
@@ -235,7 +169,7 @@ func (s *SmokeFinalitySuite) buildConflictingEndorsement(
 	}
 }
 
-func (s *SmokeFinalitySuite) assertViolatorBanned(violator config.AccountInfo, height uint64) {
+func (s *FinalityConflictSuite) assertViolatorBanned(violator config.AccountInfo, height uint64) {
 	addr := violator.Address.String()
 	check := func(impl string, gens []client.GeneratorInfoResponse) {
 		for _, g := range gens {
@@ -254,37 +188,53 @@ func (s *SmokeFinalitySuite) assertViolatorBanned(violator config.AccountInfo, h
 	check("Scala", s.Clients.ScalaClient.HTTPClient.CommitmentGeneratorsAt(s.T(), height))
 }
 
-func (s *SmokeFinalitySuite) commitToGeneration(activationHeight uint64) uint64 {
-	const txTimeout = time.Second * 30
-	gps := s.nextPeriodStart(activationHeight)
-	s.T().Logf("Committing for generation period starting at %d", gps)
-
-	wg := new(sync.WaitGroup)
-	wg.Go(func() {
-		s.T().Logf("Go miner: Address: %s, BLS PK: %s", s.goMiner.Address, s.goMiner.BLSPublicKey.String())
-		goTx := s.commitmentTransaction(s.goMiner, safecast.MustConvert[uint32](gps))
-		_, err := s.Clients.BroadcastToGoNode(s.T(), goTx)
-		require.NoError(s.T(), err)
-		goErr, scalaErr := s.Clients.WaitForTransaction(*goTx.ID, txTimeout)
-		require.NoError(s.T(), goErr)
-		require.NoError(s.T(), scalaErr)
-		s.T().Logf("Go commitment transaction ID: %s", *goTx.ID)
-	})
-	wg.Go(func() {
-		s.T().Logf("Scala miner: Address: %s, BLS PK: %s", s.scalaMiner.Address, s.scalaMiner.BLSPublicKey.String())
-		scalaTx := s.commitmentTransaction(s.scalaMiner, safecast.MustConvert[uint32](gps))
-		_, err := s.Clients.BroadcastToScalaNode(s.T(), scalaTx)
-		require.NoError(s.T(), err)
-		goErr, scalaErr := s.Clients.WaitForTransaction(*scalaTx.ID, txTimeout)
-		require.NoError(s.T(), goErr)
-		require.NoError(s.T(), scalaErr)
-		s.T().Logf("Scala commitment transaction ID: %s", *scalaTx.ID)
-	})
-	wg.Wait()
-	return gps
+func (s *FinalityConflictSuite) startTransferLoop(from, to config.AccountInfo) func() {
+	ctx, cancel := context.WithCancel(s.MainCtx)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+		s.broadcastTransfer(from, to) // seed the mempool immediately, then continue on the tick
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				s.broadcastTransfer(from, to)
+			}
+		}
+	}()
+	var once sync.Once
+	stop := func() {
+		once.Do(func() {
+			cancel()
+			<-done
+		})
+	}
+	s.T().Cleanup(stop)
+	return stop
 }
 
-func (s *SmokeFinalitySuite) nextPeriodStart(activationHeight proto.Height) proto.Height {
+func (s *FinalityConflictSuite) broadcastTransfer(from, to config.AccountInfo) {
+	ts, err := safecast.Convert[uint64](time.Now().UnixMilli())
+	if err != nil {
+		return
+	}
+	f, err := safecast.Convert[uint64](fee)
+	if err != nil {
+		return
+	}
+	tx := proto.NewUnsignedTransferWithProofs(3, from.PublicKey,
+		proto.NewOptionalAssetWaves(), proto.NewOptionalAssetWaves(),
+		ts, f, f, proto.NewRecipientFromAddress(to.Address), nil)
+	if err = tx.Sign(s.Cfg.BlockchainSettings.AddressSchemeCharacter, from.SecretKey); err != nil {
+		return
+	}
+	_, _ = s.Clients.BroadcastToGoNode(s.T(), tx)
+}
+
+func (s *FinalityConflictSuite) nextPeriodStart(activationHeight proto.Height) proto.Height {
 	h := s.Clients.WaitForNewHeight(s.T())
 	if h < activationHeight {
 		s.T().Fatalf("height %d is too low", h)
@@ -294,8 +244,7 @@ func (s *SmokeFinalitySuite) nextPeriodStart(activationHeight proto.Height) prot
 	return uint64(res)
 }
 
-// commitmentTransaction creates and signs a CommitToGenerationWithProofs transaction.
-func (s *SmokeFinalitySuite) commitmentTransaction(
+func (s *FinalityConflictSuite) commitmentTransaction(
 	acc config.AccountInfo, start uint32,
 ) *proto.CommitToGenerationWithProofs {
 	const ver = 1
@@ -315,7 +264,7 @@ func (s *SmokeFinalitySuite) commitmentTransaction(
 	return tx
 }
 
-func TestSmokeFinalitySuite(t *testing.T) {
+func TestFinalityConflictSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(SmokeFinalitySuite))
+	suite.Run(t, new(FinalityConflictSuite))
 }

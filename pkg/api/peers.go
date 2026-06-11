@@ -26,12 +26,8 @@ type PeersKnown struct {
 // PeersAll is a list of all known not banned, not suspended and not blacklisted peers with a publicly
 // available declared address.
 func (a *App) PeersAll() (PeersKnown, error) {
-	suspended := a.peers.Suspended()
 	blackList := a.peers.BlackList()
-	restrictedIPsMap := make(map[string]struct{}, len(suspended)+len(blackList))
-	for _, suspendedPeer := range suspended {
-		restrictedIPsMap[suspendedPeer.IP.String()] = struct{}{}
-	}
+	restrictedIPsMap := make(map[string]struct{}, len(blackList))
 	for _, blackListedPeer := range blackList {
 		restrictedIPsMap[blackListedPeer.IP.String()] = struct{}{}
 	}
@@ -142,21 +138,6 @@ type RestrictedPeerInfo struct {
 	Hostname  string `json:"hostname"`
 	Timestamp int64  `json:"timestamp"` // nickeskov: timestamp in millis
 	Reason    string `json:"reason,omitempty"`
-}
-
-func (a *App) PeersSuspended() []RestrictedPeerInfo {
-	suspended := a.peers.Suspended()
-
-	out := make([]RestrictedPeerInfo, 0, len(suspended))
-	for _, p := range suspended {
-		out = append(out, RestrictedPeerInfo{
-			Hostname:  "/" + p.IP.String(),
-			Timestamp: p.RestrictTimestampMillis,
-			Reason:    p.Reason,
-		})
-	}
-
-	return out
 }
 
 func (a *App) PeersBlackListed() []RestrictedPeerInfo {

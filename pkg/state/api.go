@@ -158,11 +158,12 @@ type StateInfo interface {
 
 	// FindGenerator returns the first generator for which the lookup function returns true.
 	// The lookup function receives a copy of GeneratorInfo, so it cannot modify the stored data.
-	FindGenerator(func(GeneratorInfo) bool) (GeneratorInfo, error)
-	CommittedGenerators(height proto.Height) ([]GeneratorInfo, error)
+	FindGenerator(proto.Height, func(GeneratorInfo) bool) (GeneratorInfo, error)
+	CommittedGenerators(proto.Height) ([]GeneratorInfo, error)
 	LastFinalizedHeight() (proto.Height, error)
 	LastFinalizedBlock() (*proto.BlockHeader, error)
-	CheckRollbackHeightAuto(height proto.Height) error
+	CheckRollbackHeightAuto(proto.Height) error
+	BuildLocalEndorsementMessage(proto.Height, proto.BlockID) (proto.EndorsementCryptoMessage, error)
 }
 
 // StateModifier contains all the methods needed to modify node's state.

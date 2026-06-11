@@ -139,8 +139,8 @@ const (
 	commitmentKeyPrefix
 	// Key to store and retrieve last finalization record.
 	finalizationKeyPrefix
-	// Key to address the set of generators' indexes that are banned from block generation.
-	bannedGeneratorsKeyPrefix
+	// Key to address the set of generators.
+	generatorsKeyPrefix
 )
 
 var (
@@ -210,8 +210,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{commitmentKeyPrefix}, nil
 	case finalization:
 		return []byte{finalizationKeyPrefix}, nil
-	case bannedGenerators:
-		return []byte{bannedGeneratorsKeyPrefix}, nil
+	case generators:
+		return []byte{generatorsKeyPrefix}, nil
 	default:
 		return nil, errors.New("bad entity type")
 	}
@@ -797,4 +797,15 @@ func (k *commitmentStateHashKey) string() string {
 	binary.BigEndian.PutUint32(buf, k.periodStart)
 	binary.BigEndian.PutUint32(buf[uint32Size:], k.index)
 	return string(buf)
+}
+
+type generatorsKey struct {
+	height uint64
+}
+
+func (k *generatorsKey) bytes() []byte {
+	buf := make([]byte, 1+uint64Size)
+	buf[0] = generatorsKeyPrefix
+	binary.BigEndian.PutUint64(buf[1:], k.height)
+	return buf
 }

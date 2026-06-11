@@ -1711,7 +1711,7 @@ func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, erro
 		finalizationVoting = &fv
 	}
 	res := MicroBlock{
-		VersionField:          v,
+		VersionField:          BlockVersion(v),
 		Reference:             c.blockID(mb.MicroBlock.Reference),
 		TotalResBlockSigField: c.signature(mb.MicroBlock.UpdatedBlockSignature),
 		TotalBlockID:          c.blockID(mb.TotalBlockId),
@@ -1813,7 +1813,7 @@ func (c *ProtobufConverter) FinalizationVoting(finalizationVoting *g.Finalizatio
 	}
 	return FinalizationVoting{
 		EndorserIndexes:                indexes,
-		AggregatedEndorsementSignature: aggregatedSignature,
+		AggregatedEndorsementSignature: &aggregatedSignature,
 		ConflictEndorsements:           conflictEndorsements,
 		FinalizedBlockHeight:           finalizedBlockHeight,
 	}, nil

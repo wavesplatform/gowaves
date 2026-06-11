@@ -1013,3 +1013,25 @@ func (s *balances) reset() {
 	s.leaseHashesState = make(map[proto.BlockID]*stateForHashes)
 	s.leaseHashes = make(map[proto.BlockID]crypto.Digest)
 }
+
+func (s *balances) resetDeposit(addr proto.AddressID, blockID proto.BlockID) (uint64, uint64, error) {
+	balance, err := s.newestWavesBalance(addr)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to reset deposit: %w", err)
+	}
+	before := balance.Deposit
+	after, err := common.SubInt(before, Deposit)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to reset deposit: %w", err)
+	}
+	balance.Deposit = after
+	v := wavesValue{
+		profile:       balance,
+		leaseChange:   false,
+		balanceChange: false,
+	}
+	if sbErr := s.setWavesBalance(addr, v, blockID); sbErr != nil {
+		return 0, 0, fmt.Errorf("failed to reset deposit: %w", sbErr)
+	}
+	return before, after, nil
+}

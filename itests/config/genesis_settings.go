@@ -38,6 +38,9 @@ const (
 	defaultQuorum                  = 1 // Default quorum is 1 to allow mining without waiting for testnet client.
 
 	lightNodeBlockFieldsAbsenceInterval = 2
+
+	defaultGenerationPeriod = 5
+	defaultMaxEndorsements  = 3
 )
 
 var (

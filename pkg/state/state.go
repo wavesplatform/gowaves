@@ -73,7 +73,7 @@ type blockchainEntitiesStorage struct {
 	patches           *patchesStorage
 	commitments       *commitments
 	finality          *finality
-	generators        *generators
+	generators        *generatorsStorage
 	settings          *settings.BlockchainSettings
 	calculateHashes   bool
 }
@@ -1455,12 +1455,12 @@ func (s *stateManager) handleFinalizationUpdate(
 			blockID.String(), blockHeight, err,
 		)
 	}
-	if slog.Default().Enabled(context.Background(), slog.LevelInfo) {
+	if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
 		finalizedHeight, err := s.stor.finality.lastFinalizedHeight(blockHeight)
 		if err != nil {
 			return fmt.Errorf("failed to get last finalization height: %w", err)
 		}
-		slog.Info("Current finalization state", slog.Uint64("finalizedHeight", finalizedHeight),
+		slog.Debug("Current finalization state", slog.Uint64("finalizedHeight", finalizedHeight),
 			slog.Uint64("blockHeight", blockHeight), slog.String("blockID", blockID.String()))
 	}
 	return nil
@@ -1925,31 +1925,40 @@ func (s *stateManager) resetDeposits(nextBlockID proto.BlockID, lastBlockHeight 
 	if err != nil {
 		return fmt.Errorf("failed to reset deposits: %w", err)
 	}
-	generators, err := s.stor.commitments.newestGenerators(start)
+	committedGenerators, err := s.stor.commitments.newestGenerators(start)
 	if err != nil {
 		return fmt.Errorf("failed to reset deposits: %w", err)
 	}
-	for _, generator := range generators {
+	if len(committedGenerators) == 0 { // No commitments on the period, nothing to reset.
+		slog.Debug("No committed generators for the period, skipping deposit reset", "height", lastBlockHeight)
+		return nil
+	}
+	periodGenerators, err := s.stor.generators.generators(lastBlockHeight)
+	if err != nil {
+		return fmt.Errorf("failed to reset deposits: %w", err)
+	}
+	if cgl, pgl := len(committedGenerators), len(periodGenerators.Generators); cgl != pgl {
+		return fmt.Errorf(
+			"failed to reset deposits: committed generators count %d is not equal to period generators count %d",
+			cgl, pgl)
+	}
+	for i, generator := range committedGenerators {
 		addr, adrErr := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, generator)
 		if adrErr != nil {
 			return fmt.Errorf("failed to reset deposits: %w", adrErr)
 		}
-		balance, bErr := s.stor.balances.newestWavesBalance(addr.ID())
-		if bErr != nil {
-			return fmt.Errorf("failed to reset deposits: %w", bErr)
+		pg := periodGenerators.Generators[i]
+		if pg.BanHeight != 0 {
+			slog.Debug("Skipping deposit reset for banned generator", "height", lastBlockHeight,
+				"banHeight", pg.BanHeight, "index", i, "generator", addr.String())
+			continue
 		}
-		balance.Deposit, err = common.SubInt(balance.Deposit, Deposit)
-		if err != nil {
-			return fmt.Errorf("failed to reset deposits: %w", err)
+		before, after, rstErr := s.stor.balances.resetDeposit(addr.ID(), nextBlockID)
+		if rstErr != nil {
+			return fmt.Errorf("failed to reset deposits for generator '%s': %w", addr.String(), rstErr)
 		}
-		v := wavesValue{
-			profile:       balance,
-			leaseChange:   false,
-			balanceChange: false,
-		}
-		if sbErr := s.stor.balances.setWavesBalance(addr.ID(), v, nextBlockID); sbErr != nil {
-			return fmt.Errorf("failed to reset deposits: %w", sbErr)
-		}
+		slog.Debug("Generator deposit successfully reset", "generator", addr.String(),
+			"deposit_before", before, "deposit_after", after)
 	}
 	return nil
 }
@@ -3556,13 +3565,13 @@ func (s *stateManager) CalculateVotingFinalization(endorsers []proto.WavesAddres
 
 // FindGenerator retrieves the generator's information by a lookup function that is applied to current generators set.
 // Available lookup functions: ByBLSPublicKey.
-func (s *stateManager) FindGenerator(lookup func(GeneratorInfo) bool) (GeneratorInfo, error) {
-	return s.stor.generators.findGenerator(lookup)
+func (s *stateManager) FindGenerator(height proto.Height, lookup func(GeneratorInfo) bool) (GeneratorInfo, error) {
+	return s.stor.generators.findGenerator(height, lookup)
 }
 
 // CommittedGenerators returns the list of Waves addresses of committed generators.
 func (s *stateManager) CommittedGenerators(height proto.Height) ([]GeneratorInfo, error) {
-	return s.stor.generators.generatorsByHeight(height)
+	return s.stor.generators.infos(height)
 }
 
 func (s *stateManager) LastFinalizedHeight() (proto.Height, error) {
@@ -3596,4 +3605,12 @@ func (s *stateManager) LastFinalizedBlock() (*proto.BlockHeader, error) {
 // It checks feature activation using newestIsActivatedAtHeight function.
 func (s *stateManager) NewestMinimalGeneratingBalanceAtHeight(height proto.Height, ts uint64) uint64 {
 	return s.stor.features.minimalGeneratingBalanceAtHeight(height, ts)
+}
+
+// BuildLocalEndorsementMessage creates endorsement crypto message from local state of finalization at given height and
+// for given parent block ID.
+func (s *stateManager) BuildLocalEndorsementMessage(
+	height proto.Height, parentID proto.BlockID,
+) (proto.EndorsementCryptoMessage, error) {
+	return s.stor.finality.buildLocalEndorsementMessage(height, parentID)
 }
