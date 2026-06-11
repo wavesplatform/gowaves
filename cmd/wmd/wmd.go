@@ -164,16 +164,16 @@ func run() error {
 
 	if *rollback != 0 {
 		slog.Info("Rollback was requested, rolling back...", "height", *rollback)
-		rh, err := storage.SafeRollbackHeight(*rollback)
-		if err != nil {
-			slog.Error("Failed to find the correct height of rollback", logging.Error(err))
-			return nil
+		rh, rbErr := storage.SafeRollbackHeight(*rollback)
+		if rbErr != nil {
+			slog.Error("Failed to find the correct height of rollback", logging.Error(rbErr))
+			return rbErr
 		}
 		slog.Info("Nearest correct height of rollback", "height", rh)
-		err = storage.Rollback(rh)
-		if err != nil {
-			slog.Error("Failed to rollback", slog.Int("height", rh), logging.Error(err))
-			return nil
+		rbErr2 := storage.Rollback(rh)
+		if rbErr2 != nil {
+			slog.Error("Failed to rollback", slog.Int("height", rh), logging.Error(rbErr2))
+			return rbErr2
 		}
 		slog.Info("Successfully rolled back", "height", rh)
 	}
@@ -205,13 +205,14 @@ func run() error {
 	symbols, err := data.NewSymbolsFromFile(*symbolsFile, oracleAddr, sch)
 	if err != nil {
 		slog.Error("Failed to load symbol substitutions", logging.Error(err))
-		return nil
+		return err
 	}
 	slog.Info("Imported symbol substitutions", "count", symbols.Count())
 
 	h, err := storage.Height()
 	if err != nil {
 		slog.Warn("Failed to get current height", logging.Error(err))
+		return err
 	}
 	slog.Info("Last stored height", "height", h)
 
@@ -220,15 +221,15 @@ func run() error {
 	}
 
 	if *importFile != "" {
-		if _, err := os.Stat(*importFile); errors.Is(err, fs.ErrNotExist) {
-			slog.Error("Failed to import blockchain from file", logging.Error(err))
-			return err
+		if _, stErr := os.Stat(*importFile); errors.Is(stErr, fs.ErrNotExist) {
+			slog.Error("Failed to import blockchain from file", logging.Error(stErr))
+			return stErr
 		}
 		importer := internal.NewImporter(interrupt, sch, &storage, matchers)
-		err := importer.Import(*importFile)
-		if err != nil {
-			slog.Error("Failed to import blockchain file", slog.String("file", *importFile), logging.Error(err))
-			return err
+		imErr := importer.Import(*importFile)
+		if imErr != nil {
+			slog.Error("Failed to import blockchain file", slog.String("file", *importFile), logging.Error(imErr))
+			return imErr
 		}
 	}
 
