@@ -664,9 +664,7 @@ func (a *NGState) mineMicro(
 		return a, nil, a.Errorf(errors.Wrap(err, "failed to generate microblock"))
 	}
 	metrics.MicroBlockMined(micro, block.TransactionCount)
-
-	finNonNil := block.FinalizationVoting != nil
-	if finNonNil {
+	if micro.PartialFinalization != nil {
 		slog.Debug("Mined micro-block with non-empty finalization voting")
 	}
 	err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
