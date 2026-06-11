@@ -3,6 +3,7 @@ package endorsementpool_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -11,58 +12,25 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-func dummyBLSSK(t *testing.T) bls.SecretKey {
+func newKeyPair(t *testing.T, seed string) (bls.SecretKey, bls.PublicKey) {
 	t.Helper()
-	sk, err := bls.GenerateSecretKey([]byte("endorsement-pool-test-key"))
+	sk, err := bls.GenerateSecretKey([]byte(seed))
 	require.NoError(t, err)
-	return sk
-}
-
-func dummyBLSPK(t *testing.T) bls.PublicKey {
-	t.Helper()
-	sk := dummyBLSSK(t)
 	pk, err := sk.PublicKey()
 	require.NoError(t, err)
-	return pk
+	return sk, pk
 }
 
-func newDummyEndorsement(t *testing.T, idx uint32, _ string) *proto.BlockEndorsement {
-	d, err := crypto.FastHash([]byte("dummy-endorsed-block"))
-	require.NoError(t, err)
-	id := proto.NewBlockIDFromDigest(d)
-	e := &proto.BlockEndorsement{
-		EndorserIndex:        idx,
-		EndorsedBlockID:      id,
-		FinalizedBlockHeight: 1,
-		FinalizedBlockID:     id,
-	}
-	signEndorsement(t, e, dummyBLSSK(t))
-	return e
-}
-
-const sigOne = "nBWfaRLW7EdcwxhDMaXuZZFMhHyowAxY7476rkBsUUeguTXrMSNuTVkuWLmZjRmRfgMXEGuvdHiu1V7joRFSLz3X6MQBF8m88kHJE" +
-	"j6Tc2ktBnMTzihh2JMGpuuWBLSK8rv"
-const sigTwo = "RNMTkL736x3TmXfjQufKnxSgySaaoec3WYnxmujcum9BHEmCdjmwvjoUehghqYCWJcNj5CNfb9QdnujV9o2DRitbLgq2bnLdTU5s" +
-	"1DLBWBkVx8mBayvdfx7rPZ3mtUWeh5L"
-const sigThree = "U8GEty7F58p7QZrNAxRYrfMSU4z6CwtiukBu9hGDP9rLx3VmF9ZYy8bHWBCTDTYW7s2juqRHU3aERUJfgx3KhxBdv57UFb34" +
-	"evuW9wYQKKoCTbfasfZENM4GDbPdL2nQYKY"
-const sigFour = "2F4sw8YzXpSf93ACAngoTnNxCaYWoGL4vY88RYgEs3BeSsnAmMGmVSfe8h6hybkfb6CYoUwV1prRbYWo6umrL9evmTPeksdaQ" +
-	"rp19eTcwxZLBtPzbwqonCbEX8eDJVTydRBo"
-
-const finalizedHeightEndorsement = 1
-
-func signEndorsement(t *testing.T, e *proto.BlockEndorsement, sk bls.SecretKey) {
+func newBlockID(t *testing.T, s string) proto.BlockID {
 	t.Helper()
-	msg, err := e.CryptoMessage().Bytes()
+	d, err := crypto.FastHash([]byte(s))
 	require.NoError(t, err)
-	sig, err := bls.Sign(sk, msg)
-	require.NoError(t, err)
-	e.Signature = sig
+	return proto.NewBlockIDFromDigest(d)
 }
 
-func newSignedEndorsement(
+func signedEndorsement(
 	t *testing.T,
-	endorserIndex uint32,
+	idx uint32,
 	finalizedID proto.BlockID,
 	finalizedHeight uint32,
 	endorsedID proto.BlockID,
@@ -70,409 +38,443 @@ func newSignedEndorsement(
 ) *proto.BlockEndorsement {
 	t.Helper()
 	e := &proto.BlockEndorsement{
-		EndorserIndex:        endorserIndex,
+		EndorserIndex:        idx,
 		FinalizedBlockID:     finalizedID,
 		FinalizedBlockHeight: finalizedHeight,
 		EndorsedBlockID:      endorsedID,
 	}
-	signEndorsement(t, e, sk)
+	msg, err := e.CryptoMessage().Bytes()
+	require.NoError(t, err)
+	sig, err := bls.Sign(sk, msg)
+	require.NoError(t, err)
+	e.Signature = sig
 	return e
 }
 
+// roundEndorsement creates an endorsement for a canonical "test round": finalizedID="fin", height=1, endorsedID="end".
+func roundEndorsement(t *testing.T, idx uint32, sk bls.SecretKey) *proto.BlockEndorsement {
+	t.Helper()
+	return signedEndorsement(t, idx, newBlockID(t, "fin"), 1, newBlockID(t, "end"), sk)
+}
+
 func addToPool(
-	t *testing.T,
-	pool *endorsementpool.EndorsementPool,
-	e *proto.BlockEndorsement,
-	pk bls.PublicKey,
-	balance uint64,
+	t *testing.T, pool *endorsementpool.EndorsementPool, e *proto.BlockEndorsement, pk bls.PublicKey, balance uint64,
 ) {
 	t.Helper()
-	_, err := pool.Add(e, pk, finalizedHeightEndorsement, balance, e.EndorsedBlockID)
+	_, err := pool.Add(e, pk, balance)
 	require.NoError(t, err)
 }
 
-func TestEndorsementPool_PriorityByBalance(t *testing.T) {
+func TestPool_PriorityByBalance(t *testing.T) {
 	pool, err := endorsementpool.NewEndorsementPool(5)
 	require.NoError(t, err)
-	e1 := newDummyEndorsement(t, 1, sigOne)
-	e2 := newDummyEndorsement(t, 2, sigTwo)
-	e3 := newDummyEndorsement(t, 3, sigThree)
-	pk := dummyBLSPK(t)
 
-	addToPool(t, pool, e1, pk, 10)
-	addToPool(t, pool, e2, pk, 20)
-	addToPool(t, pool, e3, pk, 30)
+	sk, pk := newKeyPair(t, "k")
+	addToPool(t, pool, roundEndorsement(t, 1, sk), pk, 10)
+	addToPool(t, pool, roundEndorsement(t, 2, sk), pk, 20)
+	addToPool(t, pool, roundEndorsement(t, 3, sk), pk, 30)
 
 	all := pool.GetAll()
 	require.Len(t, all, 3)
 
-	minBalance := uint64(0)
 	for _, e := range all {
 		if e.EndorserIndex == 1 {
-			minBalance = 10
+			assert.Equal(t, uint32(1), e.EndorserIndex) // lowest balance stays while below cap
 		}
 	}
-	require.Equal(t, uint64(10), minBalance)
 }
 
-func TestEndorsementPool_PriorityBySeqWhenEqualBalance(t *testing.T) {
-	pool, err := endorsementpool.NewEndorsementPool(3)
-	require.NoError(t, err)
-	e1 := newDummyEndorsement(t, 1, sigOne)
-	e2 := newDummyEndorsement(t, 2, sigTwo)
-	pk := dummyBLSPK(t)
-
-	addToPool(t, pool, e1, pk, 100)
-	addToPool(t, pool, e2, pk, 100)
-
-	all := pool.GetAll()
-	require.Len(t, all, 2)
-
-	// Balance e1 and e2 are equal, so we check by seq.
-	e3 := newDummyEndorsement(t, 3, sigThree)
-	addToPool(t, pool, e3, pk, 100)
-
-	require.Equal(t, 3, pool.Len())
-}
-
-func TestEndorsementPool_RemoveLowPriorityWhenFull(t *testing.T) {
-	pool, err := endorsementpool.NewEndorsementPool(3)
-	require.NoError(t, err)
-	pk := dummyBLSPK(t)
-	addToPool(t, pool, newDummyEndorsement(t, 1, sigOne), pk, 10)
-	addToPool(t, pool, newDummyEndorsement(t, 2, sigTwo), pk, 20)
-	addToPool(t, pool, newDummyEndorsement(t, 3, sigThree), pk, 30)
-
-	require.Equal(t, 3, pool.Len())
-
-	addToPool(t, pool, newDummyEndorsement(t, 4, sigFour), pk, 40)
-
-	all := pool.GetAll()
-	require.Equal(t, 3, len(all), "pool size must remain constant when full")
-
-	// Low priority (balance=10) should be evicted.
-	found10 := false
-	for _, e := range all {
-		if e.EndorserIndex == 1 {
-			found10 = true
-		}
-	}
-	require.False(t, found10, "low priority (balance=10) should be evicted")
-}
-
-func TestEndorsementPool_RejectLowBalanceWhenFull(t *testing.T) {
+func TestPool_EqualBalanceEarlierArrivalWins(t *testing.T) {
 	pool, err := endorsementpool.NewEndorsementPool(2)
 	require.NoError(t, err)
-	pk := dummyBLSPK(t)
-	addToPool(t, pool, newDummyEndorsement(t, 1, sigOne), pk, 50)
-	addToPool(t, pool, newDummyEndorsement(t, 2, sigTwo), pk, 60)
+
+	sk, pk := newKeyPair(t, "k")
+	addToPool(t, pool, roundEndorsement(t, 1, sk), pk, 100)
+	addToPool(t, pool, roundEndorsement(t, 2, sk), pk, 100)
 	require.Equal(t, 2, pool.Len())
 
-	// Low balance (30) shouldn't get added.
-	addToPool(t, pool, newDummyEndorsement(t, 3, sigThree), pk, 30)
-	require.Equal(t, 2, pool.Len(), "low-priority endorsement should be rejected")
+	// Third endorsement with same balance: pool is full, equal balance → reject.
+	added, err := pool.Add(roundEndorsement(t, 3, sk), pk, 100)
+	require.NoError(t, err)
+	assert.False(t, added, "equal-balance endorsement must not displace earlier arrival")
+	assert.Equal(t, 2, pool.Len())
+}
 
-	// High balance (100) should evict the lowest (50).
-	addToPool(t, pool, newDummyEndorsement(t, 4, sigFour), pk, 100)
+func TestPool_EvictLowerBalanceWhenFull(t *testing.T) {
+	pool, err := endorsementpool.NewEndorsementPool(3)
+	require.NoError(t, err)
+
+	sk, pk := newKeyPair(t, "k")
+	addToPool(t, pool, roundEndorsement(t, 1, sk), pk, 10)
+	addToPool(t, pool, roundEndorsement(t, 2, sk), pk, 20)
+	addToPool(t, pool, roundEndorsement(t, 3, sk), pk, 30)
+	require.Equal(t, 3, pool.Len())
+
+	added, err := pool.Add(roundEndorsement(t, 4, sk), pk, 40)
+	require.NoError(t, err)
+	assert.True(t, added)
+
+	all := pool.GetAll()
+	require.Equal(t, 3, len(all))
+
+	for _, e := range all {
+		assert.NotEqual(t, uint32(1), e.EndorserIndex, "lowest-balance (index 1) must be evicted")
+	}
+}
+
+func TestPool_RejectLowerOrEqualBalanceWhenFull(t *testing.T) {
+	pool, err := endorsementpool.NewEndorsementPool(2)
+	require.NoError(t, err)
+
+	sk, pk := newKeyPair(t, "k")
+	addToPool(t, pool, roundEndorsement(t, 1, sk), pk, 50)
+	addToPool(t, pool, roundEndorsement(t, 2, sk), pk, 60)
+	require.Equal(t, 2, pool.Len())
+
+	// Lower balance: reject.
+	added, err := pool.Add(roundEndorsement(t, 3, sk), pk, 30)
+	require.NoError(t, err)
+	assert.False(t, added)
+	assert.Equal(t, 2, pool.Len())
+
+	// Equal to minimum: reject.
+	added, err = pool.Add(roundEndorsement(t, 3, sk), pk, 50)
+	require.NoError(t, err)
+	assert.False(t, added)
+	assert.Equal(t, 2, pool.Len())
+
+	// Strictly higher: evict minimum (index 1, balance 50), insert new.
+	added, err = pool.Add(roundEndorsement(t, 4, sk), pk, 100)
+	require.NoError(t, err)
+	assert.True(t, added)
 	require.Equal(t, 2, pool.Len())
 
 	all := pool.GetAll()
-	found50 := false
 	for _, e := range all {
-		if e.EndorserIndex == 1 {
-			found50 = true
-		}
+		assert.NotEqual(t, uint32(1), e.EndorserIndex, "index 1 (balance 50) must be evicted")
 	}
-	require.False(t, found50, "element with lowest balance should be evicted")
 }
 
-func TestEndorsementPool_ShouldIgnoreEndorsement(t *testing.T) {
+func TestPool_DuplicateGeneratorIgnored(t *testing.T) {
 	pool, err := endorsementpool.NewEndorsementPool(5)
 	require.NoError(t, err)
 
-	finalizedDigest, err := crypto.FastHash([]byte("finalized"))
-	require.NoError(t, err)
-	endorsedDigestA, err := crypto.FastHash([]byte("endorsed-a"))
-	require.NoError(t, err)
-	endorsedDigestB, err := crypto.FastHash([]byte("endorsed-b"))
-	require.NoError(t, err)
+	sk, pk := newKeyPair(t, "k")
+	addToPool(t, pool, roundEndorsement(t, 1, sk), pk, 100)
 
-	finalizedID := proto.NewBlockIDFromDigest(finalizedDigest)
-	endorsedIDA := proto.NewBlockIDFromDigest(endorsedDigestA)
-	endorsedIDB := proto.NewBlockIDFromDigest(endorsedDigestB)
-
-	sk1, err := bls.GenerateSecretKey([]byte("endorser-seed-1"))
+	added, err := pool.Add(roundEndorsement(t, 1, sk), pk, 200)
 	require.NoError(t, err)
-	pk1, err := sk1.PublicKey()
-	require.NoError(t, err)
-
-	invalid := newSignedEndorsement(t, 0, finalizedID, 5, endorsedIDA, sk1)
-	sk2, err := bls.GenerateSecretKey([]byte("endorser-seed-2"))
-	require.NoError(t, err)
-	pk2, err := sk2.PublicKey()
-	require.NoError(t, err)
-	require.True(t, pool.ShouldIgnoreEndorsement(invalid, pk2, 5, endorsedIDA))
-
-	future := newSignedEndorsement(t, 0, finalizedID, 10, endorsedIDA, sk1)
-	require.True(t, pool.ShouldIgnoreEndorsement(future, pk1, 5, endorsedIDA))
-
-	base := newSignedEndorsement(t, 0, finalizedID, 5, endorsedIDA, sk1)
-	_, err = pool.Add(base, pk1, 5, 100, endorsedIDA)
-	require.NoError(t, err)
-
-	otherRound := newSignedEndorsement(t, 1, finalizedID, 5, endorsedIDB, sk1)
-	require.True(t, pool.ShouldIgnoreEndorsement(otherRound, pk1, 5, endorsedIDA))
-
-	conflictFinalized := newSignedEndorsement(t, 2, endorsedIDA, 5, endorsedIDA, sk1)
-	require.False(t, pool.ShouldIgnoreEndorsement(conflictFinalized, pk1, 5, endorsedIDA))
+	assert.False(t, added, "duplicate generator must be silently rejected")
+	assert.Equal(t, 1, pool.Len())
 }
 
-func TestEndorsementPool_CleanProcessed_RemovesOnlyProcessedItems(t *testing.T) {
+func TestPool_HasUpdateAfterAdd(t *testing.T) {
 	pool, err := endorsementpool.NewEndorsementPool(5)
 	require.NoError(t, err)
 
-	sk1, err := bls.GenerateSecretKey([]byte("cp-sk-1"))
-	require.NoError(t, err)
-	pk1, err := sk1.PublicKey()
-	require.NoError(t, err)
-	sk2, err := bls.GenerateSecretKey([]byte("cp-sk-2"))
-	require.NoError(t, err)
-	pk2, err := sk2.PublicKey()
-	require.NoError(t, err)
-	sk3, err := bls.GenerateSecretKey([]byte("cp-sk-3"))
-	require.NoError(t, err)
-	pk3, err := sk3.PublicKey()
+	assert.False(t, pool.HasUpdate(), "fresh pool must have no update")
+
+	sk, pk := newKeyPair(t, "k")
+	addToPool(t, pool, roundEndorsement(t, 1, sk), pk, 100)
+
+	assert.True(t, pool.HasUpdate(), "HasUpdate must be true after Add")
+}
+
+func TestPool_HasUpdateClearedByCommitFinalization(t *testing.T) {
+	pool, err := endorsementpool.NewEndorsementPool(5)
 	require.NoError(t, err)
 
-	finalizedDigest, err := crypto.FastHash([]byte("cp-finalized"))
-	require.NoError(t, err)
-	endorsedDigest, err := crypto.FastHash([]byte("cp-endorsed"))
-	require.NoError(t, err)
-	finalizedID := proto.NewBlockIDFromDigest(finalizedDigest)
-	endorsedID := proto.NewBlockIDFromDigest(endorsedDigest)
-
-	e1 := newSignedEndorsement(t, 1, finalizedID, 1, endorsedID, sk1)
-	e2 := newSignedEndorsement(t, 2, finalizedID, 1, endorsedID, sk2)
-	addToPool(t, pool, e1, pk1, 100)
-	addToPool(t, pool, e2, pk2, 200)
-	require.Equal(t, 2, pool.Len())
+	sk, pk := newKeyPair(t, "k")
+	addToPool(t, pool, roundEndorsement(t, 1, sk), pk, 100)
+	require.True(t, pool.HasUpdate())
 
 	_, err = pool.FormFinalization()
 	require.NoError(t, err)
+	assert.True(t, pool.HasUpdate(), "HasUpdate must remain true after FormFinalization alone")
 
-	// e3 arrives after FormFinalization and must survive CleanProcessed.
-	e3 := newSignedEndorsement(t, 3, finalizedID, 1, endorsedID, sk3)
-	addToPool(t, pool, e3, pk3, 150)
-	require.Equal(t, 3, pool.Len())
+	pool.CommitFinalization()
+	assert.False(t, pool.HasUpdate(), "HasUpdate must be false only after CommitFinalization")
+}
 
-	pool.CleanProcessed()
+func TestPool_HasUpdateSetAgainByNewAdd(t *testing.T) {
+	pool, err := endorsementpool.NewEndorsementPool(5)
+	require.NoError(t, err)
 
+	sk1, pk1 := newKeyPair(t, "k1")
+	sk2, pk2 := newKeyPair(t, "k2")
+
+	addToPool(t, pool, roundEndorsement(t, 1, sk1), pk1, 100)
+	_, err = pool.FormFinalization()
+	require.NoError(t, err)
+	pool.CommitFinalization()
+	require.False(t, pool.HasUpdate())
+
+	addToPool(t, pool, roundEndorsement(t, 2, sk2), pk2, 200)
+	assert.True(t, pool.HasUpdate(), "HasUpdate must be true again after a new endorsement arrives")
+}
+
+func TestPool_HasUpdateSetByEviction(t *testing.T) {
+	pool, err := endorsementpool.NewEndorsementPool(2)
+	require.NoError(t, err)
+
+	sk1, pk1 := newKeyPair(t, "k1")
+	sk2, pk2 := newKeyPair(t, "k2")
+	sk3, pk3 := newKeyPair(t, "k3")
+
+	addToPool(t, pool, roundEndorsement(t, 1, sk1), pk1, 10)
+	addToPool(t, pool, roundEndorsement(t, 2, sk2), pk2, 20)
+
+	_, err = pool.FormFinalization()
+	require.NoError(t, err)
+	pool.CommitFinalization()
+	require.False(t, pool.HasUpdate())
+
+	// Higher-balance endorsement evicts the minimum → snapshot changed.
+	added, err := pool.Add(roundEndorsement(t, 3, sk3), pk3, 50)
+	require.NoError(t, err)
+	require.True(t, added)
+	assert.True(t, pool.HasUpdate(), "HasUpdate must be true after eviction changes the snapshot")
+}
+
+func TestPool_AddConflictReturnsTrueOnlyOnce(t *testing.T) {
+	pool, err := endorsementpool.NewEndorsementPool(5)
+	require.NoError(t, err)
+
+	sk, _ := newKeyPair(t, "k")
+	e := roundEndorsement(t, 1, sk)
+
+	assert.True(t, pool.AddConflict(e), "first conflicting endorsement must be accepted")
+	assert.False(t, pool.AddConflict(e), "subsequent conflict for same generator must be dropped")
+}
+
+func TestPool_HasUpdateRemainsAfterFormFinalizationWithoutCommit(t *testing.T) {
+	// Regression: if the microblock carrying a voting is never applied (e.g. ErrStateChanged),
+	// HasUpdate must remain true so the next microblock attempt re-includes the voting.
+	pool, err := endorsementpool.NewEndorsementPool(5)
+	require.NoError(t, err)
+
+	sk, pk := newKeyPair(t, "k")
+	addToPool(t, pool, roundEndorsement(t, 1, sk), pk, 100)
+	require.True(t, pool.HasUpdate())
+
+	// Simulate a microblock that was prepared but never applied.
+	_, err = pool.FormFinalization()
+	require.NoError(t, err)
+	// No CommitFinalization call.
+
+	assert.True(t, pool.HasUpdate(),
+		"HasUpdate must remain true — voting was never committed to an applied microblock")
+}
+
+func TestPool_ConflictRemovesGeneratorFromGoodPool(t *testing.T) {
+	pool, err := endorsementpool.NewEndorsementPool(5)
+	require.NoError(t, err)
+
+	sk, pk := newKeyPair(t, "k")
+	addToPool(t, pool, roundEndorsement(t, 1, sk), pk, 100)
 	require.Equal(t, 1, pool.Len())
-	remaining := pool.GetAll()
-	require.Len(t, remaining, 1)
-	require.Equal(t, uint32(3), remaining[0].EndorserIndex)
+	require.True(t, pool.HasUpdate())
+
+	_, err = pool.FormFinalization()
+	require.NoError(t, err)
+	pool.CommitFinalization()
+	require.False(t, pool.HasUpdate())
+
+	// The same generator now conflicts → removed from snapshot.
+	ok := pool.AddConflict(roundEndorsement(t, 1, sk))
+	assert.True(t, ok)
+	assert.Equal(t, 0, pool.Len())
+	assert.True(t, pool.HasUpdate(), "HasUpdate must be true: snapshot shrank")
 }
 
-func TestEndorsementPool_CleanProcessed_PreservesConflictsArrivedAfterFormFinalization(t *testing.T) {
+func TestPool_ConflictGeneratorRejectedOnSubsequentAdd(t *testing.T) {
 	pool, err := endorsementpool.NewEndorsementPool(5)
 	require.NoError(t, err)
 
-	sk1, err := bls.GenerateSecretKey([]byte("cp-conf-sk-1"))
+	sk, pk := newKeyPair(t, "k")
+	pool.AddConflict(roundEndorsement(t, 1, sk))
+
+	added, err := pool.Add(roundEndorsement(t, 1, sk), pk, 100)
 	require.NoError(t, err)
-	pk1, err := sk1.PublicKey()
+	assert.False(t, added, "generator with a recorded conflict must not be added to the good pool")
+}
+
+func TestPool_HasUpdateSetByNewConflict(t *testing.T) {
+	pool, err := endorsementpool.NewEndorsementPool(5)
 	require.NoError(t, err)
 
-	finalizedDigest, err := crypto.FastHash([]byte("cp-conf-finalized"))
-	require.NoError(t, err)
-	endorsedDigest, err := crypto.FastHash([]byte("cp-conf-endorsed"))
-	require.NoError(t, err)
-	finalizedID := proto.NewBlockIDFromDigest(finalizedDigest)
-	endorsedID := proto.NewBlockIDFromDigest(endorsedDigest)
+	sk, _ := newKeyPair(t, "k")
+	assert.False(t, pool.HasUpdate())
+	pool.AddConflict(roundEndorsement(t, 1, sk))
+	assert.True(t, pool.HasUpdate(), "a new conflict alone must set HasUpdate")
+}
 
-	e1 := newSignedEndorsement(t, 1, finalizedID, 1, endorsedID, sk1)
-	addToPool(t, pool, e1, pk1, 100)
+func TestPool_FormFinalization_SnapshotIsFullCurrentSet(t *testing.T) {
+	pool, err := endorsementpool.NewEndorsementPool(5)
+	require.NoError(t, err)
 
-	// Conflict added before FormFinalization — should be removed by CleanProcessed.
-	conflictBefore := newSignedEndorsement(t, 99, finalizedID, 1, endorsedID, sk1)
-	pool.AddConflict(conflictBefore)
+	sk1, pk1 := newKeyPair(t, "k1")
+	sk2, pk2 := newKeyPair(t, "k2")
+	addToPool(t, pool, roundEndorsement(t, 1, sk1), pk1, 100)
+	addToPool(t, pool, roundEndorsement(t, 2, sk2), pk2, 200)
+
+	fv, err := pool.FormFinalization()
+	require.NoError(t, err)
+	assert.Len(t, fv.EndorserIndexes, 2)
+	assert.NotNil(t, fv.AggregatedEndorsementSignature)
+	assert.Empty(t, fv.ConflictEndorsements, "no conflicts were added")
+}
+
+func TestPool_FormFinalization_OnlyNewConflictsIncluded(t *testing.T) {
+	pool, err := endorsementpool.NewEndorsementPool(5)
+	require.NoError(t, err)
+
+	sk, pk := newKeyPair(t, "k")
+	addToPool(t, pool, roundEndorsement(t, 1, sk), pk, 100)
+
+	// Conflict added before first FormFinalization.
+	pool.AddConflict(roundEndorsement(t, 10, sk))
+
+	fv1, err := pool.FormFinalization()
+	require.NoError(t, err)
+	pool.CommitFinalization()
+	require.Len(t, fv1.ConflictEndorsements, 1, "first call must include the one conflict")
+	assert.NotNil(t, fv1.AggregatedEndorsementSignature)
+	assert.Len(t, fv1.EndorserIndexes, 1)
+
+	require.False(t, pool.HasUpdate())
+
+	// New conflict added after commit — snapshot is unchanged.
+	pool.AddConflict(roundEndorsement(t, 11, sk))
+	require.True(t, pool.HasUpdate())
+
+	fv2, err := pool.FormFinalization()
+	require.NoError(t, err)
+	// Conflicts: only the new one.
+	assert.Len(t, fv2.ConflictEndorsements, 1, "second call must include only the new conflict")
+	assert.Equal(t, uint32(11), fv2.ConflictEndorsements[0].EndorserIndex)
+	// Snapshot: always the full current set (CombineFinalizationVoting takes voting2 as base).
+	assert.NotNil(t, fv2.AggregatedEndorsementSignature, "snapshot must always be present for CombineFinalizationVoting")
+	assert.Len(t, fv2.EndorserIndexes, 1)
+}
+
+func TestPool_FormFinalization_SnapshotAlwaysPresentForCombine(t *testing.T) {
+	// CombineFinalizationVoting uses voting2 (the newer one) as the structural base.
+	// An empty snapshot in voting2 would cause the combined result to lose the snapshot,
+	// so the pool must always include the full current snapshot regardless of whether
+	// good endorsements changed since the last call.
+	pool, err := endorsementpool.NewEndorsementPool(5)
+	require.NoError(t, err)
+
+	sk1, pk1 := newKeyPair(t, "k1")
+	sk2, _ := newKeyPair(t, "k2")
+
+	addToPool(t, pool, roundEndorsement(t, 1, sk1), pk1, 100)
+	_, err = pool.FormFinalization()
+	require.NoError(t, err)
+	pool.CommitFinalization()
+
+	// Only a conflict arrives — snapshot of good endorsements is unchanged.
+	pool.AddConflict(roundEndorsement(t, 2, sk2))
+
+	fv, err := pool.FormFinalization()
+	require.NoError(t, err)
+	assert.NotNil(t, fv.AggregatedEndorsementSignature, "snapshot must be present even when only conflicts changed")
+	assert.Len(t, fv.EndorserIndexes, 1)
+	assert.Len(t, fv.ConflictEndorsements, 1)
+}
+
+func TestPool_FormFinalization_SnapshotAlwaysFull(t *testing.T) {
+	// After a new endorsement arrives post-FormFinalization, the snapshot
+	// must contain ALL current good endorsements (not just the delta).
+	pool, err := endorsementpool.NewEndorsementPool(5)
+	require.NoError(t, err)
+
+	sk1, pk1 := newKeyPair(t, "k1")
+	sk2, pk2 := newKeyPair(t, "k2")
+	addToPool(t, pool, roundEndorsement(t, 1, sk1), pk1, 100)
 
 	_, err = pool.FormFinalization()
 	require.NoError(t, err)
 
-	// Conflict added after FormFinalization — must survive CleanProcessed.
-	conflictAfter := newSignedEndorsement(t, 100, finalizedID, 1, endorsedID, sk1)
-	pool.AddConflict(conflictAfter)
+	addToPool(t, pool, roundEndorsement(t, 2, sk2), pk2, 200)
 
-	pool.CleanProcessed()
-
-	conflicts := pool.ConflictEndorsements()
-	require.Len(t, conflicts, 1)
-	require.Equal(t, uint32(100), conflicts[0].EndorserIndex)
+	fv, err := pool.FormFinalization()
+	require.NoError(t, err)
+	assert.Len(t, fv.EndorserIndexes, 2, "snapshot must include both endorsers")
 }
 
-func TestEndorsementPool_CleanAll_RemovesEverythingWithoutFormFinalization(t *testing.T) {
+func TestPool_FormFinalization_ConflictsOnlyNoGoodEndorsements(t *testing.T) {
+	// Pool with only conflicts and no good endorsements.
 	pool, err := endorsementpool.NewEndorsementPool(5)
 	require.NoError(t, err)
 
-	sk1, err := bls.GenerateSecretKey([]byte("ca-noff-sk-1"))
-	require.NoError(t, err)
-	pk1, err := sk1.PublicKey()
-	require.NoError(t, err)
-	sk2, err := bls.GenerateSecretKey([]byte("ca-noff-sk-2"))
-	require.NoError(t, err)
-	pk2, err := sk2.PublicKey()
-	require.NoError(t, err)
+	sk, _ := newKeyPair(t, "k")
+	pool.AddConflict(roundEndorsement(t, 1, sk))
+	require.True(t, pool.HasUpdate())
 
-	finalizedDigest, err := crypto.FastHash([]byte("ca-noff-finalized"))
+	fv, err := pool.FormFinalization()
 	require.NoError(t, err)
-	endorsedDigest, err := crypto.FastHash([]byte("ca-noff-endorsed"))
-	require.NoError(t, err)
-	finalizedID := proto.NewBlockIDFromDigest(finalizedDigest)
-	endorsedID := proto.NewBlockIDFromDigest(endorsedDigest)
-
-	e1 := newSignedEndorsement(t, 1, finalizedID, 1, endorsedID, sk1)
-	e2 := newSignedEndorsement(t, 2, finalizedID, 1, endorsedID, sk2)
-	addToPool(t, pool, e1, pk1, 100)
-	addToPool(t, pool, e2, pk2, 200)
-	pool.AddConflict(newSignedEndorsement(t, 99, finalizedID, 1, endorsedID, sk1))
-	require.Equal(t, 2, pool.Len())
-	require.Len(t, pool.ConflictEndorsements(), 1)
-
-	pool.CleanAll()
-
-	require.Equal(t, 0, pool.Len())
-	require.Empty(t, pool.ConflictEndorsements())
+	assert.Nil(t, fv.AggregatedEndorsementSignature, "no good endorsements → no aggregate sig")
+	assert.Len(t, fv.ConflictEndorsements, 1)
 }
 
-func TestEndorsementPool_CleanAll_RemovesEverythingAfterFormFinalization(t *testing.T) {
+func TestPool_FormFinalization_ErrorWhenEmpty(t *testing.T) {
 	pool, err := endorsementpool.NewEndorsementPool(5)
 	require.NoError(t, err)
 
-	sk1, err := bls.GenerateSecretKey([]byte("ca-ff-sk-1"))
-	require.NoError(t, err)
-	pk1, err := sk1.PublicKey()
-	require.NoError(t, err)
-	sk2, err := bls.GenerateSecretKey([]byte("ca-ff-sk-2"))
-	require.NoError(t, err)
-	pk2, err := sk2.PublicKey()
-	require.NoError(t, err)
-	sk3, err := bls.GenerateSecretKey([]byte("ca-ff-sk-3"))
-	require.NoError(t, err)
-	pk3, err := sk3.PublicKey()
+	_, err = pool.FormFinalization()
+	assert.Error(t, err, "FormFinalization on empty pool must return error")
+}
+
+func TestPool_ResetClearsAllState(t *testing.T) {
+	pool, err := endorsementpool.NewEndorsementPool(5)
 	require.NoError(t, err)
 
-	finalizedDigest, err := crypto.FastHash([]byte("ca-ff-finalized"))
-	require.NoError(t, err)
-	endorsedDigest, err := crypto.FastHash([]byte("ca-ff-endorsed"))
-	require.NoError(t, err)
-	finalizedID := proto.NewBlockIDFromDigest(finalizedDigest)
-	endorsedID := proto.NewBlockIDFromDigest(endorsedDigest)
-
-	e1 := newSignedEndorsement(t, 1, finalizedID, 1, endorsedID, sk1)
-	e2 := newSignedEndorsement(t, 2, finalizedID, 1, endorsedID, sk2)
-	addToPool(t, pool, e1, pk1, 100)
-	addToPool(t, pool, e2, pk2, 200)
-	pool.AddConflict(newSignedEndorsement(t, 99, finalizedID, 1, endorsedID, sk1))
-
+	sk, pk := newKeyPair(t, "k")
+	addToPool(t, pool, roundEndorsement(t, 1, sk), pk, 100)
+	pool.AddConflict(roundEndorsement(t, 2, sk))
 	_, err = pool.FormFinalization()
 	require.NoError(t, err)
 
-	// e3 and a new conflict arrive after FormFinalization.
-	e3 := newSignedEndorsement(t, 3, finalizedID, 1, endorsedID, sk3)
-	addToPool(t, pool, e3, pk3, 150)
-	pool.AddConflict(newSignedEndorsement(t, 100, finalizedID, 1, endorsedID, sk1))
+	pool.Reset()
 
-	pool.CleanAll()
-
-	require.Equal(t, 0, pool.Len())
-	require.Empty(t, pool.ConflictEndorsements())
+	assert.Equal(t, 0, pool.Len())
+	assert.Empty(t, pool.GetAll())
+	assert.Empty(t, pool.ConflictEndorsements())
+	assert.False(t, pool.HasUpdate(), "HasUpdate must be false after Reset")
 }
 
-func TestEndorsementPool_CleanProcessed_IsNoOpWithoutFormFinalization(t *testing.T) {
+func TestPool_ResetAllowsReuseForNewRound(t *testing.T) {
 	pool, err := endorsementpool.NewEndorsementPool(5)
 	require.NoError(t, err)
 
-	sk1, err := bls.GenerateSecretKey([]byte("cp-noop-sk-1"))
-	require.NoError(t, err)
-	pk1, err := sk1.PublicKey()
-	require.NoError(t, err)
-	sk2, err := bls.GenerateSecretKey([]byte("cp-noop-sk-2"))
-	require.NoError(t, err)
-	pk2, err := sk2.PublicKey()
-	require.NoError(t, err)
+	sk, pk := newKeyPair(t, "k")
+	addToPool(t, pool, roundEndorsement(t, 1, sk), pk, 100)
+	pool.Reset()
 
-	finalizedDigest, err := crypto.FastHash([]byte("cp-noop-finalized"))
+	// After reset the same generator index can be added again (new round).
+	added, err := pool.Add(roundEndorsement(t, 1, sk), pk, 200)
 	require.NoError(t, err)
-	endorsedDigest, err := crypto.FastHash([]byte("cp-noop-endorsed"))
-	require.NoError(t, err)
-	finalizedID := proto.NewBlockIDFromDigest(finalizedDigest)
-	endorsedID := proto.NewBlockIDFromDigest(endorsedDigest)
-
-	e1 := newSignedEndorsement(t, 1, finalizedID, 1, endorsedID, sk1)
-	e2 := newSignedEndorsement(t, 2, finalizedID, 1, endorsedID, sk2)
-	addToPool(t, pool, e1, pk1, 100)
-	addToPool(t, pool, e2, pk2, 200)
-	require.Equal(t, 2, pool.Len())
-
-	pool.CleanProcessed()
-
-	require.Equal(t, 2, pool.Len(), "CleanProcessed without prior FormFinalization must leave pool unchanged")
+	assert.True(t, added)
+	assert.Equal(t, 1, pool.Len())
 }
 
-func TestEndorsementPool_SwitchRoundDropsStaleEndorsements(t *testing.T) {
-	pool, err := endorsementpool.NewEndorsementPool(2)
+func TestPool_ResetAfterConflictAllowsGeneratorAgain(t *testing.T) {
+	pool, err := endorsementpool.NewEndorsementPool(5)
 	require.NoError(t, err)
 
-	finalizedDigest0, err := crypto.FastHash([]byte("finalized-0"))
-	require.NoError(t, err)
-	finalizedDigest1, err := crypto.FastHash([]byte("finalized-1"))
-	require.NoError(t, err)
-	endorsedDigest0, err := crypto.FastHash([]byte("endorsed-0"))
-	require.NoError(t, err)
-	endorsedDigest1, err := crypto.FastHash([]byte("endorsed-1"))
-	require.NoError(t, err)
+	sk, pk := newKeyPair(t, "k")
+	pool.AddConflict(roundEndorsement(t, 1, sk))
 
-	finalizedID0 := proto.NewBlockIDFromDigest(finalizedDigest0)
-	finalizedID1 := proto.NewBlockIDFromDigest(finalizedDigest1)
-	endorsedID0 := proto.NewBlockIDFromDigest(endorsedDigest0)
-	endorsedID1 := proto.NewBlockIDFromDigest(endorsedDigest1)
+	// In the same round the conflicted generator cannot be added.
+	added, err := pool.Add(roundEndorsement(t, 1, sk), pk, 100)
+	require.NoError(t, err)
+	assert.False(t, added)
 
-	sk0, err := bls.GenerateSecretKey([]byte("round-test-sk-0"))
+	// After reset (new round) the generator is allowed again.
+	pool.Reset()
+	added, err = pool.Add(roundEndorsement(t, 1, sk), pk, 100)
 	require.NoError(t, err)
-	pk0, err := sk0.PublicKey()
-	require.NoError(t, err)
-	sk1, err := bls.GenerateSecretKey([]byte("round-test-sk-1"))
-	require.NoError(t, err)
-	pk1, err := sk1.PublicKey()
-	require.NoError(t, err)
-
-	// Round #1.
-	e00 := newSignedEndorsement(t, 0, finalizedID0, 10, endorsedID0, sk0)
-	e10 := newSignedEndorsement(t, 1, finalizedID0, 10, endorsedID0, sk1)
-	added, err := pool.Add(e00, pk0, 10, 100, endorsedID0)
-	require.NoError(t, err)
-	require.True(t, added)
-	added, err = pool.Add(e10, pk1, 10, 100, endorsedID0)
-	require.NoError(t, err)
-	require.True(t, added)
-	require.Equal(t, 2, pool.Len())
-
-	// Round #2 with same balances and same endorsers but different round key.
-	// Pool must switch rounds and replace previous endorsements.
-	e01 := newSignedEndorsement(t, 0, finalizedID1, 11, endorsedID1, sk0)
-	e11 := newSignedEndorsement(t, 1, finalizedID1, 11, endorsedID1, sk1)
-	added, err = pool.Add(e01, pk0, 11, 100, endorsedID1)
-	require.NoError(t, err)
-	require.True(t, added)
-	added, err = pool.Add(e11, pk1, 11, 100, endorsedID1)
-	require.NoError(t, err)
-	require.True(t, added)
-
-	all := pool.GetAll()
-	require.Len(t, all, 2)
-	for _, e := range all {
-		require.Equal(t, uint32(11), e.FinalizedBlockHeight)
-		require.Equal(t, finalizedID1, e.FinalizedBlockID)
-		require.Equal(t, endorsedID1, e.EndorsedBlockID)
-	}
+	assert.True(t, added)
 }

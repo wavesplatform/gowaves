@@ -117,7 +117,7 @@ func (a *NGState) Score(p peer.Peer, score *proto.Score) (State, Async, error) {
 
 func (a *NGState) rollbackToStateFromCache(blockFromCache *proto.Block) error {
 	previousBlockID := blockFromCache.Parent
-	a.baseInfo.endorsements.CleanAll()
+	a.baseInfo.endorsements.Reset()
 	a.baseInfo.endorsementIDsCache.Clear()
 	err := a.baseInfo.storage.RollbackTo(previousBlockID, true)
 	if err != nil {
@@ -150,7 +150,7 @@ func (a *NGState) rollbackToStateFromCacheInLightNode(parentID proto.BlockID) er
 	a.baseInfo.logger.Debug("Re-applying block from cache", "state", a.String(),
 		"blockID", blockFromCache.ID.String())
 	previousBlockID := blockFromCache.Parent
-	a.baseInfo.endorsements.CleanAll()
+	a.baseInfo.endorsements.Reset()
 	a.baseInfo.endorsementIDsCache.Clear()
 	err := a.baseInfo.storage.RollbackTo(previousBlockID, true)
 	if err != nil {
@@ -220,7 +220,7 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 		return a, nil, a.Errorf(errors.Wrapf(err, "failed to apply block %s", block.BlockID()))
 	}
 	metrics.BlockApplied(block, blockHeight)
-	a.baseInfo.endorsements.CleanAll()
+	a.baseInfo.endorsements.Reset()
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.scheduler.Reschedule()
@@ -374,9 +374,27 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.BlockEndorsement) (St
 			"Signature", blockEndorsement.Signature.String())
 		return a, nil, a.Errorf(errors.Errorf("generator with index %d has insufficient balance", generatorIndex))
 	}
-	conflict, err := a.isConflictingEndorsement(blockEndorsement)
+	if routeErr := a.routeBlockEndorsement(blockEndorsement, gi, top.Parent); routeErr != nil {
+		return a, nil, a.Errorf(routeErr)
+	}
+	return a, nil, nil
+}
+
+// routeBlockEndorsement classifies the endorsement as conflicting or valid and acts accordingly:
+// conflicting endorsements are recorded and forwarded once; valid endorsements are validated,
+// added to the pool, and forwarded if accepted.
+func (a *NGState) routeBlockEndorsement(
+	blockEndorsement *proto.BlockEndorsement,
+	gi state.GeneratorInfo,
+	parentBlockID proto.BlockID,
+) error {
+	localFinalizedHeight, err := a.baseInfo.storage.LastFinalizedHeight()
 	if err != nil {
-		return a, nil, a.Errorf(errors.Wrapf(err, "failed to check if endorsement is conflicting"))
+		return errors.Wrapf(err, "failed to get last local finalized height")
+	}
+	conflict, err := a.isConflictingEndorsement(blockEndorsement, localFinalizedHeight)
+	if err != nil {
+		return errors.Wrapf(err, "failed to check if endorsement is conflicting")
 	}
 	if conflict {
 		slog.Info("Conflicting endorsement detected", slog.Any("endorserIndex", blockEndorsement.EndorserIndex),
@@ -384,24 +402,43 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.BlockEndorsement) (St
 			slog.String("finalizedBlockID", blockEndorsement.FinalizedBlockID.String()),
 			slog.String("endorsedBlockID", blockEndorsement.EndorsedBlockID.String()),
 		)
-		a.baseInfo.endorsements.AddConflict(blockEndorsement)
-		a.baseInfo.actions.SendEndorseBlock(blockEndorsement)
-		slog.Debug("Forwarded a block endorsement",
+		if a.baseInfo.endorsements.AddConflict(blockEndorsement) {
+			a.baseInfo.actions.SendEndorseBlock(blockEndorsement)
+			slog.Debug("Forwarded conflicting block endorsement",
+				"EndorserIndex", blockEndorsement.EndorserIndex,
+				"FinalizedBlockID", blockEndorsement.FinalizedBlockID,
+				"FinalizedBlockHeight", blockEndorsement.FinalizedBlockHeight,
+				"EndorsedBlockID", blockEndorsement.EndorsedBlockID,
+				"Signature", blockEndorsement.Signature.String())
+		}
+		return nil
+	}
+	// Validate round membership before adding to the pool.
+	if proto.Height(blockEndorsement.FinalizedBlockHeight) > localFinalizedHeight {
+		slog.Debug("Block endorsement with future finalized height ignored",
 			"EndorserIndex", blockEndorsement.EndorserIndex,
-			"FinalizedBlockID", blockEndorsement.FinalizedBlockID,
-			"FinalizedBlockHeight", blockEndorsement.FinalizedBlockHeight,
+			"FinalizedBlockHeight", blockEndorsement.FinalizedBlockHeight)
+		return nil
+	}
+	if parentBlockID != blockEndorsement.EndorsedBlockID {
+		slog.Debug("Block endorsement for non-current parent block ignored",
+			"EndorserIndex", blockEndorsement.EndorserIndex,
 			"EndorsedBlockID", blockEndorsement.EndorsedBlockID,
-			"Signature", blockEndorsement.Signature.String())
-		return a, nil, nil
+			"ExpectedParent", parentBlockID)
+		return nil
 	}
-	localFinalizedHeight, err := a.baseInfo.storage.LastFinalizedHeight()
+	msg, err := blockEndorsement.CryptoMessage().Bytes()
 	if err != nil {
-		return a, nil, a.Errorf(errors.Wrapf(err, "failed to get last local finalized height"))
+		return errors.Wrapf(err, "failed to compute endorsement crypto message")
 	}
-	added, addErr := a.baseInfo.endorsements.Add(blockEndorsement, gi.BLSPublicKey,
-		localFinalizedHeight, gi.Balance, top.Parent)
+	if ok, _ := bls.Verify(gi.BLSPublicKey, msg, blockEndorsement.Signature); !ok {
+		slog.Debug("Block endorsement with invalid BLS signature ignored",
+			"EndorserIndex", blockEndorsement.EndorserIndex)
+		return nil
+	}
+	added, addErr := a.baseInfo.endorsements.Add(blockEndorsement, gi.BLSPublicKey, gi.Balance)
 	if addErr != nil {
-		return a, nil, errors.Errorf("failed to add an endorsement, %v", addErr)
+		return errors.Errorf("failed to add an endorsement, %v", addErr)
 	}
 	if !added {
 		slog.Debug("Block endorsement was ignored",
@@ -410,7 +447,7 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.BlockEndorsement) (St
 			"FinalizedBlockHeight", blockEndorsement.FinalizedBlockHeight,
 			"EndorsedBlockID", blockEndorsement.EndorsedBlockID,
 			"Signature", blockEndorsement.Signature.String())
-		return a, nil, nil
+		return nil
 	}
 	a.baseInfo.actions.SendEndorseBlock(blockEndorsement)
 	slog.Debug("Forwarded a block endorsement",
@@ -419,14 +456,12 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.BlockEndorsement) (St
 		"FinalizedBlockHeight", blockEndorsement.FinalizedBlockHeight,
 		"EndorsedBlockID", blockEndorsement.EndorsedBlockID,
 		"Signature", blockEndorsement.Signature.String())
-	return a, nil, nil
+	return nil
 }
 
-func (a *NGState) isConflictingEndorsement(endorsement *proto.BlockEndorsement) (bool, error) {
-	localFinalizedHeight, err := a.baseInfo.storage.LastFinalizedHeight()
-	if err != nil {
-		return false, fmt.Errorf("failed to retrieve last local finalized height: %w", err)
-	}
+func (a *NGState) isConflictingEndorsement(
+	endorsement *proto.BlockEndorsement, localFinalizedHeight proto.Height,
+) (bool, error) {
 	efh := proto.Height(endorsement.FinalizedBlockHeight)
 	if efh > localFinalizedHeight {
 		return false, nil
@@ -452,16 +487,9 @@ func (a *NGState) getCurrentFinalizationVoting(height proto.Height) (*proto.Fina
 }
 
 func (a *NGState) tryGetCurrentFinalizationVoting(height proto.Height) (*proto.FinalizationVoting, error) {
-	// No finalization since nobody endorsed the last block.
-	if a.baseInfo.endorsements.Len() == 0 {
+	// No finalization if there are no pending changes since the last produced voting.
+	if !a.baseInfo.endorsements.HasUpdate() {
 		return nil, errNoEndorsements
-	}
-	ok, err := a.baseInfo.endorsements.Verify()
-	if err != nil {
-		return nil, err
-	}
-	if !ok {
-		return nil, fmt.Errorf("endorsement verification failed at height %d", height)
 	}
 
 	generators, err := a.baseInfo.storage.CommittedGenerators(height)
@@ -515,7 +543,7 @@ func (a *NGState) MinedBlock(
 	slog.Info("Generated key block successfully applied to state", "state", a.String(),
 		"blockID", block.ID.String())
 
-	a.baseInfo.endorsements.CleanProcessed()
+	a.baseInfo.endorsements.Reset()
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.actions.SendBlock(block)
@@ -560,13 +588,10 @@ func (a *NGState) addAndBroadcastOwnEndorsement(
 	endorser state.GeneratorInfo,
 	id crypto.Digest,
 ) error {
-	top := a.baseInfo.storage.TopBlock()
 	added, addErr := a.baseInfo.endorsements.Add(
 		parentBlockEndorsement,
 		endorser.BLSPublicKey,
-		proto.Height(parentBlockEndorsement.FinalizedBlockHeight),
 		endorser.Balance,
-		top.Parent,
 	)
 	if addErr != nil {
 		return errors.Errorf("failed to add an endorsement, %v", addErr)
@@ -676,11 +701,16 @@ func (a *NGState) mineMicro(
 	}
 	a.baseInfo.logger.Debug("Generated microblock successfully applied to state", "state", a.String(),
 		"blockID", block.BlockID(), "ref", micro.Reference)
+	if finalizationVoting != nil {
+		// Advance the committed watermarks only after the microblock is successfully applied.
+		// If the microblock had failed, HasUpdate would remain true and the voting would be
+		// re-produced in the next microblock.
+		a.baseInfo.endorsements.CommitFinalization()
+	}
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.scheduler.Reschedule()
 	metrics.MicroBlockApplied(micro)
 	a.baseInfo.CleanUtx()
-	a.baseInfo.endorsements.CleanAll()
 	inv := proto.NewUnsignedMicroblockInv(
 		micro.SenderPK,
 		block.BlockID(),
@@ -762,7 +792,6 @@ func (a *NGState) checkAndAppendMicroBlock(
 	}
 	metrics.MicroBlockApplied(micro)
 	a.baseInfo.CleanUtx()
-	a.baseInfo.endorsements.CleanAll()
 	return newBlock, nil
 }
 

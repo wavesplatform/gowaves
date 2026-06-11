@@ -227,13 +227,22 @@ type EmbeddedWallet interface {
 	BLSSecretKeys() ([]bls.SecretKey, error)
 }
 
-// EndorsementPool storage interface.
 type EndorsementPool interface {
-	Add(*proto.BlockEndorsement, bls.PublicKey, proto.Height, uint64, proto.BlockID) (bool, error)
-	AddConflict(e *proto.BlockEndorsement)
+	// Add inserts a valid endorsement. Returns true if the snapshot changed.
+	// The caller must validate the BLS signature, round membership, and generator set eligibility.
+	Add(e *proto.BlockEndorsement, pk bls.PublicKey, balance uint64) (bool, error)
+	// AddConflict records a conflicting endorsement. Returns true if it was new for this generator.
+	AddConflict(e *proto.BlockEndorsement) bool
+	// HasUpdate reports pending changes since the last CommitFinalization call.
+	HasUpdate() bool
+	// FormFinalization produces a FinalizationVoting and saves a pending watermark snapshot.
+	// CommitFinalization must be called after the carrying microblock is successfully applied.
 	FormFinalization() (proto.FinalizationVoting, error)
-	Verify() (bool, error)
+	// CommitFinalization advances committed watermarks to the state saved by FormFinalization.
+	// Must be called after the microblock carrying the voting is successfully applied.
+	CommitFinalization()
+	// Len returns the count of good endorsements.
 	Len() int
-	CleanAll()
-	CleanProcessed()
+	// Reset discards all state to start a fresh key-block round.
+	Reset()
 }
