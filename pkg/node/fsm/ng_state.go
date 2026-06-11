@@ -209,7 +209,7 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	)
 	if err != nil {
 		// Suspend peer if not empty.
-		if a.baseInfo.syncPeer != nil {
+		if !a.baseInfo.syncPeer.IsEmpty() {
 			if errs.IsValidationError(err) || errs.IsValidationError(errors.Cause(err)) {
 				a.baseInfo.logger.Debug("Suspending peer because of blocks application error",
 					slog.String("state", a.String()),
@@ -427,15 +427,15 @@ func (a *NGState) isConflictingEndorsement(endorsement *proto.BlockEndorsement) 
 	if err != nil {
 		return false, fmt.Errorf("failed to retrieve last local finalized height: %w", err)
 	}
-	localHeaderByRemoteFinalizedHeight, err := a.baseInfo.storage.HeaderByHeight(
-		proto.Height(endorsement.FinalizedBlockHeight),
-	)
+	efh := proto.Height(endorsement.FinalizedBlockHeight)
+	if efh > localFinalizedHeight {
+		return false, nil
+	}
+	localHeader, err := a.baseInfo.storage.HeaderByHeight(efh)
 	if err != nil {
 		return false, fmt.Errorf("failed to retrieve header by height for endorsement: %w", err)
 	}
-	efh := proto.Height(endorsement.FinalizedBlockHeight)
-	return efh <= localFinalizedHeight && endorsement.FinalizedBlockID != localHeaderByRemoteFinalizedHeight.BlockID(),
-		nil
+	return endorsement.FinalizedBlockID != localHeader.BlockID(), nil
 }
 
 func (a *NGState) getCurrentFinalizationVoting(height proto.Height) (*proto.FinalizationVoting, error) {

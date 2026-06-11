@@ -396,7 +396,7 @@ func TestPunishment(t *testing.T) {
 				AddressID: testGlobal.minerInfo.addr.ID(),
 			},
 		},
-		BlockGeneratorIndex: 1,
+		BlockGeneratorIndex: 0,
 		PeriodStart:         1,
 	}
 	err = to.stor.entities.generators.saveGeneratorsRecord(rec, 5, block1.BlockID())

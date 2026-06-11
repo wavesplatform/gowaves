@@ -666,9 +666,9 @@ func (g *generatorsStorage) findGenerator(height proto.Height, lookup func(Gener
 	return GeneratorInfo{}, errors.New("generator is not found")
 }
 
-// totalGenerationBalance returns generation balance of all commited generators.
-// If no generators commited (generators set is empty) function returns 0 without an error.
-// Block generator included in the set.
+// totalGenerationBalance returns the sum of generation balances of all non-banned committed generators.
+// If no generators set is found or it is empty, function returns 0 without an error.
+// Block generator is included in the set.
 func (g *generatorsStorage) totalGenerationBalance(height proto.Height) (uint64, error) {
 	gs, err := g.generators(height)
 	if err != nil {
@@ -682,7 +682,9 @@ func (g *generatorsStorage) totalGenerationBalance(height proto.Height) (uint64,
 	}
 	total := uint64(0)
 	for _, gen := range gs.Generators {
-		total += gen.Balance // Banned generators or generators with insufficient balance return 0 here.
+		if gen.BanHeight == 0 {
+			total += gen.Balance
+		}
 	}
 	return total, nil
 }

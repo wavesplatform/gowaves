@@ -53,6 +53,12 @@ func (s *SyncPeer) Clear() {
 	s.peer = nil
 }
 
+func (s *SyncPeer) IsEmpty() bool {
+	s.m.Lock()
+	defer s.m.Unlock()
+	return s.peer == nil
+}
+
 type Network struct {
 	infoCh        <-chan peer.InfoMessage
 	networkInfoCh chan<- InfoMessage

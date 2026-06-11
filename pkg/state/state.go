@@ -1925,24 +1925,24 @@ func (s *stateManager) resetDeposits(nextBlockID proto.BlockID, lastBlockHeight 
 	if err != nil {
 		return fmt.Errorf("failed to reset deposits: %w", err)
 	}
-	commitedGenerators, err := s.stor.commitments.newestGenerators(start)
+	committedGenerators, err := s.stor.commitments.newestGenerators(start)
 	if err != nil {
 		return fmt.Errorf("failed to reset deposits: %w", err)
 	}
-	if len(commitedGenerators) == 0 { // No commitments on the period, nothing to reset.
-		slog.Debug("No commited generators for the period, skipping deposit reset", "height", lastBlockHeight)
+	if len(committedGenerators) == 0 { // No commitments on the period, nothing to reset.
+		slog.Debug("No committed generators for the period, skipping deposit reset", "height", lastBlockHeight)
 		return nil
 	}
 	periodGenerators, err := s.stor.generators.generators(lastBlockHeight)
 	if err != nil {
 		return fmt.Errorf("failed to reset deposits: %w", err)
 	}
-	if cgl, pgl := len(commitedGenerators), len(periodGenerators.Generators); cgl != pgl {
+	if cgl, pgl := len(committedGenerators), len(periodGenerators.Generators); cgl != pgl {
 		return fmt.Errorf(
 			"failed to reset deposits: committed generators count %d is not equal to period generators count %d",
 			cgl, pgl)
 	}
-	for i, generator := range commitedGenerators {
+	for i, generator := range committedGenerators {
 		addr, adrErr := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, generator)
 		if adrErr != nil {
 			return fmt.Errorf("failed to reset deposits: %w", adrErr)

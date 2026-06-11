@@ -102,7 +102,7 @@ func (a *SyncState) Task(task tasks.AsyncTask) (State, Async, error) {
 		a.baseInfo.logger.Debug("Checking timeout", "state", a.String())
 		timeout := a.conf.lastReceiveTime.Add(a.conf.timeout).Before(a.baseInfo.tm.Now())
 		if timeout {
-			if a.baseInfo.syncPeer != nil {
+			if !a.baseInfo.syncPeer.IsEmpty() {
 				a.baseInfo.logger.Debug("Synchronization with peer timed out", "state", a.String(),
 					"timeout", a.conf.timeout.String(), "peer", a.baseInfo.syncPeer.GetPeer().ID())
 				a.baseInfo.logger.Debug("Suspending peer because no timely response was received",
@@ -126,24 +126,23 @@ func (a *SyncState) Task(task tasks.AsyncTask) (State, Async, error) {
 }
 
 func (a *SyncState) BlockIDs(peer peer.Peer, signatures []proto.BlockID) (State, Async, error) {
-	if len(signatures) == 0 {
-		a.baseInfo.logger.Debug("Empty IDs received from peer", "state", a.String(),
-			"peer", peer.ID().String())
-		a.baseInfo.logger.Debug("Suspending peer because of empty blocks IDs received from peer",
-			slog.String("state", a.String()),
-			slog.String("peer", a.baseInfo.syncPeer.GetPeer().ID().String()))
-		a.baseInfo.peers.AddToBlackList(a.baseInfo.syncPeer.GetPeer(), time.Now(), "empty blocks IDs received from peer")
-
-		return newIdleState(a.baseInfo), nil, nil
-	}
-	a.baseInfo.logger.Debug("Block IDs received from peer", "state", a.String(),
-		"from", signatures[0].ShortString(), "to", signatures[len(signatures)-1].ShortString(),
-		"peer", peer.ID().String())
 	if !peer.Equal(a.baseInfo.syncPeer.GetPeer()) {
 		a.baseInfo.logger.Debug("Block IDs received from incorrect peer", "state", a.String(),
 			"peer", peer.ID().String(), "expectedPeer", a.baseInfo.syncPeer.GetPeer().ID().String())
 		return a, nil, nil
 	}
+	if len(signatures) == 0 {
+		a.baseInfo.logger.Debug("Empty IDs received from peer", "state", a.String(),
+			"peer", peer.ID().String())
+		a.baseInfo.logger.Debug("Suspending peer because of empty blocks IDs received from peer",
+			slog.String("state", a.String()),
+			slog.String("peer", peer.ID().String()))
+		a.baseInfo.peers.AddToBlackList(peer, time.Now(), "empty blocks IDs received from peer")
+		return newIdleState(a.baseInfo), nil, nil
+	}
+	a.baseInfo.logger.Debug("Block IDs received from peer", "state", a.String(),
+		"from", signatures[0].ShortString(), "to", signatures[len(signatures)-1].ShortString(),
+		"peer", peer.ID().String())
 	internal, err := a.internal.BlockIDs(extension.NewPeerExtension(peer, a.baseInfo.scheme, a.baseInfo.netLogger),
 		signatures)
 	if err != nil {
@@ -290,7 +289,7 @@ func (a *SyncState) applyBlocksWithSnapshots(
 		})
 	}
 	if err != nil {
-		if a.baseInfo.syncPeer != nil && (errs.IsValidationError(err) || errs.IsValidationError(errors.Cause(err))) {
+		if !a.baseInfo.syncPeer.IsEmpty() && (errs.IsValidationError(err) || errs.IsValidationError(errors.Cause(err))) {
 			a.baseInfo.logger.Debug("Suspending peer because of blocks application error",
 				slog.String("state", a.String()),
 				slog.String("peer", a.baseInfo.syncPeer.GetPeer().ID().String()), logging.Error(err))

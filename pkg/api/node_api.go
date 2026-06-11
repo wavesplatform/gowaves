@@ -918,6 +918,9 @@ func (a *NodeApi) GeneratorsAt(w http.ResponseWriter, r *http.Request) error {
 	//  Consider moving this API under the `-build-extended-api` and `-serve-extended-api` keys.
 	gs, err := a.state.CommittedGenerators(height)
 	if err != nil {
+		if stderrs.Is(err, state.ErrNoGeneratorsSet) {
+			return trySendJSON(w, []state.GeneratorInfo{})
+		}
 		return err
 	}
 	return trySendJSON(w, gs)
