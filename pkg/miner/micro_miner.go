@@ -51,7 +51,9 @@ func (a *MicroMiner) Micro(
 	}
 
 	topBlock := a.state.TopBlock()
-	if topBlock.BlockSignature != minedBlock.BlockSignature {
+	// Check if the mined block is still the top block.
+	if !minedBlock.BlockID().Equals(topBlock.BlockID()) {
+		// If not, check that
 		return nil, nil, rest, ErrStateChanged
 	}
 

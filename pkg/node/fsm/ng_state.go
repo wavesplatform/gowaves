@@ -653,6 +653,22 @@ func (a *NGState) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (State, Async
 func (a *NGState) mineMicro(
 	minedBlock *proto.Block, rest proto.MiningLimits, keyPair proto.KeyPair, vrf []byte,
 ) (State, Async, error) {
+	// Detect stale tasks before doing any work. A task becomes stale when the state
+	// advances past the block it was created for while the task was waiting for execution.
+	topBlock := a.baseInfo.storage.TopBlock()
+	if !minedBlock.BlockID().Equals(topBlock.BlockID()) {
+		if minedBlock.BlockID().Equals(topBlock.Parent) {
+			// Expected at every new key-block: a new key block was applied on top of
+			// our mined block while this MineMicro task was waiting.
+			slog.Debug("Micro-block generation task dropped, new key-block was applied",
+				"topBlock", topBlock.BlockID().String(), "minedBlock", minedBlock.BlockID().String())
+			return a, nil, nil
+		}
+		slog.Warn("Micro-block generation task dropped, state has moved past mined block",
+			"topBlock", topBlock.BlockID().String(), "minedBlock", minedBlock.BlockID().String())
+		return a, nil, a.Errorf(proto.NewInfoMsg(miner.ErrStateChanged))
+	}
+
 	height, heightErr := a.baseInfo.storage.Height()
 	if heightErr != nil {
 		return a, nil, a.Errorf(heightErr)

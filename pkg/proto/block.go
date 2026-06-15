@@ -295,6 +295,19 @@ func (id *BlockID) readUndefinedFrom(r io.Reader) (int64, error) {
 
 func (id *BlockID) IsPayload() {}
 
+func (id BlockID) Equals(other BlockID) bool {
+	if id.idType != other.idType {
+		return false
+	}
+	switch id.idType {
+	case SignatureID:
+		return id.sig == other.sig
+	case DigestID:
+		return id.dig == other.dig
+	}
+	return false
+}
+
 type ChallengedHeader struct {
 	Timestamp uint64 `json:"timestamp"`
 	NxtConsensus
