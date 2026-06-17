@@ -78,7 +78,7 @@ type MockGrpcHandlers_Broadcast_Call struct {
 // Broadcast is a helper method to define mock.On call
 //   - context1 context.Context
 //   - signedTransaction *waves.SignedTransaction
-func (_e *MockGrpcHandlers_Expecter) Broadcast(context1 interface{}, signedTransaction interface{}) *MockGrpcHandlers_Broadcast_Call {
+func (_e *MockGrpcHandlers_Expecter) Broadcast(context1 any, signedTransaction any) *MockGrpcHandlers_Broadcast_Call {
 	return &MockGrpcHandlers_Broadcast_Call{Call: _e.mock.On("Broadcast", context1, signedTransaction)}
 }
 
@@ -146,7 +146,7 @@ type MockGrpcHandlers_GetActivationStatus_Call struct {
 // GetActivationStatus is a helper method to define mock.On call
 //   - context1 context.Context
 //   - activationStatusRequest *grpc.ActivationStatusRequest
-func (_e *MockGrpcHandlers_Expecter) GetActivationStatus(context1 interface{}, activationStatusRequest interface{}) *MockGrpcHandlers_GetActivationStatus_Call {
+func (_e *MockGrpcHandlers_Expecter) GetActivationStatus(context1 any, activationStatusRequest any) *MockGrpcHandlers_GetActivationStatus_Call {
 	return &MockGrpcHandlers_GetActivationStatus_Call{Call: _e.mock.On("GetActivationStatus", context1, activationStatusRequest)}
 }
 
@@ -203,7 +203,7 @@ type MockGrpcHandlers_GetActiveLeases_Call struct {
 // GetActiveLeases is a helper method to define mock.On call
 //   - accountRequest *grpc.AccountRequest
 //   - serverStreamingServer grpc0.ServerStreamingServer[grpc.LeaseResponse]
-func (_e *MockGrpcHandlers_Expecter) GetActiveLeases(accountRequest interface{}, serverStreamingServer interface{}) *MockGrpcHandlers_GetActiveLeases_Call {
+func (_e *MockGrpcHandlers_Expecter) GetActiveLeases(accountRequest any, serverStreamingServer any) *MockGrpcHandlers_GetActiveLeases_Call {
 	return &MockGrpcHandlers_GetActiveLeases_Call{Call: _e.mock.On("GetActiveLeases", accountRequest, serverStreamingServer)}
 }
 
@@ -260,7 +260,7 @@ type MockGrpcHandlers_GetBalances_Call struct {
 // GetBalances is a helper method to define mock.On call
 //   - balancesRequest *grpc.BalancesRequest
 //   - serverStreamingServer grpc0.ServerStreamingServer[grpc.BalanceResponse]
-func (_e *MockGrpcHandlers_Expecter) GetBalances(balancesRequest interface{}, serverStreamingServer interface{}) *MockGrpcHandlers_GetBalances_Call {
+func (_e *MockGrpcHandlers_Expecter) GetBalances(balancesRequest any, serverStreamingServer any) *MockGrpcHandlers_GetBalances_Call {
 	return &MockGrpcHandlers_GetBalances_Call{Call: _e.mock.On("GetBalances", balancesRequest, serverStreamingServer)}
 }
 
@@ -328,7 +328,7 @@ type MockGrpcHandlers_GetBaseTarget_Call struct {
 // GetBaseTarget is a helper method to define mock.On call
 //   - context1 context.Context
 //   - empty *emptypb.Empty
-func (_e *MockGrpcHandlers_Expecter) GetBaseTarget(context1 interface{}, empty interface{}) *MockGrpcHandlers_GetBaseTarget_Call {
+func (_e *MockGrpcHandlers_Expecter) GetBaseTarget(context1 any, empty any) *MockGrpcHandlers_GetBaseTarget_Call {
 	return &MockGrpcHandlers_GetBaseTarget_Call{Call: _e.mock.On("GetBaseTarget", context1, empty)}
 }
 
@@ -396,7 +396,7 @@ type MockGrpcHandlers_GetBlock_Call struct {
 // GetBlock is a helper method to define mock.On call
 //   - context1 context.Context
 //   - blockRequest *grpc.BlockRequest
-func (_e *MockGrpcHandlers_Expecter) GetBlock(context1 interface{}, blockRequest interface{}) *MockGrpcHandlers_GetBlock_Call {
+func (_e *MockGrpcHandlers_Expecter) GetBlock(context1 any, blockRequest any) *MockGrpcHandlers_GetBlock_Call {
 	return &MockGrpcHandlers_GetBlock_Call{Call: _e.mock.On("GetBlock", context1, blockRequest)}
 }
 
@@ -453,7 +453,7 @@ type MockGrpcHandlers_GetBlockRange_Call struct {
 // GetBlockRange is a helper method to define mock.On call
 //   - blockRangeRequest *grpc.BlockRangeRequest
 //   - serverStreamingServer grpc0.ServerStreamingServer[grpc.BlockWithHeight]
-func (_e *MockGrpcHandlers_Expecter) GetBlockRange(blockRangeRequest interface{}, serverStreamingServer interface{}) *MockGrpcHandlers_GetBlockRange_Call {
+func (_e *MockGrpcHandlers_Expecter) GetBlockRange(blockRangeRequest any, serverStreamingServer any) *MockGrpcHandlers_GetBlockRange_Call {
 	return &MockGrpcHandlers_GetBlockRange_Call{Call: _e.mock.On("GetBlockRange", blockRangeRequest, serverStreamingServer)}
 }
 
@@ -521,7 +521,7 @@ type MockGrpcHandlers_GetCumulativeScore_Call struct {
 // GetCumulativeScore is a helper method to define mock.On call
 //   - context1 context.Context
 //   - empty *emptypb.Empty
-func (_e *MockGrpcHandlers_Expecter) GetCumulativeScore(context1 interface{}, empty interface{}) *MockGrpcHandlers_GetCumulativeScore_Call {
+func (_e *MockGrpcHandlers_Expecter) GetCumulativeScore(context1 any, empty any) *MockGrpcHandlers_GetCumulativeScore_Call {
 	return &MockGrpcHandlers_GetCumulativeScore_Call{Call: _e.mock.On("GetCumulativeScore", context1, empty)}
 }
 
@@ -589,7 +589,7 @@ type MockGrpcHandlers_GetCurrentHeight_Call struct {
 // GetCurrentHeight is a helper method to define mock.On call
 //   - context1 context.Context
 //   - empty *emptypb.Empty
-func (_e *MockGrpcHandlers_Expecter) GetCurrentHeight(context1 interface{}, empty interface{}) *MockGrpcHandlers_GetCurrentHeight_Call {
+func (_e *MockGrpcHandlers_Expecter) GetCurrentHeight(context1 any, empty any) *MockGrpcHandlers_GetCurrentHeight_Call {
 	return &MockGrpcHandlers_GetCurrentHeight_Call{Call: _e.mock.On("GetCurrentHeight", context1, empty)}
 }
 
@@ -646,7 +646,7 @@ type MockGrpcHandlers_GetDataEntries_Call struct {
 // GetDataEntries is a helper method to define mock.On call
 //   - dataRequest *grpc.DataRequest
 //   - serverStreamingServer grpc0.ServerStreamingServer[grpc.DataEntryResponse]
-func (_e *MockGrpcHandlers_Expecter) GetDataEntries(dataRequest interface{}, serverStreamingServer interface{}) *MockGrpcHandlers_GetDataEntries_Call {
+func (_e *MockGrpcHandlers_Expecter) GetDataEntries(dataRequest any, serverStreamingServer any) *MockGrpcHandlers_GetDataEntries_Call {
 	return &MockGrpcHandlers_GetDataEntries_Call{Call: _e.mock.On("GetDataEntries", dataRequest, serverStreamingServer)}
 }
 
@@ -714,7 +714,7 @@ type MockGrpcHandlers_GetInfo_Call struct {
 // GetInfo is a helper method to define mock.On call
 //   - context1 context.Context
 //   - assetRequest *grpc.AssetRequest
-func (_e *MockGrpcHandlers_Expecter) GetInfo(context1 interface{}, assetRequest interface{}) *MockGrpcHandlers_GetInfo_Call {
+func (_e *MockGrpcHandlers_Expecter) GetInfo(context1 any, assetRequest any) *MockGrpcHandlers_GetInfo_Call {
 	return &MockGrpcHandlers_GetInfo_Call{Call: _e.mock.On("GetInfo", context1, assetRequest)}
 }
 
@@ -771,7 +771,7 @@ type MockGrpcHandlers_GetNFTList_Call struct {
 // GetNFTList is a helper method to define mock.On call
 //   - nFTRequest *grpc.NFTRequest
 //   - serverStreamingServer grpc0.ServerStreamingServer[grpc.NFTResponse]
-func (_e *MockGrpcHandlers_Expecter) GetNFTList(nFTRequest interface{}, serverStreamingServer interface{}) *MockGrpcHandlers_GetNFTList_Call {
+func (_e *MockGrpcHandlers_Expecter) GetNFTList(nFTRequest any, serverStreamingServer any) *MockGrpcHandlers_GetNFTList_Call {
 	return &MockGrpcHandlers_GetNFTList_Call{Call: _e.mock.On("GetNFTList", nFTRequest, serverStreamingServer)}
 }
 
@@ -839,7 +839,7 @@ type MockGrpcHandlers_GetScript_Call struct {
 // GetScript is a helper method to define mock.On call
 //   - context1 context.Context
 //   - accountRequest *grpc.AccountRequest
-func (_e *MockGrpcHandlers_Expecter) GetScript(context1 interface{}, accountRequest interface{}) *MockGrpcHandlers_GetScript_Call {
+func (_e *MockGrpcHandlers_Expecter) GetScript(context1 any, accountRequest any) *MockGrpcHandlers_GetScript_Call {
 	return &MockGrpcHandlers_GetScript_Call{Call: _e.mock.On("GetScript", context1, accountRequest)}
 }
 
@@ -896,7 +896,7 @@ type MockGrpcHandlers_GetStateChanges_Call struct {
 // GetStateChanges is a helper method to define mock.On call
 //   - transactionsRequest *grpc.TransactionsRequest
 //   - serverStreamingServer grpc0.ServerStreamingServer[grpc.InvokeScriptResultResponse]
-func (_e *MockGrpcHandlers_Expecter) GetStateChanges(transactionsRequest interface{}, serverStreamingServer interface{}) *MockGrpcHandlers_GetStateChanges_Call {
+func (_e *MockGrpcHandlers_Expecter) GetStateChanges(transactionsRequest any, serverStreamingServer any) *MockGrpcHandlers_GetStateChanges_Call {
 	return &MockGrpcHandlers_GetStateChanges_Call{Call: _e.mock.On("GetStateChanges", transactionsRequest, serverStreamingServer)}
 }
 
@@ -953,7 +953,7 @@ type MockGrpcHandlers_GetStatuses_Call struct {
 // GetStatuses is a helper method to define mock.On call
 //   - transactionsByIdRequest *grpc.TransactionsByIdRequest
 //   - serverStreamingServer grpc0.ServerStreamingServer[grpc.TransactionStatus]
-func (_e *MockGrpcHandlers_Expecter) GetStatuses(transactionsByIdRequest interface{}, serverStreamingServer interface{}) *MockGrpcHandlers_GetStatuses_Call {
+func (_e *MockGrpcHandlers_Expecter) GetStatuses(transactionsByIdRequest any, serverStreamingServer any) *MockGrpcHandlers_GetStatuses_Call {
 	return &MockGrpcHandlers_GetStatuses_Call{Call: _e.mock.On("GetStatuses", transactionsByIdRequest, serverStreamingServer)}
 }
 
@@ -1010,7 +1010,7 @@ type MockGrpcHandlers_GetTransactionSnapshots_Call struct {
 // GetTransactionSnapshots is a helper method to define mock.On call
 //   - transactionSnapshotsRequest *grpc.TransactionSnapshotsRequest
 //   - serverStreamingServer grpc0.ServerStreamingServer[grpc.TransactionSnapshotResponse]
-func (_e *MockGrpcHandlers_Expecter) GetTransactionSnapshots(transactionSnapshotsRequest interface{}, serverStreamingServer interface{}) *MockGrpcHandlers_GetTransactionSnapshots_Call {
+func (_e *MockGrpcHandlers_Expecter) GetTransactionSnapshots(transactionSnapshotsRequest any, serverStreamingServer any) *MockGrpcHandlers_GetTransactionSnapshots_Call {
 	return &MockGrpcHandlers_GetTransactionSnapshots_Call{Call: _e.mock.On("GetTransactionSnapshots", transactionSnapshotsRequest, serverStreamingServer)}
 }
 
@@ -1067,7 +1067,7 @@ type MockGrpcHandlers_GetTransactions_Call struct {
 // GetTransactions is a helper method to define mock.On call
 //   - transactionsRequest *grpc.TransactionsRequest
 //   - serverStreamingServer grpc0.ServerStreamingServer[grpc.TransactionResponse]
-func (_e *MockGrpcHandlers_Expecter) GetTransactions(transactionsRequest interface{}, serverStreamingServer interface{}) *MockGrpcHandlers_GetTransactions_Call {
+func (_e *MockGrpcHandlers_Expecter) GetTransactions(transactionsRequest any, serverStreamingServer any) *MockGrpcHandlers_GetTransactions_Call {
 	return &MockGrpcHandlers_GetTransactions_Call{Call: _e.mock.On("GetTransactions", transactionsRequest, serverStreamingServer)}
 }
 
@@ -1124,7 +1124,7 @@ type MockGrpcHandlers_GetUnconfirmed_Call struct {
 // GetUnconfirmed is a helper method to define mock.On call
 //   - transactionsRequest *grpc.TransactionsRequest
 //   - serverStreamingServer grpc0.ServerStreamingServer[grpc.TransactionResponse]
-func (_e *MockGrpcHandlers_Expecter) GetUnconfirmed(transactionsRequest interface{}, serverStreamingServer interface{}) *MockGrpcHandlers_GetUnconfirmed_Call {
+func (_e *MockGrpcHandlers_Expecter) GetUnconfirmed(transactionsRequest any, serverStreamingServer any) *MockGrpcHandlers_GetUnconfirmed_Call {
 	return &MockGrpcHandlers_GetUnconfirmed_Call{Call: _e.mock.On("GetUnconfirmed", transactionsRequest, serverStreamingServer)}
 }
 
@@ -1192,7 +1192,7 @@ type MockGrpcHandlers_ResolveAlias_Call struct {
 // ResolveAlias is a helper method to define mock.On call
 //   - context1 context.Context
 //   - stringValue *wrapperspb.StringValue
-func (_e *MockGrpcHandlers_Expecter) ResolveAlias(context1 interface{}, stringValue interface{}) *MockGrpcHandlers_ResolveAlias_Call {
+func (_e *MockGrpcHandlers_Expecter) ResolveAlias(context1 any, stringValue any) *MockGrpcHandlers_ResolveAlias_Call {
 	return &MockGrpcHandlers_ResolveAlias_Call{Call: _e.mock.On("ResolveAlias", context1, stringValue)}
 }
 
@@ -1260,7 +1260,7 @@ type MockGrpcHandlers_Sign_Call struct {
 // Sign is a helper method to define mock.On call
 //   - context1 context.Context
 //   - signRequest *grpc.SignRequest
-func (_e *MockGrpcHandlers_Expecter) Sign(context1 interface{}, signRequest interface{}) *MockGrpcHandlers_Sign_Call {
+func (_e *MockGrpcHandlers_Expecter) Sign(context1 any, signRequest any) *MockGrpcHandlers_Sign_Call {
 	return &MockGrpcHandlers_Sign_Call{Call: _e.mock.On("Sign", context1, signRequest)}
 }
 

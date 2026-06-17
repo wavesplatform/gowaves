@@ -71,7 +71,7 @@ type MockstateInfoProvider_HeaderByHeight_Call struct {
 
 // HeaderByHeight is a helper method to define mock.On call
 //   - height uint64
-func (_e *MockstateInfoProvider_Expecter) HeaderByHeight(height interface{}) *MockstateInfoProvider_HeaderByHeight_Call {
+func (_e *MockstateInfoProvider_Expecter) HeaderByHeight(height any) *MockstateInfoProvider_HeaderByHeight_Call {
 	return &MockstateInfoProvider_HeaderByHeight_Call{Call: _e.mock.On("HeaderByHeight", height)}
 }
 
@@ -131,7 +131,7 @@ type MockstateInfoProvider_NewestAccountHasScript_Call struct {
 
 // NewestAccountHasScript is a helper method to define mock.On call
 //   - addr proto.WavesAddress
-func (_e *MockstateInfoProvider_Expecter) NewestAccountHasScript(addr interface{}) *MockstateInfoProvider_NewestAccountHasScript_Call {
+func (_e *MockstateInfoProvider_Expecter) NewestAccountHasScript(addr any) *MockstateInfoProvider_NewestAccountHasScript_Call {
 	return &MockstateInfoProvider_NewestAccountHasScript_Call{Call: _e.mock.On("NewestAccountHasScript", addr)}
 }
 
@@ -191,7 +191,7 @@ type MockstateInfoProvider_NewestActivationHeight_Call struct {
 
 // NewestActivationHeight is a helper method to define mock.On call
 //   - featureID int16
-func (_e *MockstateInfoProvider_Expecter) NewestActivationHeight(featureID interface{}) *MockstateInfoProvider_NewestActivationHeight_Call {
+func (_e *MockstateInfoProvider_Expecter) NewestActivationHeight(featureID any) *MockstateInfoProvider_NewestActivationHeight_Call {
 	return &MockstateInfoProvider_NewestActivationHeight_Call{Call: _e.mock.On("NewestActivationHeight", featureID)}
 }
 
@@ -253,7 +253,7 @@ type MockstateInfoProvider_NewestHitSourceAtHeight_Call struct {
 
 // NewestHitSourceAtHeight is a helper method to define mock.On call
 //   - height uint64
-func (_e *MockstateInfoProvider_Expecter) NewestHitSourceAtHeight(height interface{}) *MockstateInfoProvider_NewestHitSourceAtHeight_Call {
+func (_e *MockstateInfoProvider_Expecter) NewestHitSourceAtHeight(height any) *MockstateInfoProvider_NewestHitSourceAtHeight_Call {
 	return &MockstateInfoProvider_NewestHitSourceAtHeight_Call{Call: _e.mock.On("NewestHitSourceAtHeight", height)}
 }
 
@@ -314,7 +314,7 @@ type MockstateInfoProvider_NewestIsActiveAtHeight_Call struct {
 // NewestIsActiveAtHeight is a helper method to define mock.On call
 //   - featureID int16
 //   - height proto.Height
-func (_e *MockstateInfoProvider_Expecter) NewestIsActiveAtHeight(featureID interface{}, height interface{}) *MockstateInfoProvider_NewestIsActiveAtHeight_Call {
+func (_e *MockstateInfoProvider_Expecter) NewestIsActiveAtHeight(featureID any, height any) *MockstateInfoProvider_NewestIsActiveAtHeight_Call {
 	return &MockstateInfoProvider_NewestIsActiveAtHeight_Call{Call: _e.mock.On("NewestIsActiveAtHeight", featureID, height)}
 }
 
@@ -380,7 +380,7 @@ type MockstateInfoProvider_NewestMinerGeneratingBalance_Call struct {
 // NewestMinerGeneratingBalance is a helper method to define mock.On call
 //   - header *proto.BlockHeader
 //   - height proto.Height
-func (_e *MockstateInfoProvider_Expecter) NewestMinerGeneratingBalance(header interface{}, height interface{}) *MockstateInfoProvider_NewestMinerGeneratingBalance_Call {
+func (_e *MockstateInfoProvider_Expecter) NewestMinerGeneratingBalance(header any, height any) *MockstateInfoProvider_NewestMinerGeneratingBalance_Call {
 	return &MockstateInfoProvider_NewestMinerGeneratingBalance_Call{Call: _e.mock.On("NewestMinerGeneratingBalance", header, height)}
 }
 
@@ -437,7 +437,7 @@ type MockstateInfoProvider_NewestMinimalGeneratingBalanceAtHeight_Call struct {
 // NewestMinimalGeneratingBalanceAtHeight is a helper method to define mock.On call
 //   - height proto.Height
 //   - timestamp uint64
-func (_e *MockstateInfoProvider_Expecter) NewestMinimalGeneratingBalanceAtHeight(height interface{}, timestamp interface{}) *MockstateInfoProvider_NewestMinimalGeneratingBalanceAtHeight_Call {
+func (_e *MockstateInfoProvider_Expecter) NewestMinimalGeneratingBalanceAtHeight(height any, timestamp any) *MockstateInfoProvider_NewestMinimalGeneratingBalanceAtHeight_Call {
 	return &MockstateInfoProvider_NewestMinimalGeneratingBalanceAtHeight_Call{Call: _e.mock.On("NewestMinimalGeneratingBalanceAtHeight", height, timestamp)}
 }
 

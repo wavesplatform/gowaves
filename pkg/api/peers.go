@@ -155,6 +155,21 @@ func (a *App) PeersBlackListed() []RestrictedPeerInfo {
 	return out
 }
 
+func (a *App) PeersBlackList(blacklistedAddr, requestID, clientIP string) error {
+	d := proto.NewTCPAddrFromString(blacklistedAddr)
+	if d.Empty() {
+		slog.Error("Invalid peer's address to blacklist", "address", blacklistedAddr)
+		return apiErrs.NewBadRequestError(errors.Errorf("invalid address format: %s", blacklistedAddr))
+	}
+	tcpAddr := proto.NewTCPAddrFromString(blacklistedAddr)
+	now := time.Now()
+	reason := fmt.Sprintf("blacklisted by API at local now='%v' by client='%s' with request-id='%s'",
+		now, clientIP, requestID,
+	)
+	a.peers.AddToBlackListByAddr(tcpAddr, now, reason)
+	return nil
+}
+
 type PeersClearBlackListResponse struct {
 	Result string `json:"result"`
 }

@@ -49,6 +49,7 @@ type PeerManager interface {
 	ConnectedCount() int
 	EachConnected(func(peer.Peer, *proto.Score))
 	AddToBlackList(peer peer.Peer, blockTime time.Time, reason string)
+	AddToBlackListByAddr(addr proto.TCPAddr, blockTime time.Time, reason string)
 	BlackList() []storage.BlackListedPeer
 	ClearBlackList() error
 	UpdateScore(p peer.Peer, score *proto.Score) error
@@ -174,25 +175,60 @@ func (a *PeerManagerImpl) EachConnected(f func(peer peer.Peer, score *big.Int)) 
 	)
 }
 
+func (a *PeerManagerImpl) AddToBlackListByAddr(addr proto.TCPAddr, blockTime time.Time, reason string) {
+	if a.blackListDuration <= 0 {
+		return
+	}
+	if addr.Empty() {
+		return // no need to add empty address to black list
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	ip := storage.IpFromIpPort(addr.ToIpPort())
+	var toDisconnectActivePeers []peer.Peer
+	// find all active peers with the same IP and disconnect them before adding to black list
+	a.active.forEach(func(_ peer.ID, pi peerInfo) {
+		if storage.IpFromIpPort(pi.peer.RemoteAddr().ToIpPort()) == ip {
+			toDisconnectActivePeers = append(toDisconnectActivePeers, pi.peer)
+		}
+	})
+	for _, v := range toDisconnectActivePeers {
+		a.disconnectUnsafe(v) // disconnect the peer before adding it to the black list
+	}
+	a.addToBlackListUnsafe(addr, blockTime, reason)
+}
+
 func (a *PeerManagerImpl) AddToBlackList(p peer.Peer, blockTime time.Time, reason string) {
 	if a.blackListDuration <= 0 {
 		return
 	}
-
-	a.Disconnect(p)
+	if p.RemoteAddr().Empty() {
+		return // no need to add empty address to black list
+	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
+
+	a.disconnectUnsafe(p) // disconnect the peer before adding it to the black list
+	a.addToBlackListUnsafe(p.RemoteAddr(), blockTime, reason)
+}
+
+// addToBlackListUnsafe adds the peer to the black list without acquiring the lock,
+// so it should be called only when the lock is already acquired.
+func (a *PeerManagerImpl) addToBlackListUnsafe(peerAddr proto.TCPAddr, blockTime time.Time, reason string) {
 	blackListed := storage.NewBlackListedPeer(
-		storage.IpFromIpPort(p.RemoteAddr().ToIpPort()),
+		storage.IpFromIpPort(peerAddr.ToIpPort()),
 		blockTime.UnixMilli(),
 		a.blackListDuration,
 		reason,
 	)
 	if err := a.peerStorage.AddToBlackList([]storage.BlackListedPeer{blackListed}); err != nil {
-		slog.Error("Failed to add peer to black list", slog.Any("peer", p.ID()),
+		slog.Error("Failed to add peer to black list", slog.Any("peer-addr", peerAddr),
+			slog.Duration("black-list-duration", a.blackListDuration),
 			slog.String("reason", reason), logging.Error(err))
 	} else {
-		a.logger.Debug("Peer added to black list", "peer", p.ID(), "reason", reason)
+		a.logger.Debug("Peer added to black list", slog.Any("peer-addr", peerAddr),
+			slog.Duration("black-list-duration", a.blackListDuration), slog.String("reason", reason))
 	}
 }
 
@@ -383,6 +419,12 @@ func (a *PeerManagerImpl) AskPeers() {
 func (a *PeerManagerImpl) Disconnect(p peer.Peer) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	a.disconnectUnsafe(p)
+}
+
+// disconnectUnsafe disconnects the peer without acquiring the lock,
+// so it should be called only when the lock is already acquired.
+func (a *PeerManagerImpl) disconnectUnsafe(p peer.Peer) {
 	pid := p.ID()
 	a.active.remove(pid)
 	if err := p.Close(); err != nil {

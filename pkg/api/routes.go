@@ -171,6 +171,7 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 			rAuth.Post("/print", wrapper(a.debugPrint))
 			rAuth.Post("/rollback", wrapper(a.RollbackToHeight))
 			rAuth.Post("/rollback-to/{id}", wrapper(a.RollbackTo))
+			rAuth.Post("/blacklist", wrapper(a.PeersBlackList))
 		})
 		r.Route("/node", func(r chi.Router) {
 			r.Get("/version", wrapper(a.version))
