@@ -2,10 +2,10 @@ package crypto_test
 
 import (
 	"bytes"
-	"embed"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -17,17 +17,12 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-var (
-	//go:embed testdata/vectors_wycheproof.jsonl
-	vectorsWycheProof embed.FS
-)
-
 func TestWycheProofSecP256Verify(t *testing.T) {
 	const (
 		testFileName                    = "testdata/vectors_wycheproof.jsonl"
 		vectorsWycheProofKeccakChecksum = "d7e23f35ae6e092eda970e14c53d3e30261eb84a18389cc65041466ba5cb4c98"
 	)
-	vectorsView := unmarshalTestDataToView(t, vectorsWycheProof, testFileName, vectorsWycheProofKeccakChecksum)
+	vectorsView := unmarshalTestDataToView(t, testFileName, vectorsWycheProofKeccakChecksum)
 	vectors := transformViewsToVectors(t, vectorsView)
 	for i, tv := range vectors {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
@@ -102,8 +97,8 @@ type testVectorView struct {
 	Comment string `json:"comment"`
 }
 
-func unmarshalTestDataToView(t *testing.T, fs embed.FS, testFileName, keccakHexChecksum string) []testVectorView {
-	fileData, err := fs.ReadFile(filepath.Clean(testFileName))
+func unmarshalTestDataToView(t *testing.T, testFileName, keccakHexChecksum string) []testVectorView {
+	fileData, err := os.ReadFile(filepath.Clean(testFileName))
 	require.NoError(t, err)
 	dataChecksum := hex.EncodeToString(crypto.MustKeccak256(fileData).Bytes())
 	require.Equal(t, keccakHexChecksum, dataChecksum, "test data checksum mismatch")
