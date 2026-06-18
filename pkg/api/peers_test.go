@@ -75,3 +75,39 @@ func TestApp_PeersBlackListed(t *testing.T) {
 		assert.Equal(t, expected, actual)
 	}
 }
+
+func TestApp_PeersAll(t *testing.T) {
+	peerManager := peers.NewMockPeerManager(t)
+
+	const blackListedIPStr = "13.3.4.1"
+	blackListedIP := storage.IPFromString(blackListedIPStr)
+	peerManager.EXPECT().BlackList().Return([]storage.BlackListedPeer{{
+		IP:                      blackListedIP,
+		RestrictTimestampMillis: time.Now().UnixMilli(),
+		RestrictDuration:        time.Minute,
+		Reason:                  "some reason",
+	}})
+
+	allowedAddr := proto.NewTCPAddr(net.ParseIP("5.3.6.7"), 6868).ToIpPort()
+	blackListedAddr := proto.NewTCPAddr(net.ParseIP(blackListedIPStr), 6868).ToIpPort()
+	peerManager.EXPECT().KnownPeers().Return([]storage.KnownPeer{
+		storage.KnownPeer(allowedAddr),
+		storage.KnownPeer(blackListedAddr),
+	})
+
+	cfg := &settings.BlockchainSettings{
+		FunctionalitySettings: settings.FunctionalitySettings{
+			GenerationPeriod: 0,
+		},
+	}
+
+	app, err := NewApp("key", nil, services.Services{Peers: peerManager}, cfg)
+	require.NoError(t, err)
+
+	out, err := app.PeersAll()
+	require.NoError(t, err)
+	require.Len(t, out.Peers, 1)
+	addresses := []string{out.Peers[0].Address}
+	assert.ElementsMatch(t, []string{"/5.3.6.7:6868"}, addresses)
+	assert.NotZero(t, out.Peers[0].LastSeen)
+}

@@ -38,13 +38,14 @@ func (a *App) PeersAll() (PeersKnown, error) {
 
 	out := make([]Peer, 0, len(knownPeers))
 	for _, knownPeer := range knownPeers {
-		ip := knownPeer.String()
-		if _, in := restrictedIPsMap[ip]; in {
+		ip := knownPeer.IP() // extract IP from KnownPeer
+		ipStr := ip.String() // convert IP to string for comparison
+		if _, in := restrictedIPsMap[ipStr]; in {
 			continue
 		}
 		// FIXME(nickeksov): add normal lastSeen field
 		out = append(out, Peer{
-			Address:  "/" + ip,
+			Address:  "/" + knownPeer.String(), // addr with port
 			LastSeen: uint64(nowMillis),
 		})
 	}
