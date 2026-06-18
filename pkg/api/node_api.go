@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	stderrs "errors"
@@ -648,7 +649,10 @@ func (a *NodeApi) PeersBlackList(w http.ResponseWriter, r *http.Request) error {
 			errors.Wrap(err, "PeersBlackList: failed to read request body"),
 		)
 	}
-	bodyStr := strings.TrimSpace(string(bodyBytesRaw))
+	bodyBytes := bytes.TrimSpace(bodyBytesRaw)
+	// remove leading / if present to be compatible with responses like '/ip:port'
+	// (e.g. values copied from peers list responses like "/ip:port")
+	bodyStr := string(bytes.TrimPrefix(bodyBytes, []byte(`/`)))
 	requestID := middleware.GetReqID(r.Context())
 	clientIP := middleware.GetClientIP(r.Context())
 	if clientIP == "" {

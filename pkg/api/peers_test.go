@@ -33,7 +33,7 @@ func TestApp_PeersKnown(t *testing.T) {
 	require.Len(t, rs2.Peers, 1)
 }
 
-func TestApp_PeersBlackList(t *testing.T) {
+func TestApp_PeersBlackListed(t *testing.T) {
 	peerManager := peers.NewMockPeerManager(t)
 
 	now := time.Now()
