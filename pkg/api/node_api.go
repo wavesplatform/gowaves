@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	stderrs "errors"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/pkg/errors"
 
 	"github.com/ccoveille/go-safecast/v2"
@@ -637,6 +639,26 @@ func (a *NodeApi) PeersClearBlackList(w http.ResponseWriter, _ *http.Request) er
 		return errors.Wrap(err, "PeersBlackListed")
 	}
 	return nil
+}
+
+func (a *NodeApi) PeersBlackList(w http.ResponseWriter, r *http.Request) error {
+	defer r.Body.Close() // ensure that body will be closed after reading, even if error occurs
+	bodyBytesRaw, err := io.ReadAll(io.LimitReader(r.Body, postMessageSizeLimit))
+	if err != nil {
+		return apiErrs.NewBadRequestError(
+			errors.Wrap(err, "PeersBlackList: failed to read request body"),
+		)
+	}
+	bodyBytes := bytes.TrimSpace(bodyBytesRaw)
+	// remove leading / if present to be compatible with responses like '/ip:port'
+	// (e.g. values copied from peers list responses like "/ip:port")
+	bodyStr := string(bytes.TrimPrefix(bodyBytes, []byte(`/`)))
+	requestID := middleware.GetReqID(r.Context())
+	clientIP := middleware.GetClientIP(r.Context())
+	if clientIP == "" {
+		clientIP = r.RemoteAddr
+	}
+	return a.app.PeersBlackList(bodyStr, requestID, clientIP)
 }
 
 func (a *NodeApi) BlocksGenerators(w http.ResponseWriter, _ *http.Request) error {

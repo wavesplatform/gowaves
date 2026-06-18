@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/wavesplatform/gowaves/pkg/node/peers"
@@ -33,7 +34,7 @@ func TestApp_PeersKnown(t *testing.T) {
 	require.Len(t, rs2.Peers, 1)
 }
 
-func TestApp_PeersBlackList(t *testing.T) {
+func TestApp_PeersBlackListed(t *testing.T) {
 	peerManager := peers.NewMockPeerManager(t)
 
 	now := time.Now()
@@ -74,4 +75,74 @@ func TestApp_PeersBlackList(t *testing.T) {
 		}
 		assert.Equal(t, expected, actual)
 	}
+}
+
+func TestApp_PeersAll(t *testing.T) {
+	peerManager := peers.NewMockPeerManager(t)
+
+	const blackListedIPStr = "13.3.4.1"
+	blackListedIP := storage.IPFromString(blackListedIPStr)
+	peerManager.EXPECT().BlackList().Return([]storage.BlackListedPeer{{
+		IP:                      blackListedIP,
+		RestrictTimestampMillis: time.Now().UnixMilli(),
+		RestrictDuration:        time.Minute,
+		Reason:                  "some reason",
+	}})
+
+	allowedAddr := proto.NewTCPAddr(net.ParseIP("5.3.6.7"), 6868).ToIpPort()
+	blackListedAddr := proto.NewTCPAddr(net.ParseIP(blackListedIPStr), 6868).ToIpPort()
+	peerManager.EXPECT().KnownPeers().Return([]storage.KnownPeer{
+		storage.KnownPeer(allowedAddr),
+		storage.KnownPeer(blackListedAddr),
+	})
+
+	cfg := &settings.BlockchainSettings{
+		FunctionalitySettings: settings.FunctionalitySettings{
+			GenerationPeriod: 0,
+		},
+	}
+
+	app, err := NewApp("key", nil, services.Services{Peers: peerManager}, cfg)
+	require.NoError(t, err)
+
+	out, err := app.PeersAll()
+	require.NoError(t, err)
+	require.Len(t, out.Peers, 1)
+	addresses := []string{out.Peers[0].Address}
+	assert.ElementsMatch(t, []string{"/5.3.6.7:6868"}, addresses)
+	assert.NotZero(t, out.Peers[0].LastSeen)
+}
+
+func TestApp_PeersBlackList(t *testing.T) {
+	peerManager := peers.NewMockPeerManager(t)
+
+	const (
+		blacklistedAddr = "5.3.6.7:6868"
+		requestID       = "request-123"
+		clientIP        = "192.168.1.1"
+	)
+
+	peerManager.EXPECT().AddToBlackListByAddr(
+		mock.MatchedBy(func(addr proto.TCPAddr) bool {
+			return addr.String() == blacklistedAddr
+		}),
+		mock.MatchedBy(func(t time.Time) bool {
+			return !t.IsZero()
+		}),
+		mock.MatchedBy(func(reason string) bool {
+			return reason != ""
+		}),
+	).Return()
+
+	cfg := &settings.BlockchainSettings{
+		FunctionalitySettings: settings.FunctionalitySettings{
+			GenerationPeriod: 0,
+		},
+	}
+
+	app, err := NewApp("key", nil, services.Services{Peers: peerManager}, cfg)
+	require.NoError(t, err)
+
+	err = app.PeersBlackList(blacklistedAddr, requestID, clientIP)
+	require.NoError(t, err)
 }
