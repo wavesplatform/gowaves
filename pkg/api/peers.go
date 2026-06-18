@@ -159,7 +159,7 @@ func (a *App) PeersBlackListed() []RestrictedPeerInfo {
 func (a *App) PeersBlackList(blacklistedAddr, requestID, clientIP string) error {
 	tcpAddr := proto.NewTCPAddrFromString(blacklistedAddr)
 	if tcpAddr.Empty() {
-		slog.Error("Invalid peer's address to blacklist",
+		slog.Info("Invalid peer's address to blacklist",
 			slog.String("address", blacklistedAddr),
 			slog.String("client-ip", clientIP),
 			slog.String("request-id", requestID),
@@ -168,8 +168,8 @@ func (a *App) PeersBlackList(blacklistedAddr, requestID, clientIP string) error 
 	}
 	now := time.Now().UTC()
 	reason := fmt.Sprintf(
-		"blacklisted by API at %s by client='%s' with request-id='%s' address='%s'",
-		now.Format(time.RFC3339Nano), clientIP, requestID, tcpAddr.String(),
+		"blacklisted by API at now='%s' by client='%s' with request-id='%s' address='%s'",
+		now.Format(time.RFC3339), clientIP, requestID, tcpAddr.String(),
 	)
 	a.peers.AddToBlackListByAddr(tcpAddr, now, reason)
 	return nil
