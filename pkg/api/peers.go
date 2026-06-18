@@ -159,7 +159,11 @@ func (a *App) PeersBlackListed() []RestrictedPeerInfo {
 func (a *App) PeersBlackList(blacklistedAddr, requestID, clientIP string) error {
 	tcpAddr := proto.NewTCPAddrFromString(blacklistedAddr)
 	if tcpAddr.Empty() {
-		slog.Error("Invalid peer's address to blacklist", "address", blacklistedAddr)
+		slog.Error("Invalid peer's address to blacklist",
+			slog.String("address", blacklistedAddr),
+			slog.String("client-ip", clientIP),
+			slog.String("request-id", requestID),
+		)
 		return apiErrs.NewBadRequestError(errors.Errorf("invalid address format: %s", blacklistedAddr))
 	}
 	now := time.Now()
