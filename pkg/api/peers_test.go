@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/wavesplatform/gowaves/pkg/node/peers"
@@ -110,4 +111,38 @@ func TestApp_PeersAll(t *testing.T) {
 	addresses := []string{out.Peers[0].Address}
 	assert.ElementsMatch(t, []string{"/5.3.6.7:6868"}, addresses)
 	assert.NotZero(t, out.Peers[0].LastSeen)
+}
+
+func TestApp_PeersBlackList(t *testing.T) {
+	peerManager := peers.NewMockPeerManager(t)
+
+	const (
+		blacklistedAddr = "5.3.6.7:6868"
+		requestID       = "request-123"
+		clientIP        = "192.168.1.1"
+	)
+
+	peerManager.EXPECT().AddToBlackListByAddr(
+		mock.MatchedBy(func(addr proto.TCPAddr) bool {
+			return addr.String() == blacklistedAddr
+		}),
+		mock.MatchedBy(func(t time.Time) bool {
+			return !t.IsZero()
+		}),
+		mock.MatchedBy(func(reason string) bool {
+			return reason != ""
+		}),
+	).Return()
+
+	cfg := &settings.BlockchainSettings{
+		FunctionalitySettings: settings.FunctionalitySettings{
+			GenerationPeriod: 0,
+		},
+	}
+
+	app, err := NewApp("key", nil, services.Services{Peers: peerManager}, cfg)
+	require.NoError(t, err)
+
+	err = app.PeersBlackList(blacklistedAddr, requestID, clientIP)
+	require.NoError(t, err)
 }
