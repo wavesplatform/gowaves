@@ -166,9 +166,10 @@ func (a *App) PeersBlackList(blacklistedAddr, requestID, clientIP string) error 
 		)
 		return apiErrs.NewBadRequestError(errors.Errorf("invalid address format: %s", blacklistedAddr))
 	}
-	now := time.Now()
-	reason := fmt.Sprintf("blacklisted by API at local now='%v' by client='%s' with request-id='%s'",
-		now, clientIP, requestID,
+	now := time.Now().UTC()
+	reason := fmt.Sprintf(
+		"blacklisted by API at %s by client='%s' with request-id='%s' address='%s'",
+		now.Format(time.RFC3339Nano), clientIP, requestID, tcpAddr.String(),
 	)
 	a.peers.AddToBlackListByAddr(tcpAddr, now, reason)
 	return nil
