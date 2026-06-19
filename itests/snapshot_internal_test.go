@@ -214,7 +214,7 @@ func createMicroBlockAndInv(t *testing.T, b proto.Block, cfg *settings.Blockchai
 	require.NoError(t, err, "failed to generate block ID")
 
 	mb := &proto.MicroBlock{
-		VersionField:          byte(b.Version),
+		VersionField:          b.Version,
 		SenderPK:              generatorPK,
 		Transactions:          b.Transactions,
 		TransactionCount:      uint32(b.TransactionCount),

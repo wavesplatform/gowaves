@@ -74,7 +74,7 @@ type MockState_ActivationHeight_Call struct {
 
 // ActivationHeight is a helper method to define mock.On call
 //   - featureID int16
-func (_e *MockState_Expecter) ActivationHeight(featureID interface{}) *MockState_ActivationHeight_Call {
+func (_e *MockState_Expecter) ActivationHeight(featureID any) *MockState_ActivationHeight_Call {
 	return &MockState_ActivationHeight_Call{Call: _e.mock.On("ActivationHeight", featureID)}
 }
 
@@ -136,7 +136,7 @@ type MockState_AddBlock_Call struct {
 
 // AddBlock is a helper method to define mock.On call
 //   - block []byte
-func (_e *MockState_Expecter) AddBlock(block interface{}) *MockState_AddBlock_Call {
+func (_e *MockState_Expecter) AddBlock(block any) *MockState_AddBlock_Call {
 	return &MockState_AddBlock_Call{Call: _e.mock.On("AddBlock", block)}
 }
 
@@ -187,7 +187,7 @@ type MockState_AddBlocks_Call struct {
 
 // AddBlocks is a helper method to define mock.On call
 //   - blocks [][]byte
-func (_e *MockState_Expecter) AddBlocks(blocks interface{}) *MockState_AddBlocks_Call {
+func (_e *MockState_Expecter) AddBlocks(blocks any) *MockState_AddBlocks_Call {
 	return &MockState_AddBlocks_Call{Call: _e.mock.On("AddBlocks", blocks)}
 }
 
@@ -239,7 +239,7 @@ type MockState_AddBlocksWithSnapshots_Call struct {
 // AddBlocksWithSnapshots is a helper method to define mock.On call
 //   - blocks [][]byte
 //   - snapshots []*proto.BlockSnapshot
-func (_e *MockState_Expecter) AddBlocksWithSnapshots(blocks interface{}, snapshots interface{}) *MockState_AddBlocksWithSnapshots_Call {
+func (_e *MockState_Expecter) AddBlocksWithSnapshots(blocks any, snapshots any) *MockState_AddBlocksWithSnapshots_Call {
 	return &MockState_AddBlocksWithSnapshots_Call{Call: _e.mock.On("AddBlocksWithSnapshots", blocks, snapshots)}
 }
 
@@ -306,7 +306,7 @@ type MockState_AddDeserializedBlock_Call struct {
 
 // AddDeserializedBlock is a helper method to define mock.On call
 //   - block *proto.Block
-func (_e *MockState_Expecter) AddDeserializedBlock(block interface{}) *MockState_AddDeserializedBlock_Call {
+func (_e *MockState_Expecter) AddDeserializedBlock(block any) *MockState_AddDeserializedBlock_Call {
 	return &MockState_AddDeserializedBlock_Call{Call: _e.mock.On("AddDeserializedBlock", block)}
 }
 
@@ -368,7 +368,7 @@ type MockState_AddDeserializedBlocks_Call struct {
 
 // AddDeserializedBlocks is a helper method to define mock.On call
 //   - blocks []*proto.Block
-func (_e *MockState_Expecter) AddDeserializedBlocks(blocks interface{}) *MockState_AddDeserializedBlocks_Call {
+func (_e *MockState_Expecter) AddDeserializedBlocks(blocks any) *MockState_AddDeserializedBlocks_Call {
 	return &MockState_AddDeserializedBlocks_Call{Call: _e.mock.On("AddDeserializedBlocks", blocks)}
 }
 
@@ -431,7 +431,7 @@ type MockState_AddDeserializedBlocksWithSnapshots_Call struct {
 // AddDeserializedBlocksWithSnapshots is a helper method to define mock.On call
 //   - blocks []*proto.Block
 //   - snapshots []*proto.BlockSnapshot
-func (_e *MockState_Expecter) AddDeserializedBlocksWithSnapshots(blocks interface{}, snapshots interface{}) *MockState_AddDeserializedBlocksWithSnapshots_Call {
+func (_e *MockState_Expecter) AddDeserializedBlocksWithSnapshots(blocks any, snapshots any) *MockState_AddDeserializedBlocksWithSnapshots_Call {
 	return &MockState_AddDeserializedBlocksWithSnapshots_Call{Call: _e.mock.On("AddDeserializedBlocksWithSnapshots", blocks, snapshots)}
 }
 
@@ -498,7 +498,7 @@ type MockState_AddrByAlias_Call struct {
 
 // AddrByAlias is a helper method to define mock.On call
 //   - alias proto.Alias
-func (_e *MockState_Expecter) AddrByAlias(alias interface{}) *MockState_AddrByAlias_Call {
+func (_e *MockState_Expecter) AddrByAlias(alias any) *MockState_AddrByAlias_Call {
 	return &MockState_AddrByAlias_Call{Call: _e.mock.On("AddrByAlias", alias)}
 }
 
@@ -560,7 +560,7 @@ type MockState_AliasesByAddr_Call struct {
 
 // AliasesByAddr is a helper method to define mock.On call
 //   - addr proto.WavesAddress
-func (_e *MockState_Expecter) AliasesByAddr(addr interface{}) *MockState_AliasesByAddr_Call {
+func (_e *MockState_Expecter) AliasesByAddr(addr any) *MockState_AliasesByAddr_Call {
 	return &MockState_AliasesByAddr_Call{Call: _e.mock.On("AliasesByAddr", addr)}
 }
 
@@ -675,7 +675,7 @@ type MockState_ApprovalHeight_Call struct {
 
 // ApprovalHeight is a helper method to define mock.On call
 //   - featureID int16
-func (_e *MockState_Expecter) ApprovalHeight(featureID interface{}) *MockState_ApprovalHeight_Call {
+func (_e *MockState_Expecter) ApprovalHeight(featureID any) *MockState_ApprovalHeight_Call {
 	return &MockState_ApprovalHeight_Call{Call: _e.mock.On("ApprovalHeight", featureID)}
 }
 
@@ -736,7 +736,7 @@ type MockState_AssetBalance_Call struct {
 // AssetBalance is a helper method to define mock.On call
 //   - account proto.Recipient
 //   - assetID proto.AssetID
-func (_e *MockState_Expecter) AssetBalance(account interface{}, assetID interface{}) *MockState_AssetBalance_Call {
+func (_e *MockState_Expecter) AssetBalance(account any, assetID any) *MockState_AssetBalance_Call {
 	return &MockState_AssetBalance_Call{Call: _e.mock.On("AssetBalance", account, assetID)}
 }
 
@@ -803,7 +803,7 @@ type MockState_AssetInfo_Call struct {
 
 // AssetInfo is a helper method to define mock.On call
 //   - assetID proto.AssetID
-func (_e *MockState_Expecter) AssetInfo(assetID interface{}) *MockState_AssetInfo_Call {
+func (_e *MockState_Expecter) AssetInfo(assetID any) *MockState_AssetInfo_Call {
 	return &MockState_AssetInfo_Call{Call: _e.mock.On("AssetInfo", assetID)}
 }
 
@@ -863,7 +863,7 @@ type MockState_AssetIsSponsored_Call struct {
 
 // AssetIsSponsored is a helper method to define mock.On call
 //   - assetID proto.AssetID
-func (_e *MockState_Expecter) AssetIsSponsored(assetID interface{}) *MockState_AssetIsSponsored_Call {
+func (_e *MockState_Expecter) AssetIsSponsored(assetID any) *MockState_AssetIsSponsored_Call {
 	return &MockState_AssetIsSponsored_Call{Call: _e.mock.On("AssetIsSponsored", assetID)}
 }
 
@@ -925,7 +925,7 @@ type MockState_Block_Call struct {
 
 // Block is a helper method to define mock.On call
 //   - blockID proto.BlockID
-func (_e *MockState_Expecter) Block(blockID interface{}) *MockState_Block_Call {
+func (_e *MockState_Expecter) Block(blockID any) *MockState_Block_Call {
 	return &MockState_Block_Call{Call: _e.mock.On("Block", blockID)}
 }
 
@@ -987,7 +987,7 @@ type MockState_BlockByHeight_Call struct {
 
 // BlockByHeight is a helper method to define mock.On call
 //   - height proto.Height
-func (_e *MockState_Expecter) BlockByHeight(height interface{}) *MockState_BlockByHeight_Call {
+func (_e *MockState_Expecter) BlockByHeight(height any) *MockState_BlockByHeight_Call {
 	return &MockState_BlockByHeight_Call{Call: _e.mock.On("BlockByHeight", height)}
 }
 
@@ -1047,7 +1047,7 @@ type MockState_BlockIDToHeight_Call struct {
 
 // BlockIDToHeight is a helper method to define mock.On call
 //   - blockID proto.BlockID
-func (_e *MockState_Expecter) BlockIDToHeight(blockID interface{}) *MockState_BlockIDToHeight_Call {
+func (_e *MockState_Expecter) BlockIDToHeight(blockID any) *MockState_BlockIDToHeight_Call {
 	return &MockState_BlockIDToHeight_Call{Call: _e.mock.On("BlockIDToHeight", blockID)}
 }
 
@@ -1110,7 +1110,7 @@ type MockState_BlockRewards_Call struct {
 // BlockRewards is a helper method to define mock.On call
 //   - generator proto.WavesAddress
 //   - height proto.Height
-func (_e *MockState_Expecter) BlockRewards(generator interface{}, height interface{}) *MockState_BlockRewards_Call {
+func (_e *MockState_Expecter) BlockRewards(generator any, height any) *MockState_BlockRewards_Call {
 	return &MockState_BlockRewards_Call{Call: _e.mock.On("BlockRewards", generator, height)}
 }
 
@@ -1178,7 +1178,7 @@ type MockState_BlockVRF_Call struct {
 // BlockVRF is a helper method to define mock.On call
 //   - blockHeader *proto.BlockHeader
 //   - blockHeight proto.Height
-func (_e *MockState_Expecter) BlockVRF(blockHeader interface{}, blockHeight interface{}) *MockState_BlockVRF_Call {
+func (_e *MockState_Expecter) BlockVRF(blockHeader any, blockHeight any) *MockState_BlockVRF_Call {
 	return &MockState_BlockVRF_Call{Call: _e.mock.On("BlockVRF", blockHeader, blockHeight)}
 }
 
@@ -1265,9 +1265,75 @@ func (_c *MockState_BlockchainSettings_Call) RunAndReturn(run func() (*settings.
 	return _c
 }
 
+// BuildLocalEndorsementMessage provides a mock function for the type MockState
+func (_mock *MockState) BuildLocalEndorsementMessage(v proto.Height, blockID proto.BlockID) (proto.EndorsementCryptoMessage, error) {
+	ret := _mock.Called(v, blockID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BuildLocalEndorsementMessage")
+	}
+
+	var r0 proto.EndorsementCryptoMessage
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(proto.Height, proto.BlockID) (proto.EndorsementCryptoMessage, error)); ok {
+		return returnFunc(v, blockID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(proto.Height, proto.BlockID) proto.EndorsementCryptoMessage); ok {
+		r0 = returnFunc(v, blockID)
+	} else {
+		r0 = ret.Get(0).(proto.EndorsementCryptoMessage)
+	}
+	if returnFunc, ok := ret.Get(1).(func(proto.Height, proto.BlockID) error); ok {
+		r1 = returnFunc(v, blockID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockState_BuildLocalEndorsementMessage_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BuildLocalEndorsementMessage'
+type MockState_BuildLocalEndorsementMessage_Call struct {
+	*mock.Call
+}
+
+// BuildLocalEndorsementMessage is a helper method to define mock.On call
+//   - v proto.Height
+//   - blockID proto.BlockID
+func (_e *MockState_Expecter) BuildLocalEndorsementMessage(v any, blockID any) *MockState_BuildLocalEndorsementMessage_Call {
+	return &MockState_BuildLocalEndorsementMessage_Call{Call: _e.mock.On("BuildLocalEndorsementMessage", v, blockID)}
+}
+
+func (_c *MockState_BuildLocalEndorsementMessage_Call) Run(run func(v proto.Height, blockID proto.BlockID)) *MockState_BuildLocalEndorsementMessage_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 proto.Height
+		if args[0] != nil {
+			arg0 = args[0].(proto.Height)
+		}
+		var arg1 proto.BlockID
+		if args[1] != nil {
+			arg1 = args[1].(proto.BlockID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockState_BuildLocalEndorsementMessage_Call) Return(endorsementCryptoMessage proto.EndorsementCryptoMessage, err error) *MockState_BuildLocalEndorsementMessage_Call {
+	_c.Call.Return(endorsementCryptoMessage, err)
+	return _c
+}
+
+func (_c *MockState_BuildLocalEndorsementMessage_Call) RunAndReturn(run func(v proto.Height, blockID proto.BlockID) (proto.EndorsementCryptoMessage, error)) *MockState_BuildLocalEndorsementMessage_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CheckRollbackHeightAuto provides a mock function for the type MockState
-func (_mock *MockState) CheckRollbackHeightAuto(height proto.Height) error {
-	ret := _mock.Called(height)
+func (_mock *MockState) CheckRollbackHeightAuto(v proto.Height) error {
+	ret := _mock.Called(v)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CheckRollbackHeightAuto")
@@ -1275,7 +1341,7 @@ func (_mock *MockState) CheckRollbackHeightAuto(height proto.Height) error {
 
 	var r0 error
 	if returnFunc, ok := ret.Get(0).(func(proto.Height) error); ok {
-		r0 = returnFunc(height)
+		r0 = returnFunc(v)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1288,12 +1354,12 @@ type MockState_CheckRollbackHeightAuto_Call struct {
 }
 
 // CheckRollbackHeightAuto is a helper method to define mock.On call
-//   - height proto.Height
-func (_e *MockState_Expecter) CheckRollbackHeightAuto(height interface{}) *MockState_CheckRollbackHeightAuto_Call {
-	return &MockState_CheckRollbackHeightAuto_Call{Call: _e.mock.On("CheckRollbackHeightAuto", height)}
+//   - v proto.Height
+func (_e *MockState_Expecter) CheckRollbackHeightAuto(v any) *MockState_CheckRollbackHeightAuto_Call {
+	return &MockState_CheckRollbackHeightAuto_Call{Call: _e.mock.On("CheckRollbackHeightAuto", v)}
 }
 
-func (_c *MockState_CheckRollbackHeightAuto_Call) Run(run func(height proto.Height)) *MockState_CheckRollbackHeightAuto_Call {
+func (_c *MockState_CheckRollbackHeightAuto_Call) Run(run func(v proto.Height)) *MockState_CheckRollbackHeightAuto_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 proto.Height
 		if args[0] != nil {
@@ -1311,7 +1377,7 @@ func (_c *MockState_CheckRollbackHeightAuto_Call) Return(err error) *MockState_C
 	return _c
 }
 
-func (_c *MockState_CheckRollbackHeightAuto_Call) RunAndReturn(run func(height proto.Height) error) *MockState_CheckRollbackHeightAuto_Call {
+func (_c *MockState_CheckRollbackHeightAuto_Call) RunAndReturn(run func(v proto.Height) error) *MockState_CheckRollbackHeightAuto_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1361,8 +1427,8 @@ func (_c *MockState_Close_Call) RunAndReturn(run func() error) *MockState_Close_
 }
 
 // CommittedGenerators provides a mock function for the type MockState
-func (_mock *MockState) CommittedGenerators(height proto.Height) ([]GeneratorInfo, error) {
-	ret := _mock.Called(height)
+func (_mock *MockState) CommittedGenerators(v proto.Height) ([]GeneratorInfo, error) {
+	ret := _mock.Called(v)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CommittedGenerators")
@@ -1371,17 +1437,17 @@ func (_mock *MockState) CommittedGenerators(height proto.Height) ([]GeneratorInf
 	var r0 []GeneratorInfo
 	var r1 error
 	if returnFunc, ok := ret.Get(0).(func(proto.Height) ([]GeneratorInfo, error)); ok {
-		return returnFunc(height)
+		return returnFunc(v)
 	}
 	if returnFunc, ok := ret.Get(0).(func(proto.Height) []GeneratorInfo); ok {
-		r0 = returnFunc(height)
+		r0 = returnFunc(v)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]GeneratorInfo)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(proto.Height) error); ok {
-		r1 = returnFunc(height)
+		r1 = returnFunc(v)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1394,12 +1460,12 @@ type MockState_CommittedGenerators_Call struct {
 }
 
 // CommittedGenerators is a helper method to define mock.On call
-//   - height proto.Height
-func (_e *MockState_Expecter) CommittedGenerators(height interface{}) *MockState_CommittedGenerators_Call {
-	return &MockState_CommittedGenerators_Call{Call: _e.mock.On("CommittedGenerators", height)}
+//   - v proto.Height
+func (_e *MockState_Expecter) CommittedGenerators(v any) *MockState_CommittedGenerators_Call {
+	return &MockState_CommittedGenerators_Call{Call: _e.mock.On("CommittedGenerators", v)}
 }
 
-func (_c *MockState_CommittedGenerators_Call) Run(run func(height proto.Height)) *MockState_CommittedGenerators_Call {
+func (_c *MockState_CommittedGenerators_Call) Run(run func(v proto.Height)) *MockState_CommittedGenerators_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 proto.Height
 		if args[0] != nil {
@@ -1417,7 +1483,7 @@ func (_c *MockState_CommittedGenerators_Call) Return(generatorInfos []GeneratorI
 	return _c
 }
 
-func (_c *MockState_CommittedGenerators_Call) RunAndReturn(run func(height proto.Height) ([]GeneratorInfo, error)) *MockState_CommittedGenerators_Call {
+func (_c *MockState_CommittedGenerators_Call) RunAndReturn(run func(v proto.Height) ([]GeneratorInfo, error)) *MockState_CommittedGenerators_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1457,7 +1523,7 @@ type MockState_CreateNextSnapshotHash_Call struct {
 
 // CreateNextSnapshotHash is a helper method to define mock.On call
 //   - block *proto.Block
-func (_e *MockState_Expecter) CreateNextSnapshotHash(block interface{}) *MockState_CreateNextSnapshotHash_Call {
+func (_e *MockState_Expecter) CreateNextSnapshotHash(block any) *MockState_CreateNextSnapshotHash_Call {
 	return &MockState_CreateNextSnapshotHash_Call{Call: _e.mock.On("CreateNextSnapshotHash", block)}
 }
 
@@ -1574,7 +1640,7 @@ type MockState_EnrichedFullAssetInfo_Call struct {
 
 // EnrichedFullAssetInfo is a helper method to define mock.On call
 //   - assetID proto.AssetID
-func (_e *MockState_Expecter) EnrichedFullAssetInfo(assetID interface{}) *MockState_EnrichedFullAssetInfo_Call {
+func (_e *MockState_Expecter) EnrichedFullAssetInfo(assetID any) *MockState_EnrichedFullAssetInfo_Call {
 	return &MockState_EnrichedFullAssetInfo_Call{Call: _e.mock.On("EnrichedFullAssetInfo", assetID)}
 }
 
@@ -1655,8 +1721,8 @@ func (_c *MockState_EstimatorVersion_Call) RunAndReturn(run func() (int, error))
 }
 
 // FindGenerator provides a mock function for the type MockState
-func (_mock *MockState) FindGenerator(fn func(GeneratorInfo) bool) (GeneratorInfo, error) {
-	ret := _mock.Called(fn)
+func (_mock *MockState) FindGenerator(v proto.Height, fn func(GeneratorInfo) bool) (GeneratorInfo, error) {
+	ret := _mock.Called(v, fn)
 
 	if len(ret) == 0 {
 		panic("no return value specified for FindGenerator")
@@ -1664,16 +1730,16 @@ func (_mock *MockState) FindGenerator(fn func(GeneratorInfo) bool) (GeneratorInf
 
 	var r0 GeneratorInfo
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(func(GeneratorInfo) bool) (GeneratorInfo, error)); ok {
-		return returnFunc(fn)
+	if returnFunc, ok := ret.Get(0).(func(proto.Height, func(GeneratorInfo) bool) (GeneratorInfo, error)); ok {
+		return returnFunc(v, fn)
 	}
-	if returnFunc, ok := ret.Get(0).(func(func(GeneratorInfo) bool) GeneratorInfo); ok {
-		r0 = returnFunc(fn)
+	if returnFunc, ok := ret.Get(0).(func(proto.Height, func(GeneratorInfo) bool) GeneratorInfo); ok {
+		r0 = returnFunc(v, fn)
 	} else {
 		r0 = ret.Get(0).(GeneratorInfo)
 	}
-	if returnFunc, ok := ret.Get(1).(func(func(GeneratorInfo) bool) error); ok {
-		r1 = returnFunc(fn)
+	if returnFunc, ok := ret.Get(1).(func(proto.Height, func(GeneratorInfo) bool) error); ok {
+		r1 = returnFunc(v, fn)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1686,19 +1752,25 @@ type MockState_FindGenerator_Call struct {
 }
 
 // FindGenerator is a helper method to define mock.On call
+//   - v proto.Height
 //   - fn func(GeneratorInfo) bool
-func (_e *MockState_Expecter) FindGenerator(fn interface{}) *MockState_FindGenerator_Call {
-	return &MockState_FindGenerator_Call{Call: _e.mock.On("FindGenerator", fn)}
+func (_e *MockState_Expecter) FindGenerator(v any, fn any) *MockState_FindGenerator_Call {
+	return &MockState_FindGenerator_Call{Call: _e.mock.On("FindGenerator", v, fn)}
 }
 
-func (_c *MockState_FindGenerator_Call) Run(run func(fn func(GeneratorInfo) bool)) *MockState_FindGenerator_Call {
+func (_c *MockState_FindGenerator_Call) Run(run func(v proto.Height, fn func(GeneratorInfo) bool)) *MockState_FindGenerator_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 func(GeneratorInfo) bool
+		var arg0 proto.Height
 		if args[0] != nil {
-			arg0 = args[0].(func(GeneratorInfo) bool)
+			arg0 = args[0].(proto.Height)
+		}
+		var arg1 func(GeneratorInfo) bool
+		if args[1] != nil {
+			arg1 = args[1].(func(GeneratorInfo) bool)
 		}
 		run(
 			arg0,
+			arg1,
 		)
 	})
 	return _c
@@ -1709,7 +1781,7 @@ func (_c *MockState_FindGenerator_Call) Return(generatorInfo GeneratorInfo, err 
 	return _c
 }
 
-func (_c *MockState_FindGenerator_Call) RunAndReturn(run func(fn func(GeneratorInfo) bool) (GeneratorInfo, error)) *MockState_FindGenerator_Call {
+func (_c *MockState_FindGenerator_Call) RunAndReturn(run func(v proto.Height, fn func(GeneratorInfo) bool) (GeneratorInfo, error)) *MockState_FindGenerator_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1749,7 +1821,7 @@ type MockState_FullAssetInfo_Call struct {
 
 // FullAssetInfo is a helper method to define mock.On call
 //   - assetID proto.AssetID
-func (_e *MockState_Expecter) FullAssetInfo(assetID interface{}) *MockState_FullAssetInfo_Call {
+func (_e *MockState_Expecter) FullAssetInfo(assetID any) *MockState_FullAssetInfo_Call {
 	return &MockState_FullAssetInfo_Call{Call: _e.mock.On("FullAssetInfo", assetID)}
 }
 
@@ -1811,7 +1883,7 @@ type MockState_FullWavesBalance_Call struct {
 
 // FullWavesBalance is a helper method to define mock.On call
 //   - account proto.Recipient
-func (_e *MockState_Expecter) FullWavesBalance(account interface{}) *MockState_FullWavesBalance_Call {
+func (_e *MockState_Expecter) FullWavesBalance(account any) *MockState_FullWavesBalance_Call {
 	return &MockState_FullWavesBalance_Call{Call: _e.mock.On("FullWavesBalance", account)}
 }
 
@@ -1872,7 +1944,7 @@ type MockState_GeneratingBalance_Call struct {
 // GeneratingBalance is a helper method to define mock.On call
 //   - account proto.Recipient
 //   - height proto.Height
-func (_e *MockState_Expecter) GeneratingBalance(account interface{}, height interface{}) *MockState_GeneratingBalance_Call {
+func (_e *MockState_Expecter) GeneratingBalance(account any, height any) *MockState_GeneratingBalance_Call {
 	return &MockState_GeneratingBalance_Call{Call: _e.mock.On("GeneratingBalance", account, height)}
 }
 
@@ -1939,7 +2011,7 @@ type MockState_Header_Call struct {
 
 // Header is a helper method to define mock.On call
 //   - blockID proto.BlockID
-func (_e *MockState_Expecter) Header(blockID interface{}) *MockState_Header_Call {
+func (_e *MockState_Expecter) Header(blockID any) *MockState_Header_Call {
 	return &MockState_Header_Call{Call: _e.mock.On("Header", blockID)}
 }
 
@@ -2001,7 +2073,7 @@ type MockState_HeaderByHeight_Call struct {
 
 // HeaderByHeight is a helper method to define mock.On call
 //   - height proto.Height
-func (_e *MockState_Expecter) HeaderByHeight(height interface{}) *MockState_HeaderByHeight_Call {
+func (_e *MockState_Expecter) HeaderByHeight(height any) *MockState_HeaderByHeight_Call {
 	return &MockState_HeaderByHeight_Call{Call: _e.mock.On("HeaderByHeight", height)}
 }
 
@@ -2114,7 +2186,7 @@ type MockState_HeightToBlockID_Call struct {
 
 // HeightToBlockID is a helper method to define mock.On call
 //   - height proto.Height
-func (_e *MockState_Expecter) HeightToBlockID(height interface{}) *MockState_HeightToBlockID_Call {
+func (_e *MockState_Expecter) HeightToBlockID(height any) *MockState_HeightToBlockID_Call {
 	return &MockState_HeightToBlockID_Call{Call: _e.mock.On("HeightToBlockID", height)}
 }
 
@@ -2176,7 +2248,7 @@ type MockState_HitSourceAtHeight_Call struct {
 
 // HitSourceAtHeight is a helper method to define mock.On call
 //   - height proto.Height
-func (_e *MockState_Expecter) HitSourceAtHeight(height interface{}) *MockState_HitSourceAtHeight_Call {
+func (_e *MockState_Expecter) HitSourceAtHeight(height any) *MockState_HitSourceAtHeight_Call {
 	return &MockState_HitSourceAtHeight_Call{Call: _e.mock.On("HitSourceAtHeight", height)}
 }
 
@@ -2238,7 +2310,7 @@ type MockState_InvokeResultByID_Call struct {
 
 // InvokeResultByID is a helper method to define mock.On call
 //   - invokeID crypto.Digest
-func (_e *MockState_Expecter) InvokeResultByID(invokeID interface{}) *MockState_InvokeResultByID_Call {
+func (_e *MockState_Expecter) InvokeResultByID(invokeID any) *MockState_InvokeResultByID_Call {
 	return &MockState_InvokeResultByID_Call{Call: _e.mock.On("InvokeResultByID", invokeID)}
 }
 
@@ -2298,7 +2370,7 @@ type MockState_IsActivated_Call struct {
 
 // IsActivated is a helper method to define mock.On call
 //   - featureID int16
-func (_e *MockState_Expecter) IsActivated(featureID interface{}) *MockState_IsActivated_Call {
+func (_e *MockState_Expecter) IsActivated(featureID any) *MockState_IsActivated_Call {
 	return &MockState_IsActivated_Call{Call: _e.mock.On("IsActivated", featureID)}
 }
 
@@ -2359,7 +2431,7 @@ type MockState_IsActiveAtHeight_Call struct {
 // IsActiveAtHeight is a helper method to define mock.On call
 //   - featureID int16
 //   - height proto.Height
-func (_e *MockState_Expecter) IsActiveAtHeight(featureID interface{}, height interface{}) *MockState_IsActiveAtHeight_Call {
+func (_e *MockState_Expecter) IsActiveAtHeight(featureID any, height any) *MockState_IsActiveAtHeight_Call {
 	return &MockState_IsActiveAtHeight_Call{Call: _e.mock.On("IsActiveAtHeight", featureID, height)}
 }
 
@@ -2424,7 +2496,7 @@ type MockState_IsActiveLeasing_Call struct {
 
 // IsActiveLeasing is a helper method to define mock.On call
 //   - leaseID crypto.Digest
-func (_e *MockState_Expecter) IsActiveLeasing(leaseID interface{}) *MockState_IsActiveLeasing_Call {
+func (_e *MockState_Expecter) IsActiveLeasing(leaseID any) *MockState_IsActiveLeasing_Call {
 	return &MockState_IsActiveLeasing_Call{Call: _e.mock.On("IsActiveLeasing", leaseID)}
 }
 
@@ -2484,7 +2556,7 @@ type MockState_IsActiveLightNodeNewBlocksFields_Call struct {
 
 // IsActiveLightNodeNewBlocksFields is a helper method to define mock.On call
 //   - blockHeight proto.Height
-func (_e *MockState_Expecter) IsActiveLightNodeNewBlocksFields(blockHeight interface{}) *MockState_IsActiveLightNodeNewBlocksFields_Call {
+func (_e *MockState_Expecter) IsActiveLightNodeNewBlocksFields(blockHeight any) *MockState_IsActiveLightNodeNewBlocksFields_Call {
 	return &MockState_IsActiveLightNodeNewBlocksFields_Call{Call: _e.mock.On("IsActiveLightNodeNewBlocksFields", blockHeight)}
 }
 
@@ -2544,7 +2616,7 @@ type MockState_IsApproved_Call struct {
 
 // IsApproved is a helper method to define mock.On call
 //   - featureID int16
-func (_e *MockState_Expecter) IsApproved(featureID interface{}) *MockState_IsApproved_Call {
+func (_e *MockState_Expecter) IsApproved(featureID any) *MockState_IsApproved_Call {
 	return &MockState_IsApproved_Call{Call: _e.mock.On("IsApproved", featureID)}
 }
 
@@ -2605,7 +2677,7 @@ type MockState_IsApprovedAtHeight_Call struct {
 // IsApprovedAtHeight is a helper method to define mock.On call
 //   - featureID int16
 //   - height proto.Height
-func (_e *MockState_Expecter) IsApprovedAtHeight(featureID interface{}, height interface{}) *MockState_IsApprovedAtHeight_Call {
+func (_e *MockState_Expecter) IsApprovedAtHeight(featureID any, height any) *MockState_IsApprovedAtHeight_Call {
 	return &MockState_IsApprovedAtHeight_Call{Call: _e.mock.On("IsApprovedAtHeight", featureID, height)}
 }
 
@@ -2670,7 +2742,7 @@ type MockState_IsAssetExist_Call struct {
 
 // IsAssetExist is a helper method to define mock.On call
 //   - assetID proto.AssetID
-func (_e *MockState_Expecter) IsAssetExist(assetID interface{}) *MockState_IsAssetExist_Call {
+func (_e *MockState_Expecter) IsAssetExist(assetID any) *MockState_IsAssetExist_Call {
 	return &MockState_IsAssetExist_Call{Call: _e.mock.On("IsAssetExist", assetID)}
 }
 
@@ -2840,7 +2912,7 @@ type MockState_LegacyStateHashAtHeight_Call struct {
 
 // LegacyStateHashAtHeight is a helper method to define mock.On call
 //   - height proto.Height
-func (_e *MockState_Expecter) LegacyStateHashAtHeight(height interface{}) *MockState_LegacyStateHashAtHeight_Call {
+func (_e *MockState_Expecter) LegacyStateHashAtHeight(height any) *MockState_LegacyStateHashAtHeight_Call {
 	return &MockState_LegacyStateHashAtHeight_Call{Call: _e.mock.On("LegacyStateHashAtHeight", height)}
 }
 
@@ -2891,7 +2963,7 @@ type MockState_Map_Call struct {
 
 // Map is a helper method to define mock.On call
 //   - fn func(state NonThreadSafeState) error
-func (_e *MockState_Expecter) Map(fn interface{}) *MockState_Map_Call {
+func (_e *MockState_Expecter) Map(fn any) *MockState_Map_Call {
 	return &MockState_Map_Call{Call: _e.mock.On("Map", fn)}
 }
 
@@ -2953,7 +3025,7 @@ type MockState_MapR_Call struct {
 
 // MapR is a helper method to define mock.On call
 //   - fn func(StateInfo) (any, error)
-func (_e *MockState_Expecter) MapR(fn interface{}) *MockState_MapR_Call {
+func (_e *MockState_Expecter) MapR(fn any) *MockState_MapR_Call {
 	return &MockState_MapR_Call{Call: _e.mock.On("MapR", fn)}
 }
 
@@ -3004,7 +3076,7 @@ type MockState_MapUnsafe_Call struct {
 
 // MapUnsafe is a helper method to define mock.On call
 //   - fn func(state NonThreadSafeState) error
-func (_e *MockState_Expecter) MapUnsafe(fn interface{}) *MockState_MapUnsafe_Call {
+func (_e *MockState_Expecter) MapUnsafe(fn any) *MockState_MapUnsafe_Call {
 	return &MockState_MapUnsafe_Call{Call: _e.mock.On("MapUnsafe", fn)}
 }
 
@@ -3068,7 +3140,7 @@ type MockState_NFTList_Call struct {
 //   - account proto.Recipient
 //   - limit uint64
 //   - afterAssetID *proto.AssetID
-func (_e *MockState_Expecter) NFTList(account interface{}, limit interface{}, afterAssetID interface{}) *MockState_NFTList_Call {
+func (_e *MockState_Expecter) NFTList(account any, limit any, afterAssetID any) *MockState_NFTList_Call {
 	return &MockState_NFTList_Call{Call: _e.mock.On("NFTList", account, limit, afterAssetID)}
 }
 
@@ -3140,7 +3212,7 @@ type MockState_NewAddrTransactionsIterator_Call struct {
 
 // NewAddrTransactionsIterator is a helper method to define mock.On call
 //   - addr proto.Address
-func (_e *MockState_Expecter) NewAddrTransactionsIterator(addr interface{}) *MockState_NewAddrTransactionsIterator_Call {
+func (_e *MockState_Expecter) NewAddrTransactionsIterator(addr any) *MockState_NewAddrTransactionsIterator_Call {
 	return &MockState_NewAddrTransactionsIterator_Call{Call: _e.mock.On("NewAddrTransactionsIterator", addr)}
 }
 
@@ -3202,7 +3274,7 @@ type MockState_NewestBlockInfoByHeight_Call struct {
 
 // NewestBlockInfoByHeight is a helper method to define mock.On call
 //   - height proto.Height
-func (_e *MockState_Expecter) NewestBlockInfoByHeight(height interface{}) *MockState_NewestBlockInfoByHeight_Call {
+func (_e *MockState_Expecter) NewestBlockInfoByHeight(height any) *MockState_NewestBlockInfoByHeight_Call {
 	return &MockState_NewestBlockInfoByHeight_Call{Call: _e.mock.On("NewestBlockInfoByHeight", height)}
 }
 
@@ -3264,7 +3336,7 @@ type MockState_NewestHeaderByHeight_Call struct {
 
 // NewestHeaderByHeight is a helper method to define mock.On call
 //   - height uint64
-func (_e *MockState_Expecter) NewestHeaderByHeight(height interface{}) *MockState_NewestHeaderByHeight_Call {
+func (_e *MockState_Expecter) NewestHeaderByHeight(height any) *MockState_NewestHeaderByHeight_Call {
 	return &MockState_NewestHeaderByHeight_Call{Call: _e.mock.On("NewestHeaderByHeight", height)}
 }
 
@@ -3326,7 +3398,7 @@ type MockState_NewestScriptByAccount_Call struct {
 
 // NewestScriptByAccount is a helper method to define mock.On call
 //   - account proto.Recipient
-func (_e *MockState_Expecter) NewestScriptByAccount(account interface{}) *MockState_NewestScriptByAccount_Call {
+func (_e *MockState_Expecter) NewestScriptByAccount(account any) *MockState_NewestScriptByAccount_Call {
 	return &MockState_NewestScriptByAccount_Call{Call: _e.mock.On("NewestScriptByAccount", account)}
 }
 
@@ -3388,7 +3460,7 @@ type MockState_NewestScriptBytesByAccount_Call struct {
 
 // NewestScriptBytesByAccount is a helper method to define mock.On call
 //   - account proto.Recipient
-func (_e *MockState_Expecter) NewestScriptBytesByAccount(account interface{}) *MockState_NewestScriptBytesByAccount_Call {
+func (_e *MockState_Expecter) NewestScriptBytesByAccount(account any) *MockState_NewestScriptBytesByAccount_Call {
 	return &MockState_NewestScriptBytesByAccount_Call{Call: _e.mock.On("NewestScriptBytesByAccount", account)}
 }
 
@@ -3634,7 +3706,7 @@ type MockState_RetrieveBinaryEntry_Call struct {
 // RetrieveBinaryEntry is a helper method to define mock.On call
 //   - account proto.Recipient
 //   - key string
-func (_e *MockState_Expecter) RetrieveBinaryEntry(account interface{}, key interface{}) *MockState_RetrieveBinaryEntry_Call {
+func (_e *MockState_Expecter) RetrieveBinaryEntry(account any, key any) *MockState_RetrieveBinaryEntry_Call {
 	return &MockState_RetrieveBinaryEntry_Call{Call: _e.mock.On("RetrieveBinaryEntry", account, key)}
 }
 
@@ -3702,7 +3774,7 @@ type MockState_RetrieveBooleanEntry_Call struct {
 // RetrieveBooleanEntry is a helper method to define mock.On call
 //   - account proto.Recipient
 //   - key string
-func (_e *MockState_Expecter) RetrieveBooleanEntry(account interface{}, key interface{}) *MockState_RetrieveBooleanEntry_Call {
+func (_e *MockState_Expecter) RetrieveBooleanEntry(account any, key any) *MockState_RetrieveBooleanEntry_Call {
 	return &MockState_RetrieveBooleanEntry_Call{Call: _e.mock.On("RetrieveBooleanEntry", account, key)}
 }
 
@@ -3769,7 +3841,7 @@ type MockState_RetrieveEntries_Call struct {
 
 // RetrieveEntries is a helper method to define mock.On call
 //   - account proto.Recipient
-func (_e *MockState_Expecter) RetrieveEntries(account interface{}) *MockState_RetrieveEntries_Call {
+func (_e *MockState_Expecter) RetrieveEntries(account any) *MockState_RetrieveEntries_Call {
 	return &MockState_RetrieveEntries_Call{Call: _e.mock.On("RetrieveEntries", account)}
 }
 
@@ -3832,7 +3904,7 @@ type MockState_RetrieveEntry_Call struct {
 // RetrieveEntry is a helper method to define mock.On call
 //   - account proto.Recipient
 //   - key string
-func (_e *MockState_Expecter) RetrieveEntry(account interface{}, key interface{}) *MockState_RetrieveEntry_Call {
+func (_e *MockState_Expecter) RetrieveEntry(account any, key any) *MockState_RetrieveEntry_Call {
 	return &MockState_RetrieveEntry_Call{Call: _e.mock.On("RetrieveEntry", account, key)}
 }
 
@@ -3900,7 +3972,7 @@ type MockState_RetrieveIntegerEntry_Call struct {
 // RetrieveIntegerEntry is a helper method to define mock.On call
 //   - account proto.Recipient
 //   - key string
-func (_e *MockState_Expecter) RetrieveIntegerEntry(account interface{}, key interface{}) *MockState_RetrieveIntegerEntry_Call {
+func (_e *MockState_Expecter) RetrieveIntegerEntry(account any, key any) *MockState_RetrieveIntegerEntry_Call {
 	return &MockState_RetrieveIntegerEntry_Call{Call: _e.mock.On("RetrieveIntegerEntry", account, key)}
 }
 
@@ -3968,7 +4040,7 @@ type MockState_RetrieveStringEntry_Call struct {
 // RetrieveStringEntry is a helper method to define mock.On call
 //   - account proto.Recipient
 //   - key string
-func (_e *MockState_Expecter) RetrieveStringEntry(account interface{}, key interface{}) *MockState_RetrieveStringEntry_Call {
+func (_e *MockState_Expecter) RetrieveStringEntry(account any, key any) *MockState_RetrieveStringEntry_Call {
 	return &MockState_RetrieveStringEntry_Call{Call: _e.mock.On("RetrieveStringEntry", account, key)}
 }
 
@@ -4033,7 +4105,7 @@ type MockState_RewardAtHeight_Call struct {
 
 // RewardAtHeight is a helper method to define mock.On call
 //   - height proto.Height
-func (_e *MockState_Expecter) RewardAtHeight(height interface{}) *MockState_RewardAtHeight_Call {
+func (_e *MockState_Expecter) RewardAtHeight(height any) *MockState_RewardAtHeight_Call {
 	return &MockState_RewardAtHeight_Call{Call: _e.mock.On("RewardAtHeight", height)}
 }
 
@@ -4093,7 +4165,7 @@ type MockState_RewardVotes_Call struct {
 
 // RewardVotes is a helper method to define mock.On call
 //   - height proto.Height
-func (_e *MockState_Expecter) RewardVotes(height interface{}) *MockState_RewardVotes_Call {
+func (_e *MockState_Expecter) RewardVotes(height any) *MockState_RewardVotes_Call {
 	return &MockState_RewardVotes_Call{Call: _e.mock.On("RewardVotes", height)}
 }
 
@@ -4145,7 +4217,7 @@ type MockState_RollbackTo_Call struct {
 // RollbackTo is a helper method to define mock.On call
 //   - removalEdge proto.BlockID
 //   - isAutoRollback bool
-func (_e *MockState_Expecter) RollbackTo(removalEdge interface{}, isAutoRollback interface{}) *MockState_RollbackTo_Call {
+func (_e *MockState_Expecter) RollbackTo(removalEdge any, isAutoRollback any) *MockState_RollbackTo_Call {
 	return &MockState_RollbackTo_Call{Call: _e.mock.On("RollbackTo", removalEdge, isAutoRollback)}
 }
 
@@ -4202,7 +4274,7 @@ type MockState_RollbackToHeight_Call struct {
 // RollbackToHeight is a helper method to define mock.On call
 //   - height proto.Height
 //   - isAutoRollback bool
-func (_e *MockState_Expecter) RollbackToHeight(height interface{}, isAutoRollback interface{}) *MockState_RollbackToHeight_Call {
+func (_e *MockState_Expecter) RollbackToHeight(height any, isAutoRollback any) *MockState_RollbackToHeight_Call {
 	return &MockState_RollbackToHeight_Call{Call: _e.mock.On("RollbackToHeight", height, isAutoRollback)}
 }
 
@@ -4269,7 +4341,7 @@ type MockState_ScoreAtHeight_Call struct {
 
 // ScoreAtHeight is a helper method to define mock.On call
 //   - height proto.Height
-func (_e *MockState_Expecter) ScoreAtHeight(height interface{}) *MockState_ScoreAtHeight_Call {
+func (_e *MockState_Expecter) ScoreAtHeight(height any) *MockState_ScoreAtHeight_Call {
 	return &MockState_ScoreAtHeight_Call{Call: _e.mock.On("ScoreAtHeight", height)}
 }
 
@@ -4331,7 +4403,7 @@ type MockState_ScriptBasicInfoByAccount_Call struct {
 
 // ScriptBasicInfoByAccount is a helper method to define mock.On call
 //   - account proto.Recipient
-func (_e *MockState_Expecter) ScriptBasicInfoByAccount(account interface{}) *MockState_ScriptBasicInfoByAccount_Call {
+func (_e *MockState_Expecter) ScriptBasicInfoByAccount(account any) *MockState_ScriptBasicInfoByAccount_Call {
 	return &MockState_ScriptBasicInfoByAccount_Call{Call: _e.mock.On("ScriptBasicInfoByAccount", account)}
 }
 
@@ -4393,7 +4465,7 @@ type MockState_ScriptInfoByAccount_Call struct {
 
 // ScriptInfoByAccount is a helper method to define mock.On call
 //   - account proto.Recipient
-func (_e *MockState_Expecter) ScriptInfoByAccount(account interface{}) *MockState_ScriptInfoByAccount_Call {
+func (_e *MockState_Expecter) ScriptInfoByAccount(account any) *MockState_ScriptInfoByAccount_Call {
 	return &MockState_ScriptInfoByAccount_Call{Call: _e.mock.On("ScriptInfoByAccount", account)}
 }
 
@@ -4455,7 +4527,7 @@ type MockState_ScriptInfoByAsset_Call struct {
 
 // ScriptInfoByAsset is a helper method to define mock.On call
 //   - assetID proto.AssetID
-func (_e *MockState_Expecter) ScriptInfoByAsset(assetID interface{}) *MockState_ScriptInfoByAsset_Call {
+func (_e *MockState_Expecter) ScriptInfoByAsset(assetID any) *MockState_ScriptInfoByAsset_Call {
 	return &MockState_ScriptInfoByAsset_Call{Call: _e.mock.On("ScriptInfoByAsset", assetID)}
 }
 
@@ -4570,7 +4642,7 @@ type MockState_SnapshotStateHashAtHeight_Call struct {
 
 // SnapshotStateHashAtHeight is a helper method to define mock.On call
 //   - height proto.Height
-func (_e *MockState_Expecter) SnapshotStateHashAtHeight(height interface{}) *MockState_SnapshotStateHashAtHeight_Call {
+func (_e *MockState_Expecter) SnapshotStateHashAtHeight(height any) *MockState_SnapshotStateHashAtHeight_Call {
 	return &MockState_SnapshotStateHashAtHeight_Call{Call: _e.mock.On("SnapshotStateHashAtHeight", height)}
 }
 
@@ -4630,7 +4702,7 @@ type MockState_SnapshotsAtHeight_Call struct {
 
 // SnapshotsAtHeight is a helper method to define mock.On call
 //   - height proto.Height
-func (_e *MockState_Expecter) SnapshotsAtHeight(height interface{}) *MockState_SnapshotsAtHeight_Call {
+func (_e *MockState_Expecter) SnapshotsAtHeight(height any) *MockState_SnapshotsAtHeight_Call {
 	return &MockState_SnapshotsAtHeight_Call{Call: _e.mock.On("SnapshotsAtHeight", height)}
 }
 
@@ -4780,7 +4852,7 @@ type MockState_TotalWavesAmount_Call struct {
 
 // TotalWavesAmount is a helper method to define mock.On call
 //   - height proto.Height
-func (_e *MockState_Expecter) TotalWavesAmount(height interface{}) *MockState_TotalWavesAmount_Call {
+func (_e *MockState_Expecter) TotalWavesAmount(height any) *MockState_TotalWavesAmount_Call {
 	return &MockState_TotalWavesAmount_Call{Call: _e.mock.On("TotalWavesAmount", height)}
 }
 
@@ -4842,7 +4914,7 @@ type MockState_TransactionByID_Call struct {
 
 // TransactionByID is a helper method to define mock.On call
 //   - id []byte
-func (_e *MockState_Expecter) TransactionByID(id interface{}) *MockState_TransactionByID_Call {
+func (_e *MockState_Expecter) TransactionByID(id any) *MockState_TransactionByID_Call {
 	return &MockState_TransactionByID_Call{Call: _e.mock.On("TransactionByID", id)}
 }
 
@@ -4910,7 +4982,7 @@ type MockState_TransactionByIDWithStatus_Call struct {
 
 // TransactionByIDWithStatus is a helper method to define mock.On call
 //   - id []byte
-func (_e *MockState_Expecter) TransactionByIDWithStatus(id interface{}) *MockState_TransactionByIDWithStatus_Call {
+func (_e *MockState_Expecter) TransactionByIDWithStatus(id any) *MockState_TransactionByIDWithStatus_Call {
 	return &MockState_TransactionByIDWithStatus_Call{Call: _e.mock.On("TransactionByIDWithStatus", id)}
 }
 
@@ -4970,7 +5042,7 @@ type MockState_TransactionHeightByID_Call struct {
 
 // TransactionHeightByID is a helper method to define mock.On call
 //   - id []byte
-func (_e *MockState_Expecter) TransactionHeightByID(id interface{}) *MockState_TransactionHeightByID_Call {
+func (_e *MockState_Expecter) TransactionHeightByID(id any) *MockState_TransactionHeightByID_Call {
 	return &MockState_TransactionHeightByID_Call{Call: _e.mock.On("TransactionHeightByID", id)}
 }
 
@@ -5021,7 +5093,7 @@ type MockState_TxValidation_Call struct {
 
 // TxValidation is a helper method to define mock.On call
 //   - fn func(validation TxValidation) error
-func (_e *MockState_Expecter) TxValidation(fn interface{}) *MockState_TxValidation_Call {
+func (_e *MockState_Expecter) TxValidation(fn any) *MockState_TxValidation_Call {
 	return &MockState_TxValidation_Call{Call: _e.mock.On("TxValidation", fn)}
 }
 
@@ -5087,7 +5159,7 @@ type MockState_ValidateNextTx_Call struct {
 //   - parentTimestamp uint64
 //   - blockVersion proto.BlockVersion
 //   - acceptFailed bool
-func (_e *MockState_Expecter) ValidateNextTx(tx interface{}, currentTimestamp interface{}, parentTimestamp interface{}, blockVersion interface{}, acceptFailed interface{}) *MockState_ValidateNextTx_Call {
+func (_e *MockState_Expecter) ValidateNextTx(tx any, currentTimestamp any, parentTimestamp any, blockVersion any, acceptFailed any) *MockState_ValidateNextTx_Call {
 	return &MockState_ValidateNextTx_Call{Call: _e.mock.On("ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed)}
 }
 
@@ -5167,7 +5239,7 @@ type MockState_VotesNum_Call struct {
 
 // VotesNum is a helper method to define mock.On call
 //   - featureID int16
-func (_e *MockState_Expecter) VotesNum(featureID interface{}) *MockState_VotesNum_Call {
+func (_e *MockState_Expecter) VotesNum(featureID any) *MockState_VotesNum_Call {
 	return &MockState_VotesNum_Call{Call: _e.mock.On("VotesNum", featureID)}
 }
 
@@ -5228,7 +5300,7 @@ type MockState_VotesNumAtHeight_Call struct {
 // VotesNumAtHeight is a helper method to define mock.On call
 //   - featureID int16
 //   - height proto.Height
-func (_e *MockState_Expecter) VotesNumAtHeight(featureID interface{}, height interface{}) *MockState_VotesNumAtHeight_Call {
+func (_e *MockState_Expecter) VotesNumAtHeight(featureID any, height any) *MockState_VotesNumAtHeight_Call {
 	return &MockState_VotesNumAtHeight_Call{Call: _e.mock.On("VotesNumAtHeight", featureID, height)}
 }
 
@@ -5346,7 +5418,7 @@ type MockState_WavesBalance_Call struct {
 
 // WavesBalance is a helper method to define mock.On call
 //   - account proto.Recipient
-func (_e *MockState_Expecter) WavesBalance(account interface{}) *MockState_WavesBalance_Call {
+func (_e *MockState_Expecter) WavesBalance(account any) *MockState_WavesBalance_Call {
 	return &MockState_WavesBalance_Call{Call: _e.mock.On("WavesBalance", account)}
 }
 

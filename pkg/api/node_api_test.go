@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,11 +13,13 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
+	"github.com/wavesplatform/gowaves/pkg/node/peers"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -252,4 +256,120 @@ func (w *testWallet) AccountSeeds() [][]byte {
 
 func (w *testWallet) BLSSecretKeys() ([]bls.SecretKey, error) {
 	return []bls.SecretKey{w.blsSk}, nil
+}
+
+type failingReader struct{}
+
+func (failingReader) Read([]byte) (int, error) {
+	return 0, fmt.Errorf("read error")
+}
+
+func TestNodeApi_PeersBlackList(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		cfg := &settings.BlockchainSettings{
+			FunctionalitySettings: settings.FunctionalitySettings{
+				GenerationPeriod: 0,
+			},
+		}
+
+		peerManager := peers.NewMockPeerManager(t)
+
+		const blacklistedIP = "5.3.6.7"
+		const blacklistedPort = 6868
+		blacklistedAddr := proto.NewTCPAddr(net.ParseIP(blacklistedIP), blacklistedPort)
+
+		peerManager.EXPECT().AddToBlackListByAddr(
+			mock.MatchedBy(func(addr proto.TCPAddr) bool {
+				return addr.String() == blacklistedAddr.String()
+			}),
+			mock.MatchedBy(func(t any) bool { return true }),
+			mock.MatchedBy(func(reason string) bool { return reason != "" }),
+		).Return().Times(1)
+
+		app, err := NewApp("", nil, services.Services{
+			Peers:  peerManager,
+			Scheme: proto.TestNetScheme,
+		}, cfg)
+		require.NoError(t, err)
+
+		api := NewNodeAPI(app, nil)
+
+		// Test with body containing IP:port (no leading slash)
+		bodyStr := fmt.Sprintf("%s:%d", blacklistedIP, blacklistedPort)
+		req := httptest.NewRequest(http.MethodPost, "/peers/blacklist", strings.NewReader(bodyStr))
+		resp := httptest.NewRecorder()
+
+		err = api.PeersBlackList(resp, req)
+		require.NoError(t, err)
+	})
+
+	t.Run("success with leading slash", func(t *testing.T) {
+		cfg := &settings.BlockchainSettings{
+			FunctionalitySettings: settings.FunctionalitySettings{
+				GenerationPeriod: 0,
+			},
+		}
+
+		peerManager := peers.NewMockPeerManager(t)
+
+		const blacklistedIP = "10.0.0.1"
+		const blacklistedPort = 6868
+		blacklistedAddr := proto.NewTCPAddr(net.ParseIP(blacklistedIP), blacklistedPort)
+
+		// Handler strips leading slash, so the app receives without it
+		peerManager.EXPECT().AddToBlackListByAddr(
+			mock.MatchedBy(func(addr proto.TCPAddr) bool {
+				return addr.String() == blacklistedAddr.String()
+			}),
+			mock.MatchedBy(func(t any) bool { return true }),
+			mock.MatchedBy(func(reason string) bool { return reason != "" }),
+		).Return().Times(1)
+
+		app, err := NewApp("", nil, services.Services{
+			Peers:  peerManager,
+			Scheme: proto.TestNetScheme,
+		}, cfg)
+		require.NoError(t, err)
+
+		api := NewNodeAPI(app, nil)
+
+		// Test with body containing leading slash (format from peer list responses)
+		bodyStr := fmt.Sprintf("/%s:%d", blacklistedIP, blacklistedPort)
+		req := httptest.NewRequest(http.MethodPost, "/peers/blacklist", strings.NewReader(bodyStr))
+		resp := httptest.NewRecorder()
+
+		err = api.PeersBlackList(resp, req)
+		require.NoError(t, err)
+	})
+
+	t.Run("error reading body", func(t *testing.T) {
+		cfg := &settings.BlockchainSettings{
+			FunctionalitySettings: settings.FunctionalitySettings{
+				GenerationPeriod: 0,
+			},
+		}
+
+		peerManager := peers.NewMockPeerManager(t)
+
+		app, err := NewApp("", nil, services.Services{
+			Peers:  peerManager,
+			Scheme: proto.TestNetScheme,
+		}, cfg)
+		require.NoError(t, err)
+
+		api := NewNodeAPI(app, nil)
+
+		// Create a request and replace the body with a failing reader
+		req := httptest.NewRequest(http.MethodPost, "/peers/blacklist", strings.NewReader("5.3.6.7:6868"))
+
+		// Create a custom body that fails on first read by using LimitedReader
+		// that exhausts immediately and then fails
+		defer req.Body.Close() // close the original body to avoid resource leak
+		req.Body = io.NopCloser(failingReader{})
+		resp := httptest.NewRecorder()
+
+		err = api.PeersBlackList(resp, req)
+		assert.Error(t, err)
+		assert.True(t, strings.Contains(err.Error(), "failed to read request body"))
+	})
 }

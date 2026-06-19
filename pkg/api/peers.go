@@ -26,12 +26,8 @@ type PeersKnown struct {
 // PeersAll is a list of all known not banned, not suspended and not blacklisted peers with a publicly
 // available declared address.
 func (a *App) PeersAll() (PeersKnown, error) {
-	suspended := a.peers.Suspended()
 	blackList := a.peers.BlackList()
-	restrictedIPsMap := make(map[string]struct{}, len(suspended)+len(blackList))
-	for _, suspendedPeer := range suspended {
-		restrictedIPsMap[suspendedPeer.IP.String()] = struct{}{}
-	}
+	restrictedIPsMap := make(map[string]struct{}, len(blackList))
 	for _, blackListedPeer := range blackList {
 		restrictedIPsMap[blackListedPeer.IP.String()] = struct{}{}
 	}
@@ -42,13 +38,14 @@ func (a *App) PeersAll() (PeersKnown, error) {
 
 	out := make([]Peer, 0, len(knownPeers))
 	for _, knownPeer := range knownPeers {
-		ip := knownPeer.String()
-		if _, in := restrictedIPsMap[ip]; in {
+		ip := knownPeer.IP() // extract IP from KnownPeer
+		ipStr := ip.String() // convert IP to string for comparison
+		if _, in := restrictedIPsMap[ipStr]; in {
 			continue
 		}
 		// FIXME(nickeksov): add normal lastSeen field
 		out = append(out, Peer{
-			Address:  "/" + ip,
+			Address:  "/" + knownPeer.String(), // addr with port
 			LastSeen: uint64(nowMillis),
 		})
 	}
@@ -144,21 +141,6 @@ type RestrictedPeerInfo struct {
 	Reason    string `json:"reason,omitempty"`
 }
 
-func (a *App) PeersSuspended() []RestrictedPeerInfo {
-	suspended := a.peers.Suspended()
-
-	out := make([]RestrictedPeerInfo, 0, len(suspended))
-	for _, p := range suspended {
-		out = append(out, RestrictedPeerInfo{
-			Hostname:  "/" + p.IP.String(),
-			Timestamp: p.RestrictTimestampMillis,
-			Reason:    p.Reason,
-		})
-	}
-
-	return out
-}
-
 func (a *App) PeersBlackListed() []RestrictedPeerInfo {
 	blackList := a.peers.BlackList()
 
@@ -172,6 +154,25 @@ func (a *App) PeersBlackListed() []RestrictedPeerInfo {
 	}
 
 	return out
+}
+
+func (a *App) PeersBlackList(blacklistedAddr, requestID, clientIP string) error {
+	tcpAddr := proto.NewTCPAddrFromString(blacklistedAddr)
+	if tcpAddr.Empty() {
+		slog.Info("Invalid peer's address to blacklist",
+			slog.String("address", blacklistedAddr),
+			slog.String("client-ip", clientIP),
+			slog.String("request-id", requestID),
+		)
+		return apiErrs.NewBadRequestError(errors.Errorf("invalid address format: %s", blacklistedAddr))
+	}
+	now := time.Now().UTC()
+	reason := fmt.Sprintf(
+		"blacklisted by API at now='%s' by client='%s' with request-id='%s' address='%s'",
+		now.Format(time.RFC3339), clientIP, requestID, tcpAddr.String(),
+	)
+	a.peers.AddToBlackListByAddr(tcpAddr, now, reason)
+	return nil
 }
 
 type PeersClearBlackListResponse struct {

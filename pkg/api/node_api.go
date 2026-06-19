@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	stderrs "errors"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/pkg/errors"
 
 	"github.com/ccoveille/go-safecast/v2"
@@ -623,14 +625,6 @@ func (a *NodeApi) PeersConnected(w http.ResponseWriter, _ *http.Request) error {
 	return nil
 }
 
-func (a *NodeApi) PeersSuspended(w http.ResponseWriter, _ *http.Request) error {
-	rs := a.app.PeersSuspended()
-	if err := trySendJSON(w, rs); err != nil {
-		return errors.Wrap(err, "PeersSuspended")
-	}
-	return nil
-}
-
 func (a *NodeApi) PeersBlackListed(w http.ResponseWriter, _ *http.Request) error {
 	rs := a.app.PeersBlackListed()
 	if err := trySendJSON(w, rs); err != nil {
@@ -645,6 +639,26 @@ func (a *NodeApi) PeersClearBlackList(w http.ResponseWriter, _ *http.Request) er
 		return errors.Wrap(err, "PeersBlackListed")
 	}
 	return nil
+}
+
+func (a *NodeApi) PeersBlackList(w http.ResponseWriter, r *http.Request) error {
+	defer r.Body.Close() // ensure that body will be closed after reading, even if error occurs
+	bodyBytesRaw, err := io.ReadAll(io.LimitReader(r.Body, postMessageSizeLimit))
+	if err != nil {
+		return apiErrs.NewBadRequestError(
+			errors.Wrap(err, "PeersBlackList: failed to read request body"),
+		)
+	}
+	bodyBytes := bytes.TrimSpace(bodyBytesRaw)
+	// remove leading / if present to be compatible with responses like '/ip:port'
+	// (e.g. values copied from peers list responses like "/ip:port")
+	bodyStr := string(bytes.TrimPrefix(bodyBytes, []byte(`/`)))
+	requestID := middleware.GetReqID(r.Context())
+	clientIP := middleware.GetClientIP(r.Context())
+	if clientIP == "" {
+		clientIP = r.RemoteAddr
+	}
+	return a.app.PeersBlackList(bodyStr, requestID, clientIP)
 }
 
 func (a *NodeApi) BlocksGenerators(w http.ResponseWriter, _ *http.Request) error {
@@ -906,13 +920,6 @@ func (a *NodeApi) snapshotStateHash(w http.ResponseWriter, r *http.Request) erro
 	return nil
 }
 
-// TODO: Move JSON tags to GeneratorInfo structure.
-type generatorInfo struct {
-	Address       string `json:"address"`
-	Balance       uint64 `json:"balance"`
-	TransactionID string `json:"transactionID"`
-}
-
 func (a *NodeApi) GeneratorsAt(w http.ResponseWriter, r *http.Request) error {
 	heightStr := chi.URLParam(r, "height")
 	height, err := strconv.ParseUint(heightStr, 10, 64)
@@ -933,34 +940,36 @@ func (a *NodeApi) GeneratorsAt(w http.ResponseWriter, r *http.Request) error {
 	//  Consider moving this API under the `-build-extended-api` and `-serve-extended-api` keys.
 	gs, err := a.state.CommittedGenerators(height)
 	if err != nil {
+		if stderrs.Is(err, state.ErrNoGeneratorsSet) {
+			return trySendJSON(w, []state.GeneratorInfo{})
+		}
 		return err
 	}
-
-	infos := make([]generatorInfo, len(gs))
-	for i, g := range gs {
-		infos[i] = generatorInfo{
-			Address:       g.Address().String(),
-			Balance:       g.GenerationBalance(),
-			TransactionID: "", // It was decided to leave it empty.
-		}
-	}
-	return trySendJSON(w, infos)
+	return trySendJSON(w, gs)
 }
 
 func (a *NodeApi) FinalizedHeight(w http.ResponseWriter, _ *http.Request) error {
 	h, err := a.state.LastFinalizedHeight()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get finalized block height: %w", err)
 	}
 	return trySendJSON(w, map[string]uint64{"height": h})
 }
 
 func (a *NodeApi) FinalizedHeader(w http.ResponseWriter, _ *http.Request) error {
-	blockHeader, err := a.app.state.LastFinalizedBlock()
+	fh, err := a.state.LastFinalizedHeight()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get finalized block height: %w", err)
 	}
-	return trySendJSON(w, blockHeader)
+	header, err := a.app.state.LastFinalizedBlock()
+	if err != nil {
+		return fmt.Errorf("failed to get finalized block header: %w", err)
+	}
+	b, err := newAPIBlockFromHeader(*header, a.app.scheme(), fh)
+	if err != nil {
+		return fmt.Errorf("failed to get finalized block: %w", err)
+	}
+	return trySendJSON(w, b)
 }
 
 type signTxEnvelope struct {

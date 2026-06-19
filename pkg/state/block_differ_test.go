@@ -361,3 +361,64 @@ func TestBlockRewardDistributionWithOneAddress(t *testing.T) {
 	}
 	assert.Equal(t, correctDiff, minerDiff)
 }
+
+func TestPunishment(t *testing.T) {
+	sets := settings.MustTestNetSettings()
+	// Add some addresses for reward distribution
+	sets.RewardAddresses = []proto.WavesAddress{testGlobal.senderInfo.addr}
+	to := createBlockDifferWithSettings(t, sets)
+
+	// Activate NG and BlockReward
+	to.stor.activateFeature(t, int16(settings.NG))
+	to.stor.activateFeature(t, int16(settings.BlockReward))
+	to.stor.activateFeature(t, int16(settings.BlockRewardDistribution))
+	to.stor.activateFeature(t, int16(settings.DeterministicFinality))
+
+	sig := genRandBlockIds(t, 1)[0]
+	gs := crypto.MustBytesFromBase58(defaultGenSig)
+
+	// First block
+	block1 := genBlockWithSingleTransaction(t, sig, gs, to)
+	to.stor.addBlock(t, block1.BlockID())
+	txs := block1.Transactions
+	for _, tx := range txs {
+		err := to.blockDiffer.countMinerFee(tx)
+		require.NoError(t, err)
+	}
+	err := to.blockDiffer.saveCurFeeDistr(&block1.BlockHeader)
+	require.NoError(t, err)
+
+	rec := generatorsRecord{
+		Generators: []generator{
+			{
+				Balance:   1_000_0000_0000,
+				BanHeight: 5,
+				AddressID: testGlobal.minerInfo.addr.ID(),
+			},
+		},
+		BlockGeneratorIndex: 0,
+		PeriodStart:         1,
+	}
+	err = to.stor.entities.generators.saveGeneratorsRecord(rec, 5, block1.BlockID())
+	require.NoError(t, err)
+
+	// Second block
+	block2 := genBlockWithSingleTransaction(t, block1.BlockID(), block1.GenSignature, to)
+	to.stor.addBlock(t, block2.BlockID())
+	h := to.stor.rw.recentHeight()
+	diff, err := to.blockDiffer.createPenaltiesDiff(&block2.BlockHeader, h, true)
+	require.NoError(t, err)
+
+	correctMinerWavesBalanceDiff := newBalanceDiff(
+		int64(-Deposit),
+		0,
+		0,
+		0,
+		false,
+	)
+	correctMinerWavesBalanceDiff.blockID = block2.BlockID()
+	correctDiff := txDiff{
+		testGlobal.minerInfo.wavesKey: correctMinerWavesBalanceDiff,
+	}
+	assert.Equal(t, correctDiff, diff)
+}

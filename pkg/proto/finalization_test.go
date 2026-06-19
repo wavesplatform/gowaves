@@ -14,13 +14,13 @@ func TestFinalizationVotingCombination(t *testing.T) {
 	fv1 := &proto.FinalizationVoting{
 		EndorserIndexes:                []uint32{0, 1, 2},
 		FinalizedBlockHeight:           123,
-		AggregatedEndorsementSignature: bls.Signature{},
+		AggregatedEndorsementSignature: nil,
 		ConflictEndorsements:           nil,
 	}
 	fv2 := &proto.FinalizationVoting{
 		EndorserIndexes:                []uint32{3, 4, 5},
 		FinalizedBlockHeight:           123,
-		AggregatedEndorsementSignature: bls.Signature{},
+		AggregatedEndorsementSignature: nil,
 		ConflictEndorsements:           nil,
 	}
 	eb1 := proto.BlockEndorsement{
@@ -40,13 +40,13 @@ func TestFinalizationVotingCombination(t *testing.T) {
 	fv1c := &proto.FinalizationVoting{
 		EndorserIndexes:                []uint32{0, 1, 2},
 		FinalizedBlockHeight:           123,
-		AggregatedEndorsementSignature: bls.Signature{},
+		AggregatedEndorsementSignature: nil,
 		ConflictEndorsements:           []proto.BlockEndorsement{eb1},
 	}
 	fv2c := &proto.FinalizationVoting{
 		EndorserIndexes:                []uint32{3, 4, 5},
 		FinalizedBlockHeight:           123,
-		AggregatedEndorsementSignature: bls.Signature{},
+		AggregatedEndorsementSignature: nil,
 		ConflictEndorsements:           []proto.BlockEndorsement{eb2},
 	}
 	for i, test := range []struct {
@@ -64,7 +64,7 @@ func TestFinalizationVotingCombination(t *testing.T) {
 			&proto.FinalizationVoting{
 				EndorserIndexes:                []uint32{3, 4, 5},
 				FinalizedBlockHeight:           123,
-				AggregatedEndorsementSignature: bls.Signature{},
+				AggregatedEndorsementSignature: nil,
 				ConflictEndorsements:           []proto.BlockEndorsement{eb1, eb2},
 			},
 		},
@@ -72,7 +72,7 @@ func TestFinalizationVotingCombination(t *testing.T) {
 			&proto.FinalizationVoting{
 				EndorserIndexes:                []uint32{0, 1, 2},
 				FinalizedBlockHeight:           123,
-				AggregatedEndorsementSignature: bls.Signature{},
+				AggregatedEndorsementSignature: nil,
 				ConflictEndorsements:           []proto.BlockEndorsement{eb2, eb1},
 			},
 		},
@@ -81,7 +81,7 @@ func TestFinalizationVotingCombination(t *testing.T) {
 			&proto.FinalizationVoting{
 				EndorserIndexes:                []uint32{3, 4, 5},
 				FinalizedBlockHeight:           123,
-				AggregatedEndorsementSignature: bls.Signature{},
+				AggregatedEndorsementSignature: nil,
 				ConflictEndorsements:           []proto.BlockEndorsement{eb1},
 			},
 		},
@@ -117,7 +117,8 @@ func TestFinalizationVotingValidation(t *testing.T) {
 		fail      bool
 		err       string
 	}{
-		{indexes: nil, conflicts: nil, fail: false},
+		{indexes: nil, conflicts: nil, fail: true,
+			err: "invalid finalization voting: both endorsers and conflict endorsements are empty"},
 		{indexes: nil, conflicts: []uint32{2, 0, 1}, fail: false},
 		{indexes: nil, conflicts: []uint32{2, 1, 2}, fail: true,
 			err: "invalid finalization voting: duplicate conflicting endorsement with endorser index 2"},
@@ -140,7 +141,7 @@ func TestFinalizationVotingValidation(t *testing.T) {
 			fv := proto.FinalizationVoting{
 				EndorserIndexes:                test.indexes,
 				FinalizedBlockHeight:           123,
-				AggregatedEndorsementSignature: bls.Signature{},
+				AggregatedEndorsementSignature: nil,
 				ConflictEndorsements:           buildConflicts(test.conflicts),
 			}
 			err := fv.Validate()
