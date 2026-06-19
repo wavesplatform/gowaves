@@ -263,7 +263,7 @@ func (a *NGState) restoreParent(block, top *proto.Block) error {
 		}
 		return reApplyErr
 	}
-	return nil
+	return fmt.Errorf("no block '%s' found in cache", block.Parent.String())
 }
 
 func (a *NGState) endorseParentWithEachKey(
