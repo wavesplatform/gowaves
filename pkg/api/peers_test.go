@@ -1,6 +1,7 @@
 package api
 
 import (
+	stderrs "errors"
 	"net"
 	"testing"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/node/peers"
 	"github.com/wavesplatform/gowaves/pkg/node/peers/storage"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -148,6 +150,29 @@ func TestApp_PeersBlackList(t *testing.T) {
 
 		err = app.PeersBlackList(blacklistedAddr, requestID, clientIP)
 		require.NoError(t, err)
+	})
+	t.Run("ip:bad_port", func(t *testing.T) {
+		const (
+			blacklistedIP   = "5.3.6.7"
+			blacklistedPort = "bad"
+			blacklistedAddr = blacklistedIP + ":" + blacklistedPort
+		)
+		peerManager := peers.NewMockPeerManager(t)
+		cfg := &settings.BlockchainSettings{
+			FunctionalitySettings: settings.FunctionalitySettings{
+				GenerationPeriod: 0,
+			},
+		}
+
+		app, err := NewApp("key", nil, services.Services{Peers: peerManager}, cfg)
+		require.NoError(t, err)
+
+		err = app.PeersBlackList(blacklistedAddr, requestID, clientIP)
+		require.Error(t, err)
+		uErr := stderrs.Unwrap(err)
+		require.Error(t, uErr)
+		require.EqualError(t, uErr, "failed to resolve blacklisted host '5.3.6.7:bad': invalid port \"bad\"")
+		require.Equal(t, errors.NewBadRequestError(uErr), err)
 	})
 	t.Run("ip", func(t *testing.T) {
 		const blacklistedAddr = "5.3.6.7"

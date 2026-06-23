@@ -305,7 +305,7 @@ func TestNodeApi_PeersBlackList(t *testing.T) {
 		assert.Equal(t, http.StatusText(http.StatusOK), string(respBody))
 	})
 
-	t.Run("success ip:port", func(t *testing.T) {
+	t.Run("success ip", func(t *testing.T) {
 		cfg := &settings.BlockchainSettings{
 			FunctionalitySettings: settings.FunctionalitySettings{
 				GenerationPeriod: 0,

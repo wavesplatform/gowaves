@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"strconv"
 	"time"
 
 	"github.com/pkg/errors"
@@ -158,9 +159,12 @@ func (a *App) PeersBlackListed() []RestrictedPeerInfo {
 }
 
 func resolveAddrToIPsV4(addr string) ([]net.IP, error) {
-	host, _, err := net.SplitHostPort(addr)
+	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		return proto.ResolveHostToIPsv4(addr) // try resolve addr as a host
+	}
+	if _, pErr := strconv.ParseUint(port, 10, 16); pErr != nil { // validate port num
+		return nil, errors.Errorf("invalid port %q", port)
 	}
 	return proto.ResolveHostToIPsv4(host)
 }
