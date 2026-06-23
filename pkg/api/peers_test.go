@@ -2,6 +2,7 @@ package api
 
 import (
 	stderrs "errors"
+	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -200,5 +201,30 @@ func TestApp_PeersBlackList(t *testing.T) {
 
 		err = app.PeersBlackList(blacklistedAddr, requestID, clientIP)
 		require.NoError(t, err)
+	})
+	t.Run("unspecified_ip", func(t *testing.T) {
+		doTest := func(t *testing.T, addr string) {
+			peerManager := peers.NewMockPeerManager(t)
+			cfg := &settings.BlockchainSettings{
+				FunctionalitySettings: settings.FunctionalitySettings{
+					GenerationPeriod: 0,
+				},
+			}
+
+			app, err := NewApp("key", nil, services.Services{Peers: peerManager}, cfg)
+			require.NoError(t, err)
+
+			err = app.PeersBlackList(addr, requestID, clientIP)
+			require.Error(t, err)
+			uErr := stderrs.Unwrap(err)
+			require.Error(t, uErr)
+			require.EqualError(t, uErr, fmt.Sprintf("no valid IPs found for blacklisted host '%s'", addr))
+			require.Equal(t, errors.NewBadRequestError(uErr), err)
+		}
+		for i, v := range []string{"", ":0", "0.0.0.0", "0.0.0.0:0"} {
+			t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+				doTest(t, v)
+			})
+		}
 	})
 }
