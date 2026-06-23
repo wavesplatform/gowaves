@@ -127,9 +127,8 @@ func run() error {
 		return err
 	}
 	defer func(st state.StateModifier) {
-		if err := st.Close(); err != nil {
-			slog.Error("Failed to close state", logging.Error(err))
-			os.Exit(1)
+		if clErr := st.Close(); clErr != nil {
+			slog.Error("Failed to close state", logging.Error(clErr))
 		}
 	}(st)
 

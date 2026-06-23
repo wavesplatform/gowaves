@@ -10,7 +10,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"path"
 	"time"
 )
 
@@ -163,23 +162,27 @@ func doHTTP(ctx context.Context, options Options, req *http.Request, v any) (*Re
 }
 
 func joinUrl(baseRaw string, pathRaw string) (*url.URL, error) {
-	baseUrl, err := url.Parse(baseRaw)
+	base, err := url.Parse(baseRaw)
 	if err != nil {
 		return nil, err
 	}
 
-	pathUrl, err := url.Parse(pathRaw)
+	rel, err := url.Parse(pathRaw)
 	if err != nil {
 		return nil, err
 	}
-	// nosemgrep: go.lang.correctness.use-filepath-join.use-filepath-join
-	baseUrl.Path = path.Join(baseUrl.Path, pathUrl.Path)
-
-	query := baseUrl.Query()
-	for k := range pathUrl.Query() {
-		query.Set(k, pathUrl.Query().Get(k))
+	if rel.IsAbs() {
+		return nil, errors.New("path must be relative URL")
 	}
-	baseUrl.RawQuery = query.Encode()
+	res := base.JoinPath(rel.EscapedPath())
 
-	return baseUrl, nil
+	q := res.Query()
+	for k, vals := range rel.Query() {
+		for _, v := range vals {
+			q.Add(k, v)
+		}
+	}
+	res.RawQuery = q.Encode()
+
+	return res, nil
 }
