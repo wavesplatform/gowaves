@@ -898,7 +898,7 @@ func filterToIPV4(ips []net.IP) []net.IP {
 	return ips
 }
 
-func resolveHostToIPsv4(host string) ([]net.IP, error) {
+func ResolveHostToIPsv4(host string) ([]net.IP, error) {
 	if host == "" {
 		host = "0.0.0.0" // set default host to 0.0.0.0
 	}
@@ -938,7 +938,7 @@ func ipsV4PortFromString(addr string) ([]net.IP, uint16, error) {
 	if portNum == 0 {
 		return nil, 0, errors.Errorf("invalid port %q", port)
 	}
-	ips, err := resolveHostToIPsv4(host)
+	ips, err := ResolveHostToIPsv4(host)
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "failed to resolve host")
 	}
