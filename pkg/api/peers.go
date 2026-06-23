@@ -163,8 +163,8 @@ func resolveAddrToIPsV4(addr string) ([]net.IP, error) {
 	if err != nil {
 		return proto.ResolveHostToIPsv4(addr) // try resolve addr as a host
 	}
-	if _, pErr := strconv.ParseUint(port, 10, 16); pErr != nil { // validate port num
-		return nil, errors.Errorf("invalid port %q", port)
+	if pNum, pErr := strconv.ParseUint(port, 10, 16); pErr != nil || pNum == 0 { // validate port num
+		return nil, errors.Errorf("invalid port '%s'", port)
 	}
 	return proto.ResolveHostToIPsv4(host)
 }

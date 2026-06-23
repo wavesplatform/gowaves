@@ -153,27 +153,35 @@ func TestApp_PeersBlackList(t *testing.T) {
 		require.NoError(t, err)
 	})
 	t.Run("ip:bad_port", func(t *testing.T) {
-		const (
-			blacklistedIP   = "5.3.6.7"
-			blacklistedPort = "bad"
-			blacklistedAddr = blacklistedIP + ":" + blacklistedPort
-		)
-		peerManager := peers.NewMockPeerManager(t)
-		cfg := &settings.BlockchainSettings{
-			FunctionalitySettings: settings.FunctionalitySettings{
-				GenerationPeriod: 0,
-			},
+		doTest := func(t *testing.T, port string) {
+			const (
+				blacklistedIP = "5.3.6.7"
+			)
+			peerManager := peers.NewMockPeerManager(t)
+			cfg := &settings.BlockchainSettings{
+				FunctionalitySettings: settings.FunctionalitySettings{
+					GenerationPeriod: 0,
+				},
+			}
+
+			app, err := NewApp("key", nil, services.Services{Peers: peerManager}, cfg)
+			require.NoError(t, err)
+
+			blacklistedAddr := blacklistedIP + ":" + port
+			err = app.PeersBlackList(blacklistedAddr, requestID, clientIP)
+			require.Error(t, err)
+			uErr := stderrs.Unwrap(err)
+			require.Error(t, uErr)
+			require.EqualError(t, uErr, fmt.Sprintf(
+				"failed to resolve blacklisted host '5.3.6.7:%s': invalid port '%s'", port, port,
+			))
+			require.Equal(t, errors.NewBadRequestError(uErr), err)
 		}
-
-		app, err := NewApp("key", nil, services.Services{Peers: peerManager}, cfg)
-		require.NoError(t, err)
-
-		err = app.PeersBlackList(blacklistedAddr, requestID, clientIP)
-		require.Error(t, err)
-		uErr := stderrs.Unwrap(err)
-		require.Error(t, uErr)
-		require.EqualError(t, uErr, "failed to resolve blacklisted host '5.3.6.7:bad': invalid port \"bad\"")
-		require.Equal(t, errors.NewBadRequestError(uErr), err)
+		for i, v := range []string{"bad", "0"} {
+			t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+				doTest(t, v)
+			})
+		}
 	})
 	t.Run("ip", func(t *testing.T) {
 		const blacklistedAddr = "5.3.6.7"
@@ -221,7 +229,7 @@ func TestApp_PeersBlackList(t *testing.T) {
 			require.EqualError(t, uErr, fmt.Sprintf("no valid IPs found for blacklisted host '%s'", addr))
 			require.Equal(t, errors.NewBadRequestError(uErr), err)
 		}
-		for i, v := range []string{"", ":0", "0.0.0.0", "0.0.0.0:0"} {
+		for i, v := range []string{"", ":21", "0.0.0.0", "0.0.0.0:42"} {
 			t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 				doTest(t, v)
 			})
