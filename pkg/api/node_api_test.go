@@ -265,7 +265,7 @@ func (failingReader) Read([]byte) (int, error) {
 }
 
 func TestNodeApi_PeersBlackList(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
+	t.Run("success ip:port", func(t *testing.T) {
 		cfg := &settings.BlockchainSettings{
 			FunctionalitySettings: settings.FunctionalitySettings{
 				GenerationPeriod: 0,
@@ -276,11 +276,10 @@ func TestNodeApi_PeersBlackList(t *testing.T) {
 
 		const blacklistedIP = "5.3.6.7"
 		const blacklistedPort = 6868
-		blacklistedAddr := proto.NewTCPAddr(net.ParseIP(blacklistedIP), blacklistedPort)
 
-		peerManager.EXPECT().AddToBlackListByAddr(
+		peerManager.EXPECT().AddToBlackListByIP(
 			mock.MatchedBy(func(addr proto.TCPAddr) bool {
-				return addr.String() == blacklistedAddr.String()
+				return addr.String() == blacklistedIP+":0"
 			}),
 			mock.MatchedBy(func(t any) bool { return true }),
 			mock.MatchedBy(func(reason string) bool { return reason != "" }),
@@ -301,9 +300,50 @@ func TestNodeApi_PeersBlackList(t *testing.T) {
 
 		err = api.PeersBlackList(resp, req)
 		require.NoError(t, err)
+		respBody, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusText(http.StatusOK), string(respBody))
 	})
 
-	t.Run("success with leading slash", func(t *testing.T) {
+	t.Run("success ip:port", func(t *testing.T) {
+		cfg := &settings.BlockchainSettings{
+			FunctionalitySettings: settings.FunctionalitySettings{
+				GenerationPeriod: 0,
+			},
+		}
+
+		peerManager := peers.NewMockPeerManager(t)
+
+		const blacklistedIP = "4.3.9.1"
+
+		peerManager.EXPECT().AddToBlackListByIP(
+			mock.MatchedBy(func(addr proto.TCPAddr) bool {
+				return addr.String() == blacklistedIP+":0"
+			}),
+			mock.MatchedBy(func(t any) bool { return true }),
+			mock.MatchedBy(func(reason string) bool { return reason != "" }),
+		).Return().Times(1)
+
+		app, err := NewApp("", nil, services.Services{
+			Peers:  peerManager,
+			Scheme: proto.TestNetScheme,
+		}, cfg)
+		require.NoError(t, err)
+
+		api := NewNodeAPI(app, nil)
+
+		// Test with body containing IP (no leading slash)
+		req := httptest.NewRequest(http.MethodPost, "/peers/blacklist", strings.NewReader(blacklistedIP))
+		resp := httptest.NewRecorder()
+
+		err = api.PeersBlackList(resp, req)
+		require.NoError(t, err)
+		respBody, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusText(http.StatusOK), string(respBody))
+	})
+
+	t.Run("success ip:port with leading slash", func(t *testing.T) {
 		cfg := &settings.BlockchainSettings{
 			FunctionalitySettings: settings.FunctionalitySettings{
 				GenerationPeriod: 0,
@@ -314,10 +354,10 @@ func TestNodeApi_PeersBlackList(t *testing.T) {
 
 		const blacklistedIP = "10.0.0.1"
 		const blacklistedPort = 6868
-		blacklistedAddr := proto.NewTCPAddr(net.ParseIP(blacklistedIP), blacklistedPort)
+		blacklistedAddr := proto.NewTCPAddr(net.ParseIP(blacklistedIP), 0)
 
 		// Handler strips leading slash, so the app receives without it
-		peerManager.EXPECT().AddToBlackListByAddr(
+		peerManager.EXPECT().AddToBlackListByIP(
 			mock.MatchedBy(func(addr proto.TCPAddr) bool {
 				return addr.String() == blacklistedAddr.String()
 			}),
@@ -340,6 +380,9 @@ func TestNodeApi_PeersBlackList(t *testing.T) {
 
 		err = api.PeersBlackList(resp, req)
 		require.NoError(t, err)
+		respBody, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusText(http.StatusOK), string(respBody))
 	})
 
 	t.Run("error reading body", func(t *testing.T) {

@@ -49,7 +49,7 @@ type PeerManager interface {
 	ConnectedCount() int
 	EachConnected(func(peer.Peer, *proto.Score))
 	AddToBlackList(peer peer.Peer, blockTime time.Time, reason string)
-	AddToBlackListByAddr(addr proto.TCPAddr, blockTime time.Time, reason string)
+	AddToBlackListByIP(addr proto.TCPAddr, blockTime time.Time, reason string)
 	BlackList() []storage.BlackListedPeer
 	ClearBlackList() error
 	UpdateScore(p peer.Peer, score *proto.Score) error
@@ -175,12 +175,12 @@ func (a *PeerManagerImpl) EachConnected(f func(peer peer.Peer, score *big.Int)) 
 	)
 }
 
-func (a *PeerManagerImpl) AddToBlackListByAddr(addr proto.TCPAddr, blockTime time.Time, reason string) {
+func (a *PeerManagerImpl) AddToBlackListByIP(addr proto.TCPAddr, blockTime time.Time, reason string) {
 	if a.blackListDuration <= 0 {
 		return
 	}
 	if addr.Empty() {
-		return // no need to add empty address to black list
+		return // no need to add empty address to blacklist
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()

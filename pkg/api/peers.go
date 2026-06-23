@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"time"
 
 	"github.com/pkg/errors"
@@ -156,22 +157,35 @@ func (a *App) PeersBlackListed() []RestrictedPeerInfo {
 	return out
 }
 
+func resolveAddrToIPsV4(addr string) ([]net.IP, error) {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return proto.ResolveHostToIPsv4(addr) // try resolve addr as a host
+	}
+	return proto.ResolveHostToIPsv4(host)
+}
+
 func (a *App) PeersBlackList(blacklistedAddr, requestID, clientIP string) error {
-	tcpAddr := proto.NewTCPAddrFromString(blacklistedAddr)
-	if tcpAddr.Empty() {
+	iPsv4, err := resolveAddrToIPsV4(blacklistedAddr)
+	if err != nil {
 		slog.Info("Invalid peer's address to blacklist",
 			slog.String("address", blacklistedAddr),
 			slog.String("client-ip", clientIP),
 			slog.String("request-id", requestID),
 		)
-		return apiErrs.NewBadRequestError(errors.Errorf("invalid address format: %s", blacklistedAddr))
+		return apiErrs.NewBadRequestError(errors.Wrapf(err,
+			"failed to resolve blacklisted host '%s'", blacklistedAddr,
+		))
 	}
 	now := time.Now().UTC()
 	reason := fmt.Sprintf(
-		"blacklisted by API at now='%s' by client='%s' with request-id='%s' address='%s'",
-		now.Format(time.RFC3339), clientIP, requestID, tcpAddr.String(),
+		"blacklisted by API at now='%s' by client='%s' with request-id='%s' addresses='%v'",
+		now.Format(time.RFC3339), clientIP, requestID, iPsv4,
 	)
-	a.peers.AddToBlackListByAddr(tcpAddr, now, reason)
+	for _, ip := range iPsv4 {
+		ipAddr := proto.NewTCPAddr(ip, 0)
+		a.peers.AddToBlackListByIP(ipAddr, now, reason)
+	}
 	return nil
 }
 

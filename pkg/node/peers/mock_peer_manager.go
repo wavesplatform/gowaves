@@ -94,26 +94,26 @@ func (_c *MockPeerManager_AddToBlackList_Call) RunAndReturn(run func(peer1 peer.
 	return _c
 }
 
-// AddToBlackListByAddr provides a mock function for the type MockPeerManager
-func (_mock *MockPeerManager) AddToBlackListByAddr(addr proto.TCPAddr, blockTime time.Time, reason string) {
+// AddToBlackListByIP provides a mock function for the type MockPeerManager
+func (_mock *MockPeerManager) AddToBlackListByIP(addr proto.TCPAddr, blockTime time.Time, reason string) {
 	_mock.Called(addr, blockTime, reason)
 	return
 }
 
-// MockPeerManager_AddToBlackListByAddr_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddToBlackListByAddr'
-type MockPeerManager_AddToBlackListByAddr_Call struct {
+// MockPeerManager_AddToBlackListByIP_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddToBlackListByIP'
+type MockPeerManager_AddToBlackListByIP_Call struct {
 	*mock.Call
 }
 
-// AddToBlackListByAddr is a helper method to define mock.On call
+// AddToBlackListByIP is a helper method to define mock.On call
 //   - addr proto.TCPAddr
 //   - blockTime time.Time
 //   - reason string
-func (_e *MockPeerManager_Expecter) AddToBlackListByAddr(addr any, blockTime any, reason any) *MockPeerManager_AddToBlackListByAddr_Call {
-	return &MockPeerManager_AddToBlackListByAddr_Call{Call: _e.mock.On("AddToBlackListByAddr", addr, blockTime, reason)}
+func (_e *MockPeerManager_Expecter) AddToBlackListByIP(addr any, blockTime any, reason any) *MockPeerManager_AddToBlackListByIP_Call {
+	return &MockPeerManager_AddToBlackListByIP_Call{Call: _e.mock.On("AddToBlackListByIP", addr, blockTime, reason)}
 }
 
-func (_c *MockPeerManager_AddToBlackListByAddr_Call) Run(run func(addr proto.TCPAddr, blockTime time.Time, reason string)) *MockPeerManager_AddToBlackListByAddr_Call {
+func (_c *MockPeerManager_AddToBlackListByIP_Call) Run(run func(addr proto.TCPAddr, blockTime time.Time, reason string)) *MockPeerManager_AddToBlackListByIP_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 proto.TCPAddr
 		if args[0] != nil {
@@ -136,12 +136,12 @@ func (_c *MockPeerManager_AddToBlackListByAddr_Call) Run(run func(addr proto.TCP
 	return _c
 }
 
-func (_c *MockPeerManager_AddToBlackListByAddr_Call) Return() *MockPeerManager_AddToBlackListByAddr_Call {
+func (_c *MockPeerManager_AddToBlackListByIP_Call) Return() *MockPeerManager_AddToBlackListByIP_Call {
 	_c.Call.Return()
 	return _c
 }
 
-func (_c *MockPeerManager_AddToBlackListByAddr_Call) RunAndReturn(run func(addr proto.TCPAddr, blockTime time.Time, reason string)) *MockPeerManager_AddToBlackListByAddr_Call {
+func (_c *MockPeerManager_AddToBlackListByIP_Call) RunAndReturn(run func(addr proto.TCPAddr, blockTime time.Time, reason string)) *MockPeerManager_AddToBlackListByIP_Call {
 	_c.Run(run)
 	return _c
 }

@@ -658,7 +658,15 @@ func (a *NodeApi) PeersBlackList(w http.ResponseWriter, r *http.Request) error {
 	if clientIP == "" {
 		clientIP = r.RemoteAddr
 	}
-	return a.app.PeersBlackList(bodyStr, requestID, clientIP)
+	err = a.app.PeersBlackList(bodyStr, requestID, clientIP)
+	if err != nil {
+		return errors.Wrap(err, "PeersBlackList: failed to blacklist peer")
+	}
+	_, err = io.WriteString(w, http.StatusText(http.StatusOK))
+	if err != nil {
+		return errors.Wrap(err, "PeersBlackList: failed to write response")
+	}
+	return nil
 }
 
 func (a *NodeApi) BlocksGenerators(w http.ResponseWriter, _ *http.Request) error {
