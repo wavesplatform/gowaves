@@ -185,32 +185,32 @@ func (a *UtxImpl) addWithBytesOptValidation(
 	if err != nil {
 		return err
 	}
-	if a.exists(tx) {
-		return proto.NewInfoMsg(errors.Errorf("transaction with id %s exists", base58.Encode(tID)))
-	}
+	//if a.exists(tx) {
+	//	return proto.NewInfoMsg(errors.Errorf("transaction with id %s exists", base58.Encode(tID)))
+	//}
 	if optionalTxValidator != nil {
 		if vErr := optionalTxValidator(tx); vErr != nil {
 			return errors.Wrapf(vErr, "transaction with id %s failed validation", base58.Encode(tID))
 		}
 	}
-	it := &heapItem{
-		tx: &types.TransactionWithBytes{
-			T: tx,
-			B: b,
-		},
-		index: -1, // Not in heap yet.
-	}
-	heap.Push(&a.transactions, it)
-	idb, err := tx.GetID(a.settings.AddressSchemeCharacter)
-	if err != nil {
-		return fmt.Errorf("failed to get tx id: %w", err)
-	}
-	id, err := crypto.NewDigestFromBytes(idb)
-	if err != nil {
-		return fmt.Errorf("failed to create digest from tx id: %w", err)
-	}
-	a.transactionIds[id] = struct{}{}
-	a.curSize += uint64(len(b))
+	//it := &heapItem{
+	//	tx: &types.TransactionWithBytes{
+	//		T: tx,
+	//		B: b,
+	//	},
+	//	index: -1, // Not in heap yet.
+	//}
+	//heap.Push(&a.transactions, it)
+	//idb, err := tx.GetID(a.settings.AddressSchemeCharacter)
+	//if err != nil {
+	//	return fmt.Errorf("failed to get tx id: %w", err)
+	//}
+	//id, err := crypto.NewDigestFromBytes(idb)
+	//if err != nil {
+	//	return fmt.Errorf("failed to create digest from tx id: %w", err)
+	//}
+	//a.transactionIds[id] = struct{}{}
+	//a.curSize += uint64(len(b))
 	return nil
 }
 

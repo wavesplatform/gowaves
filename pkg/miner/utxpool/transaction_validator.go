@@ -32,10 +32,10 @@ func NewValidator(tm types.Time, obsolescence time.Duration) (*ValidatorImpl, er
 func (a *ValidatorImpl) Validate(st types.UtxPoolValidatorState, tx proto.Transaction) error {
 	now := a.tm.Now()
 	lastBlock := st.TopBlock()
-	lastBlockTime := time.UnixMilli(int64(lastBlock.Timestamp))
-	if now.Add(-a.obsolescence).After(lastBlockTime) {
-		return errors.New("state outdated, transaction not accepted")
-	}
+	//lastBlockTime := time.UnixMilli(int64(lastBlock.Timestamp))
+	//if now.Add(-a.obsolescence).After(lastBlockTime) {
+	//	return errors.New("state outdated, transaction not accepted")
+	//}
 	return st.TxValidation(func(validation state.TxValidation) error {
 		_, err := validation.ValidateNextTx(tx, uint64(now.UnixMilli()), lastBlock.Timestamp, lastBlock.Version, false)
 		return err
