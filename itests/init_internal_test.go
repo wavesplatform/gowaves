@@ -22,8 +22,12 @@ const (
 )
 
 const (
-	keepDanglingEnvKey     = "ITESTS_KEEP_DANGLING"
-	withRaceDetectorEnvKey = "ITESTS_WITH_RACE_DETECTOR"
+	keepDanglingEnvKey      = "ITESTS_KEEP_DANGLING"
+	withRaceDetectorEnvKey  = "ITESTS_WITH_RACE_DETECTOR"
+	dockerMachineNameEnvKey = "DOCKER_MACHINE_NAME"
+	dockerAPIVersionEnvKey  = "DOCKER_API_VERSION"
+	dockerLocalMachineName  = "local"
+	dockerMinAPIVersion     = "1.45"
 )
 
 const (
@@ -50,6 +54,10 @@ func testsSetup() error {
 		keepDangling     = mustBoolEnv(keepDanglingEnvKey)
 		withRaceDetector = mustBoolEnv(withRaceDetectorEnvKey)
 	)
+	// Set environment variables to enforce docker client connection with a required API version.
+	// Non-empty DOCKER_MACHINE_NAME allows to create client with DOCKER_API_VERSION.
+	setIfNotPresent(dockerMachineNameEnvKey, dockerLocalMachineName)
+	setIfNotPresent(dockerAPIVersionEnvKey, dockerMinAPIVersion)
 	pool, err := dockertest.NewPool("")
 	if err != nil {
 		return fmt.Errorf("failed to connect to docker: %w", err)
@@ -150,4 +158,19 @@ func mustBoolEnv(key string) bool {
 			slog.Any("value", val), logging.Error(err))
 	}
 	return r
+}
+
+func setIfNotPresent(key, value string) {
+	val := os.Getenv(key)
+	if val == "" {
+		if err := os.Setenv(key, value); err != nil {
+			slog.Error("Failed to set environment variable", slog.String("variable", key), logging.Error(err))
+			return
+		}
+		slog.Info("Setting environment variable",
+			slog.String("variable", key), slog.String("value", value))
+	} else {
+		slog.Info("Environment variable already set",
+			slog.String("variable", key), slog.String("value", val))
+	}
 }

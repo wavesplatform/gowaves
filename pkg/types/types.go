@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
@@ -219,6 +220,29 @@ type MinerConsensus interface {
 
 type EmbeddedWallet interface {
 	SignTransactionWith(pk crypto.PublicKey, tx proto.Transaction) error
+	FindPublicKeyByAddress(address proto.WavesAddress, scheme proto.Scheme) (crypto.PublicKey, error)
+	BLSPairByWavesPK(publicKey crypto.PublicKey) (bls.SecretKey, bls.PublicKey, error)
 	Load(password []byte) error
 	AccountSeeds() [][]byte
+	BLSSecretKeys() ([]bls.SecretKey, error)
+}
+
+type EndorsementPool interface {
+	// Add inserts a valid endorsement. Returns true if the snapshot changed.
+	// The caller must validate the BLS signature, round membership, and generator set eligibility.
+	Add(e *proto.BlockEndorsement, pk bls.PublicKey, balance uint64) (bool, error)
+	// AddConflict records a conflicting endorsement. Returns true if it was new for this generator.
+	AddConflict(e *proto.BlockEndorsement) bool
+	// HasUpdate reports pending changes since the last CommitFinalization call.
+	HasUpdate() bool
+	// FormFinalization produces a FinalizationVoting and saves a pending watermark snapshot.
+	// CommitFinalization must be called after the carrying microblock is successfully applied.
+	FormFinalization() (proto.FinalizationVoting, error)
+	// CommitFinalization advances committed watermarks to the state saved by FormFinalization.
+	// Must be called after the microblock carrying the voting is successfully applied.
+	CommitFinalization()
+	// Len returns the count of good endorsements.
+	Len() int
+	// Reset discards all state to start a fresh key-block round.
+	Reset()
 }

@@ -115,6 +115,8 @@ func NewBlockchainConfig(options ...BlockchainOption) (*BlockchainConfig, error)
 	bs.BlockRewardTerm = defaultBlockRewardTerm
 	bs.MinXTNBuyBackPeriod = defaultMinXTNBuyBackPeriod
 	bs.LightNodeBlockFieldsAbsenceInterval = lightNodeBlockFieldsAbsenceInterval
+	bs.GenerationPeriod = defaultGenerationPeriod
+	bs.MaxEndorsements = defaultMaxEndorsements
 
 	cfg := &BlockchainConfig{
 		Settings:      bs,

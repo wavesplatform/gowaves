@@ -252,7 +252,7 @@ func findLastEqualStateHashes(
 ) (uint64, error) {
 	var err error
 	var r uint64
-	var lsh, rsh *proto.StateHashDebug
+	var lsh, rsh proto.StateHashDebug
 	var start uint64 = 1
 	for start <= stop {
 		middle := (start + stop) / 2
@@ -279,7 +279,7 @@ func findLastEqualStateHashes(
 	return r, nil
 }
 
-func stateHashToString(sh *proto.StateHashDebug) string {
+func stateHashToString(sh proto.StateHashDebug) string {
 	js, err := json.Marshal(sh)
 	if err != nil {
 		slog.Error("Failed to render state hash to text", logging.Error(err))
@@ -288,24 +288,25 @@ func stateHashToString(sh *proto.StateHashDebug) string {
 	return string(js)
 }
 
-func compareStateHashes(sh1, sh2 *proto.StateHashDebug, onlyLegacy bool) (bool, error) {
-	if sh1.BlockID != sh2.BlockID {
-		return false, fmt.Errorf("different block IDs: '%s' != '%s'", sh1.BlockID.String(), sh2.BlockID.String())
+func compareStateHashes(sh1, sh2 proto.StateHashDebug, onlyLegacy bool) (bool, error) {
+	if sh1.GetBlockID() != sh2.GetBlockID() {
+		return false, fmt.Errorf("different block IDs: '%s' != '%s'",
+			sh1.GetBlockID().String(), sh2.GetBlockID().String())
 	}
-	legacyEqual := sh1.SumHash == sh2.SumHash
+	legacyEqual := sh1.GetSumHash() == sh2.GetSumHash()
 	if onlyLegacy {
 		return legacyEqual, nil
 	}
-	return legacyEqual && sh1.SnapshotHash == sh2.SnapshotHash, nil
+	return legacyEqual && sh1.GetSnapshotHash() == sh2.GetSnapshotHash(), nil
 }
 
 func compareWithRemote(
 	ctx context.Context,
-	sh *proto.StateHashDebug,
+	sh proto.StateHashDebug,
 	c *client.Client,
 	h uint64,
 	onlyLegacy bool,
-) (bool, *proto.StateHashDebug, error) {
+) (bool, proto.StateHashDebug, error) {
 	rsh, err := getRemoteStateHash(ctx, c, h)
 	if err != nil {
 		return false, nil, err
@@ -314,7 +315,7 @@ func compareWithRemote(
 	return ok, rsh, err
 }
 
-func getRemoteStateHash(ctx context.Context, c *client.Client, h uint64) (*proto.StateHashDebug, error) {
+func getRemoteStateHash(ctx context.Context, c *client.Client, h uint64) (proto.StateHashDebug, error) {
 	sh, _, err := c.Debug.StateHashDebug(ctx, h)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get state hash at %d height: %w", h, err)
@@ -322,7 +323,7 @@ func getRemoteStateHash(ctx context.Context, c *client.Client, h uint64) (*proto
 	return sh, nil
 }
 
-func getLocalStateHash(st state.StateInfo, h uint64) (*proto.StateHashDebug, error) {
+func getLocalStateHash(st state.StateInfo, h uint64) (proto.StateHashDebug, error) {
 	const localVersion = "local"
 	lsh, err := st.LegacyStateHashAtHeight(h)
 	if err != nil {
@@ -332,8 +333,15 @@ func getLocalStateHash(st state.StateInfo, h uint64) (*proto.StateHashDebug, err
 	if err != nil {
 		return nil, fmt.Errorf("failed to get snapshot state hash at %d height: %w", h, err)
 	}
-	shd := proto.NewStateHashJSDebug(*lsh, h, localVersion, snapSH)
-	return &shd, nil
+	finalityActivated, err := st.IsActiveAtHeight(int16(settings.DeterministicFinality), h)
+	if err != nil {
+		return nil, fmt.Errorf("failed to determine finality activation at %d height: %w", h, err)
+	}
+	bh, bhErr := st.BlockByHeight(h)
+	if bhErr != nil {
+		return nil, fmt.Errorf("failed to get block at %d height: %w", h, bhErr)
+	}
+	return proto.NewStateHashDebug(finalityActivated, lsh, h, localVersion, snapSH, bh.BaseTarget)
 }
 
 func showUsage() {

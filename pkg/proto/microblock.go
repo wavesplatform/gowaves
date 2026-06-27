@@ -21,7 +21,7 @@ const (
 )
 
 type MicroBlock struct {
-	VersionField byte
+	VersionField BlockVersion
 	// Reference for previous block.
 	Reference BlockID
 	// Block signature.
@@ -32,6 +32,7 @@ type MicroBlock struct {
 	SenderPK              crypto.PublicKey
 	Signature             crypto.Signature
 	StateHash             *crypto.Digest // is nil before protocol version 1.5
+	PartialFinalization   *FinalizationVoting
 }
 
 type MicroblockTotalSig = crypto.Signature
@@ -45,6 +46,17 @@ func (a *MicroBlock) GetStateHash() (crypto.Digest, bool) {
 		sh = *a.StateHash
 	}
 	return sh, present
+}
+
+func (a *MicroBlock) GetPartialFinalization() (FinalizationVoting, bool) {
+	var (
+		fin     FinalizationVoting
+		present = a.PartialFinalization != nil
+	)
+	if present {
+		fin = *a.PartialFinalization
+	}
+	return fin, present
 }
 
 func (a *MicroBlock) UnmarshalFromProtobuf(b []byte) error {
@@ -87,6 +99,14 @@ func (a *MicroBlock) ToProtobuf(scheme Scheme) (*g.SignedMicroBlock, error) {
 	if sh, present := a.GetStateHash(); present {
 		stateHash = sh.Bytes()
 	}
+	var finalizationProtobuf *g.FinalizationVoting
+	if fin, present := a.GetPartialFinalization(); present {
+		var cnvrtErr error
+		finalizationProtobuf, cnvrtErr = fin.ToProtobuf()
+		if cnvrtErr != nil {
+			return nil, cnvrtErr
+		}
+	}
 	return &g.SignedMicroBlock{
 		MicroBlock: &g.MicroBlock{
 			Version:               int32(a.VersionField),
@@ -95,6 +115,7 @@ func (a *MicroBlock) ToProtobuf(scheme Scheme) (*g.SignedMicroBlock, error) {
 			SenderPublicKey:       a.SenderPK.Bytes(),
 			Transactions:          txs,
 			StateHash:             stateHash,
+			FinalizationVoting:    finalizationProtobuf,
 		},
 		Signature:    sig,
 		TotalBlockId: a.TotalBlockID.Bytes(),
@@ -105,12 +126,13 @@ func (a *MicroBlock) UnmarshalBinary(b []byte, scheme Scheme) error {
 	var err error
 	d := deserializer.NewDeserializer(b)
 
-	a.VersionField, err = d.Byte()
+	v, err := d.Byte()
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal microblock version")
 	}
+	a.VersionField = BlockVersion(v)
 
-	proto := a.VersionField >= byte(ProtobufBlockVersion)
+	proto := a.VersionField >= ProtobufBlockVersion
 	if proto {
 		ref, err := d.Digest()
 		if err != nil {
@@ -204,13 +226,13 @@ func (a *MicroBlock) WriteTo(scheme Scheme, w io.Writer) (int64, error) {
 
 func (a *MicroBlock) WriteWithoutSignature(scheme Scheme, w io.Writer) (int64, error) {
 	s := serializer.NewNonFallable(w)
-	s.Byte(a.VersionField)
+	s.Byte(byte(a.VersionField))
 	s.Bytes(a.Reference.Bytes())
 	s.Bytes(a.TotalResBlockSigField.Bytes())
 	// Serialize transactions in separate buffer to get the size
 	txsBuf := new(bytes.Buffer)
 	txsSerializer := serializer.NewNonFallable(txsBuf)
-	proto := a.VersionField >= byte(ProtobufBlockVersion)
+	proto := a.VersionField >= ProtobufBlockVersion
 	if _, err := a.Transactions.WriteTo(proto, scheme, txsSerializer); err != nil {
 		return 0, err
 	}
@@ -226,6 +248,17 @@ func (a *MicroBlock) WriteWithoutSignature(scheme Scheme, w io.Writer) (int64, e
 		stateHash = sh.Bytes()
 	}
 	s.Bytes(stateHash)
+	if proto && a.PartialFinalization != nil { // Write finalization only for protobuf micro blocks.
+		finalizationProtobuf, err := a.PartialFinalization.ToProtobuf()
+		if err != nil {
+			return 0, err
+		}
+		finalizationBytes, err := finalizationProtobuf.MarshalVTStrict()
+		if err != nil {
+			return 0, err
+		}
+		s.Bytes(finalizationBytes)
+	}
 	return s.N(), nil
 }
 
@@ -233,6 +266,17 @@ func (a *MicroBlock) MarshalBinary(scheme Scheme) ([]byte, error) {
 	buf := &bytes.Buffer{}
 	_, err := a.WriteTo(scheme, buf)
 	return buf.Bytes(), err
+}
+
+func (a *MicroBlock) String() string {
+	pf := "nil"
+	if a.PartialFinalization != nil {
+		pf = a.PartialFinalization.String()
+	}
+	return fmt.Sprintf("MicroBlock{Version: %d, Reference: %s, TotalResBlockSigField: %s, TotalBlockID: %s, "+
+		"TransactionCount: %d, SenderPK: %s, Signature: %s, StateHash: %s, PartialFinalization: %s}",
+		a.VersionField, a.Reference.String(), a.TotalResBlockSigField.String(), a.TotalBlockID.String(),
+		a.TransactionCount, a.SenderPK.String(), a.Signature.String(), a.StateHash.String(), pf)
 }
 
 // MicroBlockMessage represents a MicroBlock message.
@@ -619,4 +663,29 @@ func (m *PBMicroBlockMessage) SetPayload(payload Payload) (Message, error) {
 		return m, nil
 	}
 	return nil, fmt.Errorf("invalid payload type %T", payload)
+}
+
+// AppendMicroBlock combines a block and a microblock into a new block.
+// It checks that the microblock reference matches the block ID, combines transactions and finalization voting.
+// NOTE that this function does nothing with new block signature and ID.
+func AppendMicroBlock(block *Block, microBlock *MicroBlock, scheme Scheme) (*Block, error) {
+	if block == nil {
+		return nil, errors.New("no block provided")
+	}
+	if microBlock == nil {
+		return nil, errors.New("no microblock provided")
+	}
+	if block.ID != microBlock.Reference {
+		return nil, fmt.Errorf("microblock reference '%s' does not match block ID '%s'",
+			microBlock.Reference.String(), block.ID.String())
+	}
+
+	txs := block.Transactions.Join(microBlock.Transactions)
+	fv := CombineFinalizationVoting(block.FinalizationVoting, microBlock.PartialFinalization)
+	newBlock, err := CreateBlock(txs, block.Timestamp, block.Parent, block.GeneratorPublicKey, block.NxtConsensus,
+		block.Version, block.Features, block.RewardVote, scheme, microBlock.StateHash, fv)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new block: %w", err)
+	}
+	return newBlock, nil
 }

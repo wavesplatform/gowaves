@@ -155,6 +155,10 @@ linters:
         - github.com/jmoiron/sqlx
     usetesting:
       os-setenv: true
+    revive:
+      rules:
+        - name: var-naming
+          disable: true
   exclusions:
     generated: lax
     presets:
