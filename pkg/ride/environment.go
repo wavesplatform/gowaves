@@ -773,7 +773,7 @@ func (ws *WrappedState) ApplyToState(
 		if err := ws.countActionTotal(action, libVersion, env.rideV6Activated()); err != nil {
 			return nil, errors.Wrap(err, "failed to validate total actions count")
 		}
-		if aErr := handleScriptAction(action, ws.diff, env, ws, restrictions); aErr != nil {
+		if aErr := handleScriptAction(action, &ws.diff, env, ws, restrictions); aErr != nil {
 			return nil, errors.Wrap(aErr, "failed to handle script action")
 		}
 	}
@@ -790,7 +790,7 @@ func (ws *WrappedState) validateActionsAgainstCleanDiff(actions iter.Seq[proto.S
 	cleanDiff := newDiffState(originalSmartStateStateBeforeTxStarted)
 	restrictions := newActionsValidationRestrictions(env, ws.callee(), currentLibVersion)
 	for action := range actions {
-		err := handleScriptAction(action, cleanDiff, env, ws, restrictions)
+		err := handleScriptAction(action, &cleanDiff, env, ws, restrictions)
 		if err != nil {
 			return errors.Wrap(err, "failed to handle script action against clean diff")
 		}
@@ -842,7 +842,7 @@ type reducedReadOnlyWrappedState interface {
 
 func handleScriptAction(
 	action proto.ScriptAction,
-	diff diffState,
+	diff *diffState,
 	env environment,
 	ws reducedReadOnlyWrappedState,
 	restrictions proto.ActionsValidationRestrictions,
