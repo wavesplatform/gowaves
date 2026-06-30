@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	sh256 "crypto/sha256"
 	"crypto/x509"
+	"iter"
 	"math/big"
 	"slices"
 
@@ -337,7 +338,8 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		}
 	}
 
-	err = ws.smartAppendActions(res.ScriptActions(), env, &localActionsCountValidator)
+	scriptActions := res.ScriptActions()
+	err = ws.smartAppendActions(scriptActions, env, &localActionsCountValidator)
 	if err != nil {
 		if GetEvaluationErrorType(err) == Undefined {
 			return nil, InternalInvocationError.Wrapf(err, "%s: failed to apply actions", invocation.name())
@@ -365,7 +367,11 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	// here we do validations that should happen in the end of the invocation,
 	// but before returning the result to the caller
 	if env.scheme() == proto.MainNetScheme && env.height() >= validateActionsAgainstCleanStateSinceMainnetHeight {
-		cdvErr := ws.validateActionsAgainstCleanDiff(res.ScriptActions(), env)
+		allActionsIter := chainSeq(
+			slices.Values(attachedPaymentActions),
+			slices.Values(scriptActions),
+		)
+		cdvErr := ws.validateActionsAgainstCleanDiff(allActionsIter, env)
 		if cdvErr != nil {
 			if GetEvaluationErrorType(cdvErr) == Undefined {
 				return nil, InternalInvocationError.Wrapf(cdvErr,
@@ -392,6 +398,18 @@ func reentrantInvoke(env environment, args ...rideType) (rideType, error) {
 
 func invoke(env environment, args ...rideType) (rideType, error) {
 	return performInvoke(&nonReentrantInvocation{}, env, args...)
+}
+
+func chainSeq[E any, I iter.Seq[E]](seqs ...I) I {
+	return func(yield func(E) bool) {
+		for _, seq := range seqs {
+			for item := range seq {
+				if !yield(item) {
+					return
+				}
+			}
+		}
+	}
 }
 
 func ensureRecipientAddress(env environment, recipient proto.Recipient) (proto.Recipient, error) {
