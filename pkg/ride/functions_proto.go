@@ -116,6 +116,12 @@ func (i *reentrantInvocation) blocklist() bool {
 	return false
 }
 
+const (
+	// block height of mainnet tx 'B9Uxg5eXYdgW7i8Wxwg8BTJBVvTbR1avwXdRNKQN9kKd'
+	// actually, not all actions should be validated, only balances, but almost all actions touch balances.
+	validateActionsAgainstCleanStateSinceMainnetHeight = 5253552
+)
+
 func performInvoke(invocation invocation, env environment, args ...rideType) (rideType, error) {
 	ws, ok := env.state().(*WrappedState)
 	if !ok {
@@ -356,6 +362,21 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, InternalInvocationError.Wrapf(err, "%s: failed to validate balances", invocation.name())
 	}
 
+	// here we do validations that should happen in the end of the invocation,
+	// but before returning the result to the caller
+	if env.scheme() == proto.MainNetScheme && env.height() >= validateActionsAgainstCleanStateSinceMainnetHeight {
+		cdvErr := ws.validateActionsAgainstCleanDiff(res.ScriptActions(), env)
+		if cdvErr != nil {
+			if GetEvaluationErrorType(cdvErr) == Undefined {
+				return nil, InternalInvocationError.Wrapf(cdvErr,
+					"%s: failed to validate current call actions against clean diff", invocation.name(),
+				)
+			}
+			return nil, cdvErr
+		}
+	}
+
+	// change invocation context to parent
 	env.setNewDAppAddress(proto.WavesAddress(callerAddress))
 	env.setInvocation(oldInvocationParam)
 

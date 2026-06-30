@@ -780,6 +780,23 @@ func (ws *WrappedState) ApplyToState(
 	return actions, nil
 }
 
+func (ws *WrappedState) validateActionsAgainstCleanDiff(actions []proto.ScriptAction, env environment) error {
+	currentLibVersion, lvErr := env.libVersion() // get current version, for more info see usages of env.setLibVersion
+	if lvErr != nil {
+		return errors.Wrap(lvErr, "failed to get current library version for validation of actions against clean diff")
+	}
+	originalSmartStateStateBeforeTxStarted := ws.diff.state
+	cleanDiff := newDiffState(originalSmartStateStateBeforeTxStarted)
+	restrictions := newActionsValidationRestrictions(env, ws.callee(), currentLibVersion)
+	for _, action := range actions {
+		err := handleScriptAction(action, cleanDiff, env, ws, restrictions)
+		if err != nil {
+			return errors.Wrap(err, "failed to handle script action against clean diff")
+		}
+	}
+	return nil
+}
+
 func newActionsValidationRestrictions(
 	env environment,
 	scriptAddress proto.WavesAddress,
