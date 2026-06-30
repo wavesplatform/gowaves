@@ -786,8 +786,11 @@ func (ws *WrappedState) validateActionsAgainstCleanDiff(actions iter.Seq[proto.S
 	if lvErr != nil {
 		return errors.Wrap(lvErr, "failed to get current library version for validation of actions against clean diff")
 	}
-	originalSmartStateStateBeforeTxStarted := ws.diff.state
+	originalDiff := ws.diff
+	originalSmartStateStateBeforeTxStarted := originalDiff.state
 	cleanDiff := newDiffState(originalSmartStateStateBeforeTxStarted)
+	ws.diff = cleanDiff                       // change WS internal diff to the clean one, needed for validation methods
+	defer func() { ws.diff = originalDiff }() // restore diff to original one
 	restrictions := newActionsValidationRestrictions(env, ws.callee(), currentLibVersion)
 	for action := range actions {
 		err := handleScriptAction(action, &cleanDiff, env, ws, restrictions)
