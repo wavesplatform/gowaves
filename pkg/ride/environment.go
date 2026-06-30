@@ -753,15 +753,7 @@ func (ws *WrappedState) ApplyToState(
 	if err != nil {
 		return nil, err
 	}
-	disableSelfTransfers := currentLibVersion >= ast.LibV4 // it's OK, this flag depends on library version, not feature
-	restrictions := proto.ActionsValidationRestrictions{
-		DisableSelfTransfers:  disableSelfTransfers,
-		IsUTF16KeyLen:         !env.blockV5Activated(), // if RideV4 isn't activated,
-		IsProtobufTransaction: env.isProtobufTx(),
-		MaxDataEntriesSize:    env.maxDataEntriesSize(),
-		Scheme:                ws.scheme,
-		ScriptAddress:         ws.callee(),
-	}
+	restrictions := newActionsValidationRestrictions(env, ws.callee(), currentLibVersion)
 	var libVersion ast.LibraryVersion
 	if env.blockRewardDistributionActivated() {
 		libVersion = ws.rootScriptLibVersion
@@ -780,252 +772,307 @@ func (ws *WrappedState) ApplyToState(
 		if err := ws.countActionTotal(action, libVersion, env.rideV6Activated()); err != nil {
 			return nil, errors.Wrap(err, "failed to validate total actions count")
 		}
-		switch a := action.(type) {
-		case *proto.DataEntryScriptAction:
-			err := ws.validateDataEntryAction(a, restrictions, env.rideV6Activated())
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to pass validation of data entry action")
-			}
-			addr := ws.callee()
-			senderPK, err := ws.diff.state.NewestScriptPKByAddr(addr)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to get public key by address")
-			}
-			a.Sender = &senderPK
-			ws.diff.putDataEntry(a.Entry, addr)
-
-		case *proto.AttachedPaymentScriptAction:
-			err = ws.validatePaymentAction(a, env, restrictions)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to apply attached payment")
-			}
-			senderAddress, err := proto.NewAddressFromPublicKey(ws.scheme, *a.Sender)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to apply attached payment")
-			}
-			recipient, err := ws.NewestRecipientToAddress(a.Recipient)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to apply attached payment")
-			}
-			// Self-payment causes no changes, can be ignored.
-			if senderAddress == recipient {
-				continue
-			}
-			// No balance validation done below
-			if a.Asset.Present { // Update asset balance
-				if err := ws.diff.assetTransfer(senderAddress.ID(), recipient.ID(), a.Asset.ID, a.Amount); err != nil {
-					return nil, errors.Wrap(err, "failed to apply attached payment")
-				}
-			} else { // Update Waves balance
-				if err := ws.diff.wavesTransfer(senderAddress.ID(), recipient.ID(), a.Amount); err != nil {
-					return nil, errors.Wrap(err, "failed to apply attached payment")
-				}
-			}
-
-		case *proto.TransferScriptAction:
-			// Update sender's Public Key in the action
-			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to get public key by address")
-			}
-			a.Sender = &senderPK
-			senderAddress := ws.callee()
-			if err = ws.validateTransferAction(a, restrictions, senderAddress, env); err != nil {
-				return nil, errors.Wrapf(err, "failed to pass validation of transfer action")
-			}
-			recipient, err := ws.NewestRecipientToAddress(a.Recipient)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to apply transfer action")
-			}
-			// Self-payment causes no changes, can be ignored.
-			if senderAddress == recipient {
-				continue
-			}
-			if a.Asset.Present { // Update asset balance
-				if err := ws.diff.assetTransfer(senderAddress.ID(), recipient.ID(), a.Asset.ID, a.Amount); err != nil {
-					return nil, errors.Wrap(err, "failed to apply transfer action")
-				}
-			} else { // Update Waves balance
-				if err := ws.diff.wavesTransfer(senderAddress.ID(), recipient.ID(), a.Amount); err != nil {
-					return nil, errors.Wrap(err, "failed to apply transfer action")
-				}
-			}
-
-		case *proto.SponsorshipScriptAction:
-			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to get public key by address")
-			}
-			a.Sender = &senderPK
-
-			err = ws.validateSponsorshipAction(a)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to pass validation of issue action")
-			}
-
-			assetID := proto.AssetIDFromDigest(a.AssetID)
-			sponsorship := diffSponsorship{
-				minFee: a.MinFee,
-			}
-			ws.diff.setSponsorshipByAssetID(assetID, sponsorship)
-
-		case *proto.IssueScriptAction:
-			if err := ws.validateIssueAction(a); err != nil {
-				return nil, errors.Wrapf(err, "failed to validate Issue action before application")
-			}
-
-			assetInfo := diffNewAssetInfo{
-				asset:       a.ID,
-				dAppIssuer:  ws.callee(),
-				name:        a.Name,
-				description: a.Description,
-				quantity:    a.Quantity,
-				decimals:    a.Decimals,
-				reissuable:  a.Reissuable,
-				script:      a.Script,
-				nonce:       a.Nonce,
-			}
-			ws.diff.setNewAssetByAssetID(proto.AssetIDFromDigest(a.ID), assetInfo)
-
-			// Update sender's Public Key in the action
-			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to get public key by address")
-			}
-			a.Sender = &senderPK
-
-			key := assetBalanceKey{id: ws.callee().ID(), asset: a.ID}
-			if _, err := ws.diff.loadAssetBalance(key); err != nil {
-				return nil, errors.Wrap(err, "failed to apply Issue action")
-			}
-			if err = ws.diff.addAssetBalance(key, a.Quantity); err != nil {
-				return nil, errors.Wrap(err, "failed to apply Issue action")
-			}
-
-		case *proto.ReissueScriptAction:
-			// Update sender's Public Key in the action
-			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to get public key by address")
-			}
-			a.Sender = &senderPK
-
-			err = ws.validateReissueAction(a, env)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to pass validation of reissue action")
-			}
-
-			key := assetBalanceKey{id: ws.callee().ID(), asset: a.AssetID}
-			if _, err := ws.diff.loadAssetBalance(key); err != nil {
-				return nil, errors.Wrap(err, "failed to apply Reissue action")
-			}
-			if err := ws.diff.addAssetBalance(key, a.Quantity); err != nil {
-				return nil, errors.Wrap(err, "failed to apply Reissue action")
-			}
-
-			// Update asset info
-			// TODO: Simplify following logic, get rid of separate local storages for two kinds of asset info (old and new)
-			assetID := proto.AssetIDFromDigest(a.AssetID)
-			if searchNewAsset := ws.diff.findNewAssetByAssetID(assetID); searchNewAsset == nil {
-				if oldAssetFromDiff := ws.diff.findOldAssetByAssetID(assetID); oldAssetFromDiff != nil {
-					oldAssetFromDiff.diffQuantity += a.Quantity
-					ws.diff.setOldAssetByAssetID(assetID, *oldAssetFromDiff)
-					break
-				}
-				var assetInfo diffOldAssetInfo
-				assetInfo.diffQuantity += a.Quantity
-				ws.diff.setOldAssetByAssetID(assetID, assetInfo)
-				break
-			}
-			ws.diff.reissueNewAsset(a.AssetID, a.Quantity, a.Reissuable)
-
-		case *proto.BurnScriptAction:
-			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to get public key by address")
-			}
-			a.Sender = &senderPK
-
-			if err = ws.validateBurnAction(a, env); err != nil {
-				return nil, errors.Wrapf(err, "failed to pass validation of burn action")
-			}
-
-			key := assetBalanceKey{id: ws.callee().ID(), asset: a.AssetID}
-			if _, err := ws.diff.loadAssetBalance(key); err != nil {
-				return nil, errors.Wrap(err, "failed to apply Burn action")
-			}
-			if err := ws.diff.addAssetBalance(key, -a.Quantity); err != nil {
-				return nil, errors.Wrap(err, "failed to apply Burn action")
-			}
-
-			// Update asset's info
-			// TODO: Simplify following logic, get rid of two separate storages of asset infos
-			assetID := proto.AssetIDFromDigest(a.AssetID)
-			if searchAsset := ws.diff.findNewAssetByAssetID(assetID); searchAsset == nil {
-				if oldAssetFromDiff := ws.diff.findOldAssetByAssetID(assetID); oldAssetFromDiff != nil {
-					oldAssetFromDiff.diffQuantity -= a.Quantity
-					ws.diff.setOldAssetByAssetID(assetID, *oldAssetFromDiff)
-					break
-				}
-				var assetInfo diffOldAssetInfo
-				assetInfo.diffQuantity -= a.Quantity
-				ws.diff.setOldAssetByAssetID(assetID, assetInfo)
-				break
-			}
-			ws.diff.burnNewAsset(a.AssetID, a.Quantity)
-
-		case *proto.LeaseScriptAction:
-			senderAddress := ws.callee()
-			pk, err := ws.diff.state.NewestScriptPKByAddr(senderAddress)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to get public key by address")
-			}
-			a.Sender = &pk
-
-			if err = ws.validateLeaseAction(a, restrictions); err != nil {
-				return nil, errors.Wrapf(err, "failed to pass validation of lease action")
-			}
-
-			receiver, err := ws.NewestRecipientToAddress(a.Recipient)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to apply Lease action")
-			}
-
-			if err := ws.diff.lease(senderAddress, receiver, a.Amount, a.ID); err != nil {
-				return nil, errors.Wrap(err, "failed to apply Lease action")
-			}
-
-		case *proto.LeaseCancelScriptAction:
-			pk, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to get public key by address")
-			}
-			a.Sender = &pk
-
-			l, err := ws.diff.loadLease(a.LeaseID)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to find lease by leaseID '%s'", a.LeaseID.String())
-			}
-			if !l.active {
-				return nil, errors.Errorf("failed to cancel lease with leaseID '%s' because it's not active", a.LeaseID.String())
-			}
-			if canceler := ws.callee(); canceler != l.sender {
-				return nil, errors.Errorf(
-					"attempt to cancel leasing that was created by other account; leaser '%s'; canceller '%s'; leasing: %s",
-					l.sender.String(), canceler.String(), a.LeaseID.String(),
-				)
-			}
-
-			if err := ws.diff.cancelLease(l.sender, l.recipient, l.amount, a.LeaseID); err != nil {
-				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
-			}
-
-		default:
-			return nil, errors.Errorf("unknown script action type %T", a)
+		if aErr := handleScriptAction(action, ws.diff, env, ws, restrictions); aErr != nil {
+			return nil, errors.Wrap(aErr, "failed to handle script action")
 		}
 	}
 
 	return actions, nil
+}
+
+func newActionsValidationRestrictions(
+	env environment,
+	scriptAddress proto.WavesAddress,
+	currentLibVersion ast.LibraryVersion,
+) proto.ActionsValidationRestrictions {
+	disableSelfTransfers := currentLibVersion >= ast.LibV4 // it's OK, this flag depends on library version, not feature
+	return proto.ActionsValidationRestrictions{
+		DisableSelfTransfers:  disableSelfTransfers,
+		IsUTF16KeyLen:         !env.blockV5Activated(), // if RideV4 isn't activated,
+		IsProtobufTransaction: env.isProtobufTx(),
+		MaxDataEntriesSize:    env.maxDataEntriesSize(),
+		Scheme:                env.scheme(),
+		ScriptAddress:         scriptAddress,
+	}
+}
+
+type reducedReadOnlyWrappedState interface {
+	callee() proto.WavesAddress
+	NewestRecipientToAddress(recipient proto.Recipient) (proto.WavesAddress, error)
+	validateDataEntryAction(
+		res *proto.DataEntryScriptAction,
+		restrictions proto.ActionsValidationRestrictions,
+		isRideV6Activated bool,
+	) error
+	validatePaymentAction(
+		res *proto.AttachedPaymentScriptAction,
+		env environment,
+		restrictions proto.ActionsValidationRestrictions,
+	) error
+	validateTransferAction(
+		res *proto.TransferScriptAction,
+		restrictions proto.ActionsValidationRestrictions,
+		sender proto.WavesAddress,
+		env environment,
+	) error
+	validateSponsorshipAction(res *proto.SponsorshipScriptAction) error
+	validateIssueAction(res *proto.IssueScriptAction) error
+	validateReissueAction(res *proto.ReissueScriptAction, env environment) error
+	validateBurnAction(res *proto.BurnScriptAction, env environment) error
+	validateLeaseAction(res *proto.LeaseScriptAction, restrictions proto.ActionsValidationRestrictions) error
+}
+
+func handleScriptAction(
+	action proto.ScriptAction,
+	diff diffState,
+	env environment,
+	ws reducedReadOnlyWrappedState,
+	restrictions proto.ActionsValidationRestrictions,
+) error {
+	switch a := action.(type) {
+	case *proto.DataEntryScriptAction:
+		err := ws.validateDataEntryAction(a, restrictions, env.rideV6Activated())
+		if err != nil {
+			return errors.Wrapf(err, "failed to pass validation of data entry action")
+		}
+		addr := ws.callee()
+		senderPK, err := diff.state.NewestScriptPKByAddr(addr)
+		if err != nil {
+			return errors.Wrap(err, "failed to get public key by address")
+		}
+		a.Sender = &senderPK
+		diff.putDataEntry(a.Entry, addr)
+
+	case *proto.AttachedPaymentScriptAction:
+		err := ws.validatePaymentAction(a, env, restrictions)
+		if err != nil {
+			return errors.Wrap(err, "failed to apply attached payment")
+		}
+		senderAddress, err := proto.NewAddressFromPublicKey(env.scheme(), *a.Sender)
+		if err != nil {
+			return errors.Wrap(err, "failed to apply attached payment")
+		}
+		recipient, err := ws.NewestRecipientToAddress(a.Recipient)
+		if err != nil {
+			return errors.Wrap(err, "failed to apply attached payment")
+		}
+		// Self-payment causes no changes, can be ignored.
+		if senderAddress == recipient {
+			return nil // just continue
+		}
+		// No balance validation done below
+		if a.Asset.Present { // Update asset balance
+			if atErr := diff.assetTransfer(senderAddress.ID(), recipient.ID(), a.Asset.ID, a.Amount); atErr != nil {
+				return errors.Wrap(atErr, "failed to apply attached payment")
+			}
+		} else { // Update Waves balance
+			if wtErr := diff.wavesTransfer(senderAddress.ID(), recipient.ID(), a.Amount); wtErr != nil {
+				return errors.Wrap(wtErr, "failed to apply attached payment")
+			}
+		}
+
+	case *proto.TransferScriptAction:
+		// Update sender's Public Key in the action
+		senderPK, err := diff.state.NewestScriptPKByAddr(ws.callee())
+		if err != nil {
+			return errors.Wrap(err, "failed to get public key by address")
+		}
+		a.Sender = &senderPK
+		senderAddress := ws.callee()
+		if err = ws.validateTransferAction(a, restrictions, senderAddress, env); err != nil {
+			return errors.Wrapf(err, "failed to pass validation of transfer action")
+		}
+		recipient, err := ws.NewestRecipientToAddress(a.Recipient)
+		if err != nil {
+			return errors.Wrap(err, "failed to apply transfer action")
+		}
+		// Self-payment causes no changes, can be ignored.
+		if senderAddress == recipient {
+			return nil // just continue
+		}
+		if a.Asset.Present { // Update asset balance
+			if atErr := diff.assetTransfer(senderAddress.ID(), recipient.ID(), a.Asset.ID, a.Amount); atErr != nil {
+				return errors.Wrap(atErr, "failed to apply transfer action")
+			}
+		} else { // Update Waves balance
+			if wtErr := diff.wavesTransfer(senderAddress.ID(), recipient.ID(), a.Amount); wtErr != nil {
+				return errors.Wrap(wtErr, "failed to apply transfer action")
+			}
+		}
+
+	case *proto.SponsorshipScriptAction:
+		senderPK, err := diff.state.NewestScriptPKByAddr(ws.callee())
+		if err != nil {
+			return errors.Wrap(err, "failed to get public key by address")
+		}
+		a.Sender = &senderPK
+
+		err = ws.validateSponsorshipAction(a)
+		if err != nil {
+			return errors.Wrapf(err, "failed to pass validation of issue action")
+		}
+
+		assetID := proto.AssetIDFromDigest(a.AssetID)
+		sponsorship := diffSponsorship{
+			minFee: a.MinFee,
+		}
+		diff.setSponsorshipByAssetID(assetID, sponsorship)
+
+	case *proto.IssueScriptAction:
+		if err := ws.validateIssueAction(a); err != nil {
+			return errors.Wrapf(err, "failed to validate Issue action before application")
+		}
+
+		assetInfo := diffNewAssetInfo{
+			asset:       a.ID,
+			dAppIssuer:  ws.callee(),
+			name:        a.Name,
+			description: a.Description,
+			quantity:    a.Quantity,
+			decimals:    a.Decimals,
+			reissuable:  a.Reissuable,
+			script:      a.Script,
+			nonce:       a.Nonce,
+		}
+		diff.setNewAssetByAssetID(proto.AssetIDFromDigest(a.ID), assetInfo)
+
+		// Update sender's Public Key in the action
+		senderPK, err := diff.state.NewestScriptPKByAddr(ws.callee())
+		if err != nil {
+			return errors.Wrap(err, "failed to get public key by address")
+		}
+		a.Sender = &senderPK
+
+		key := assetBalanceKey{id: ws.callee().ID(), asset: a.ID}
+		if _, labErr := diff.loadAssetBalance(key); labErr != nil {
+			return errors.Wrap(labErr, "failed to apply Issue action")
+		}
+		if err = diff.addAssetBalance(key, a.Quantity); err != nil {
+			return errors.Wrap(err, "failed to apply Issue action")
+		}
+
+	case *proto.ReissueScriptAction:
+		// Update sender's Public Key in the action
+		senderPK, err := diff.state.NewestScriptPKByAddr(ws.callee())
+		if err != nil {
+			return errors.Wrap(err, "failed to get public key by address")
+		}
+		a.Sender = &senderPK
+
+		err = ws.validateReissueAction(a, env)
+		if err != nil {
+			return errors.Wrapf(err, "failed to pass validation of reissue action")
+		}
+
+		key := assetBalanceKey{id: ws.callee().ID(), asset: a.AssetID}
+		if _, labErr := diff.loadAssetBalance(key); labErr != nil {
+			return errors.Wrap(labErr, "failed to apply Reissue action")
+		}
+		if aabErr := diff.addAssetBalance(key, a.Quantity); aabErr != nil {
+			return errors.Wrap(aabErr, "failed to apply Reissue action")
+		}
+
+		// Update asset info
+		// TODO: Simplify following logic, get rid of separate local storages for two kinds of asset info (old and new)
+		assetID := proto.AssetIDFromDigest(a.AssetID)
+		if searchNewAsset := diff.findNewAssetByAssetID(assetID); searchNewAsset == nil {
+			if oldAssetFromDiff := diff.findOldAssetByAssetID(assetID); oldAssetFromDiff != nil {
+				oldAssetFromDiff.diffQuantity += a.Quantity
+				diff.setOldAssetByAssetID(assetID, *oldAssetFromDiff)
+				break
+			}
+			var assetInfo diffOldAssetInfo
+			assetInfo.diffQuantity += a.Quantity
+			diff.setOldAssetByAssetID(assetID, assetInfo)
+			break
+		}
+		diff.reissueNewAsset(a.AssetID, a.Quantity, a.Reissuable)
+
+	case *proto.BurnScriptAction:
+		senderPK, err := diff.state.NewestScriptPKByAddr(ws.callee())
+		if err != nil {
+			return errors.Wrap(err, "failed to get public key by address")
+		}
+		a.Sender = &senderPK
+
+		if err = ws.validateBurnAction(a, env); err != nil {
+			return errors.Wrapf(err, "failed to pass validation of burn action")
+		}
+
+		key := assetBalanceKey{id: ws.callee().ID(), asset: a.AssetID}
+		if _, labErr := diff.loadAssetBalance(key); labErr != nil {
+			return errors.Wrap(labErr, "failed to apply Burn action")
+		}
+		if aabErr := diff.addAssetBalance(key, -a.Quantity); aabErr != nil {
+			return errors.Wrap(aabErr, "failed to apply Burn action")
+		}
+
+		// Update asset's info
+		// TODO: Simplify following logic, get rid of two separate storages of asset infos
+		assetID := proto.AssetIDFromDigest(a.AssetID)
+		if searchAsset := diff.findNewAssetByAssetID(assetID); searchAsset == nil {
+			if oldAssetFromDiff := diff.findOldAssetByAssetID(assetID); oldAssetFromDiff != nil {
+				oldAssetFromDiff.diffQuantity -= a.Quantity
+				diff.setOldAssetByAssetID(assetID, *oldAssetFromDiff)
+				break
+			}
+			var assetInfo diffOldAssetInfo
+			assetInfo.diffQuantity -= a.Quantity
+			diff.setOldAssetByAssetID(assetID, assetInfo)
+			break
+		}
+		diff.burnNewAsset(a.AssetID, a.Quantity)
+
+	case *proto.LeaseScriptAction:
+		senderAddress := ws.callee()
+		pk, err := diff.state.NewestScriptPKByAddr(senderAddress)
+		if err != nil {
+			return errors.Wrap(err, "failed to get public key by address")
+		}
+		a.Sender = &pk
+
+		if err = ws.validateLeaseAction(a, restrictions); err != nil {
+			return errors.Wrapf(err, "failed to pass validation of lease action")
+		}
+
+		receiver, err := ws.NewestRecipientToAddress(a.Recipient)
+		if err != nil {
+			return errors.Wrap(err, "failed to apply Lease action")
+		}
+
+		if lErr := diff.lease(senderAddress, receiver, a.Amount, a.ID); lErr != nil {
+			return errors.Wrap(lErr, "failed to apply Lease action")
+		}
+
+	case *proto.LeaseCancelScriptAction:
+		pk, err := diff.state.NewestScriptPKByAddr(ws.callee())
+		if err != nil {
+			return errors.Wrap(err, "failed to get public key by address")
+		}
+		a.Sender = &pk
+
+		l, err := diff.loadLease(a.LeaseID)
+		if err != nil {
+			return errors.Wrapf(err, "failed to find lease by leaseID '%s'", a.LeaseID.String())
+		}
+		if !l.active {
+			return errors.Errorf("failed to cancel lease with leaseID '%s' because it's not active", a.LeaseID.String())
+		}
+		if canceler := ws.callee(); canceler != l.sender {
+			return errors.Errorf(
+				"attempt to cancel leasing that was created by other account; leaser '%s'; canceller '%s'; leasing: %s",
+				l.sender.String(), canceler.String(), a.LeaseID.String(),
+			)
+		}
+
+		if clErr := diff.cancelLease(l.sender, l.recipient, l.amount, a.LeaseID); clErr != nil {
+			return errors.Wrap(clErr, "failed to apply LeaseCancel action")
+		}
+
+	default:
+		return errors.Errorf("unknown script action type %T", a)
+	}
+	return nil
 }
 
 type EvaluationEnvironment struct {
