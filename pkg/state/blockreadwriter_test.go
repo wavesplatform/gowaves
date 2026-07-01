@@ -179,6 +179,8 @@ func testNewestReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 			if !assert.ObjectsAreEqual(task.correctID, id) {
 				return errors.Errorf("block IDs are not equal: correct: %s, actual: %s", task.correctID.String(), id.String())
 			}
+		case readBlock:
+			// Do nothing.
 		}
 	}
 	return nil

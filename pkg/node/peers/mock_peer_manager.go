@@ -57,7 +57,7 @@ type MockPeerManager_AddToBlackList_Call struct {
 //   - peer1 peer.Peer
 //   - blockTime time.Time
 //   - reason string
-func (_e *MockPeerManager_Expecter) AddToBlackList(peer1 interface{}, blockTime interface{}, reason interface{}) *MockPeerManager_AddToBlackList_Call {
+func (_e *MockPeerManager_Expecter) AddToBlackList(peer1 any, blockTime any, reason any) *MockPeerManager_AddToBlackList_Call {
 	return &MockPeerManager_AddToBlackList_Call{Call: _e.mock.On("AddToBlackList", peer1, blockTime, reason)}
 }
 
@@ -90,6 +90,58 @@ func (_c *MockPeerManager_AddToBlackList_Call) Return() *MockPeerManager_AddToBl
 }
 
 func (_c *MockPeerManager_AddToBlackList_Call) RunAndReturn(run func(peer1 peer.Peer, blockTime time.Time, reason string)) *MockPeerManager_AddToBlackList_Call {
+	_c.Run(run)
+	return _c
+}
+
+// AddToBlackListByIP provides a mock function for the type MockPeerManager
+func (_mock *MockPeerManager) AddToBlackListByIP(addr proto.TCPAddr, blockTime time.Time, reason string) {
+	_mock.Called(addr, blockTime, reason)
+	return
+}
+
+// MockPeerManager_AddToBlackListByIP_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddToBlackListByIP'
+type MockPeerManager_AddToBlackListByIP_Call struct {
+	*mock.Call
+}
+
+// AddToBlackListByIP is a helper method to define mock.On call
+//   - addr proto.TCPAddr
+//   - blockTime time.Time
+//   - reason string
+func (_e *MockPeerManager_Expecter) AddToBlackListByIP(addr any, blockTime any, reason any) *MockPeerManager_AddToBlackListByIP_Call {
+	return &MockPeerManager_AddToBlackListByIP_Call{Call: _e.mock.On("AddToBlackListByIP", addr, blockTime, reason)}
+}
+
+func (_c *MockPeerManager_AddToBlackListByIP_Call) Run(run func(addr proto.TCPAddr, blockTime time.Time, reason string)) *MockPeerManager_AddToBlackListByIP_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 proto.TCPAddr
+		if args[0] != nil {
+			arg0 = args[0].(proto.TCPAddr)
+		}
+		var arg1 time.Time
+		if args[1] != nil {
+			arg1 = args[1].(time.Time)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockPeerManager_AddToBlackListByIP_Call) Return() *MockPeerManager_AddToBlackListByIP_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockPeerManager_AddToBlackListByIP_Call) RunAndReturn(run func(addr proto.TCPAddr, blockTime time.Time, reason string)) *MockPeerManager_AddToBlackListByIP_Call {
 	_c.Run(run)
 	return _c
 }
@@ -208,7 +260,7 @@ type MockPeerManager_CheckPeerInLargestScoreGroup_Call struct {
 
 // CheckPeerInLargestScoreGroup is a helper method to define mock.On call
 //   - p peer.Peer
-func (_e *MockPeerManager_Expecter) CheckPeerInLargestScoreGroup(p interface{}) *MockPeerManager_CheckPeerInLargestScoreGroup_Call {
+func (_e *MockPeerManager_Expecter) CheckPeerInLargestScoreGroup(p any) *MockPeerManager_CheckPeerInLargestScoreGroup_Call {
 	return &MockPeerManager_CheckPeerInLargestScoreGroup_Call{Call: _e.mock.On("CheckPeerInLargestScoreGroup", p)}
 }
 
@@ -270,7 +322,7 @@ type MockPeerManager_CheckPeerWithMaxScore_Call struct {
 
 // CheckPeerWithMaxScore is a helper method to define mock.On call
 //   - p peer.Peer
-func (_e *MockPeerManager_Expecter) CheckPeerWithMaxScore(p interface{}) *MockPeerManager_CheckPeerWithMaxScore_Call {
+func (_e *MockPeerManager_Expecter) CheckPeerWithMaxScore(p any) *MockPeerManager_CheckPeerWithMaxScore_Call {
 	return &MockPeerManager_CheckPeerWithMaxScore_Call{Call: _e.mock.On("CheckPeerWithMaxScore", p)}
 }
 
@@ -410,7 +462,7 @@ type MockPeerManager_Connect_Call struct {
 // Connect is a helper method to define mock.On call
 //   - context1 context.Context
 //   - tCPAddr proto.TCPAddr
-func (_e *MockPeerManager_Expecter) Connect(context1 interface{}, tCPAddr interface{}) *MockPeerManager_Connect_Call {
+func (_e *MockPeerManager_Expecter) Connect(context1 any, tCPAddr any) *MockPeerManager_Connect_Call {
 	return &MockPeerManager_Connect_Call{Call: _e.mock.On("Connect", context1, tCPAddr)}
 }
 
@@ -499,7 +551,7 @@ type MockPeerManager_Disconnect_Call struct {
 
 // Disconnect is a helper method to define mock.On call
 //   - peer1 peer.Peer
-func (_e *MockPeerManager_Expecter) Disconnect(peer1 interface{}) *MockPeerManager_Disconnect_Call {
+func (_e *MockPeerManager_Expecter) Disconnect(peer1 any) *MockPeerManager_Disconnect_Call {
 	return &MockPeerManager_Disconnect_Call{Call: _e.mock.On("Disconnect", peer1)}
 }
 
@@ -539,7 +591,7 @@ type MockPeerManager_EachConnected_Call struct {
 
 // EachConnected is a helper method to define mock.On call
 //   - fn func(peer.Peer, *proto.Score)
-func (_e *MockPeerManager_Expecter) EachConnected(fn interface{}) *MockPeerManager_EachConnected_Call {
+func (_e *MockPeerManager_Expecter) EachConnected(fn any) *MockPeerManager_EachConnected_Call {
 	return &MockPeerManager_EachConnected_Call{Call: _e.mock.On("EachConnected", fn)}
 }
 
@@ -636,7 +688,7 @@ type MockPeerManager_NewConnection_Call struct {
 
 // NewConnection is a helper method to define mock.On call
 //   - peer1 peer.Peer
-func (_e *MockPeerManager_Expecter) NewConnection(peer1 interface{}) *MockPeerManager_NewConnection_Call {
+func (_e *MockPeerManager_Expecter) NewConnection(peer1 any) *MockPeerManager_NewConnection_Call {
 	return &MockPeerManager_NewConnection_Call{Call: _e.mock.On("NewConnection", peer1)}
 }
 
@@ -698,7 +750,7 @@ type MockPeerManager_Score_Call struct {
 
 // Score is a helper method to define mock.On call
 //   - p peer.Peer
-func (_e *MockPeerManager_Expecter) Score(p interface{}) *MockPeerManager_Score_Call {
+func (_e *MockPeerManager_Expecter) Score(p any) *MockPeerManager_Score_Call {
 	return &MockPeerManager_Score_Call{Call: _e.mock.On("Score", p)}
 }
 
@@ -750,7 +802,7 @@ type MockPeerManager_SpawnIncomingConnection_Call struct {
 // SpawnIncomingConnection is a helper method to define mock.On call
 //   - ctx context.Context
 //   - conn net.Conn
-func (_e *MockPeerManager_Expecter) SpawnIncomingConnection(ctx interface{}, conn interface{}) *MockPeerManager_SpawnIncomingConnection_Call {
+func (_e *MockPeerManager_Expecter) SpawnIncomingConnection(ctx any, conn any) *MockPeerManager_SpawnIncomingConnection_Call {
 	return &MockPeerManager_SpawnIncomingConnection_Call{Call: _e.mock.On("SpawnIncomingConnection", ctx, conn)}
 }
 
@@ -795,7 +847,7 @@ type MockPeerManager_SpawnOutgoingConnections_Call struct {
 
 // SpawnOutgoingConnections is a helper method to define mock.On call
 //   - context1 context.Context
-func (_e *MockPeerManager_Expecter) SpawnOutgoingConnections(context1 interface{}) *MockPeerManager_SpawnOutgoingConnections_Call {
+func (_e *MockPeerManager_Expecter) SpawnOutgoingConnections(context1 any) *MockPeerManager_SpawnOutgoingConnections_Call {
 	return &MockPeerManager_SpawnOutgoingConnections_Call{Call: _e.mock.On("SpawnOutgoingConnections", context1)}
 }
 
@@ -868,104 +920,6 @@ func (_c *MockPeerManager_Spawned_Call) RunAndReturn(run func() []proto.IpPort) 
 	return _c
 }
 
-// Suspend provides a mock function for the type MockPeerManager
-func (_mock *MockPeerManager) Suspend(peer1 peer.Peer, suspendTime time.Time, reason string) {
-	_mock.Called(peer1, suspendTime, reason)
-	return
-}
-
-// MockPeerManager_Suspend_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Suspend'
-type MockPeerManager_Suspend_Call struct {
-	*mock.Call
-}
-
-// Suspend is a helper method to define mock.On call
-//   - peer1 peer.Peer
-//   - suspendTime time.Time
-//   - reason string
-func (_e *MockPeerManager_Expecter) Suspend(peer1 interface{}, suspendTime interface{}, reason interface{}) *MockPeerManager_Suspend_Call {
-	return &MockPeerManager_Suspend_Call{Call: _e.mock.On("Suspend", peer1, suspendTime, reason)}
-}
-
-func (_c *MockPeerManager_Suspend_Call) Run(run func(peer1 peer.Peer, suspendTime time.Time, reason string)) *MockPeerManager_Suspend_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 peer.Peer
-		if args[0] != nil {
-			arg0 = args[0].(peer.Peer)
-		}
-		var arg1 time.Time
-		if args[1] != nil {
-			arg1 = args[1].(time.Time)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockPeerManager_Suspend_Call) Return() *MockPeerManager_Suspend_Call {
-	_c.Call.Return()
-	return _c
-}
-
-func (_c *MockPeerManager_Suspend_Call) RunAndReturn(run func(peer1 peer.Peer, suspendTime time.Time, reason string)) *MockPeerManager_Suspend_Call {
-	_c.Run(run)
-	return _c
-}
-
-// Suspended provides a mock function for the type MockPeerManager
-func (_mock *MockPeerManager) Suspended() []storage.SuspendedPeer {
-	ret := _mock.Called()
-
-	if len(ret) == 0 {
-		panic("no return value specified for Suspended")
-	}
-
-	var r0 []storage.SuspendedPeer
-	if returnFunc, ok := ret.Get(0).(func() []storage.SuspendedPeer); ok {
-		r0 = returnFunc()
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]storage.SuspendedPeer)
-		}
-	}
-	return r0
-}
-
-// MockPeerManager_Suspended_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Suspended'
-type MockPeerManager_Suspended_Call struct {
-	*mock.Call
-}
-
-// Suspended is a helper method to define mock.On call
-func (_e *MockPeerManager_Expecter) Suspended() *MockPeerManager_Suspended_Call {
-	return &MockPeerManager_Suspended_Call{Call: _e.mock.On("Suspended")}
-}
-
-func (_c *MockPeerManager_Suspended_Call) Run(run func()) *MockPeerManager_Suspended_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run()
-	})
-	return _c
-}
-
-func (_c *MockPeerManager_Suspended_Call) Return(vs []storage.SuspendedPeer) *MockPeerManager_Suspended_Call {
-	_c.Call.Return(vs)
-	return _c
-}
-
-func (_c *MockPeerManager_Suspended_Call) RunAndReturn(run func() []storage.SuspendedPeer) *MockPeerManager_Suspended_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // UpdateKnownPeers provides a mock function for the type MockPeerManager
 func (_mock *MockPeerManager) UpdateKnownPeers(knownPeers []storage.KnownPeer) error {
 	ret := _mock.Called(knownPeers)
@@ -990,7 +944,7 @@ type MockPeerManager_UpdateKnownPeers_Call struct {
 
 // UpdateKnownPeers is a helper method to define mock.On call
 //   - knownPeers []storage.KnownPeer
-func (_e *MockPeerManager_Expecter) UpdateKnownPeers(knownPeers interface{}) *MockPeerManager_UpdateKnownPeers_Call {
+func (_e *MockPeerManager_Expecter) UpdateKnownPeers(knownPeers any) *MockPeerManager_UpdateKnownPeers_Call {
 	return &MockPeerManager_UpdateKnownPeers_Call{Call: _e.mock.On("UpdateKnownPeers", knownPeers)}
 }
 
@@ -1042,7 +996,7 @@ type MockPeerManager_UpdateScore_Call struct {
 // UpdateScore is a helper method to define mock.On call
 //   - p peer.Peer
 //   - score *proto.Score
-func (_e *MockPeerManager_Expecter) UpdateScore(p interface{}, score interface{}) *MockPeerManager_UpdateScore_Call {
+func (_e *MockPeerManager_Expecter) UpdateScore(p any, score any) *MockPeerManager_UpdateScore_Call {
 	return &MockPeerManager_UpdateScore_Call{Call: _e.mock.On("UpdateScore", p, score)}
 }
 

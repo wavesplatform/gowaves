@@ -91,10 +91,12 @@ func TestApply_InvalidBlockWithRollback(t *testing.T) {
 	stateMock.EXPECT().BlockIDToHeight(genesisId).Return(proto.Height(1), nil)
 	// returns score for genesis block, it will be 1
 	stateMock.EXPECT().ScoreAtHeight(proto.Height(1)).Return(big.NewInt(1), nil)
+	// check rollback constraints
+	stateMock.EXPECT().CheckRollbackHeightAuto(proto.Height(1)).Return(nil)
 	// now we save block for rollback
 	stateMock.EXPECT().BlockByHeight(proto.Height(2)).Return(block1, nil)
 	// rollback to first(genesis) block
-	stateMock.EXPECT().RollbackToHeight(proto.Height(1)).Return(nil)
+	stateMock.EXPECT().RollbackToHeight(proto.Height(1), true).Return(nil)
 	// adding new blocks, and have error on applying
 	stateMock.EXPECT().AddDeserializedBlocks(mock.MatchedBy(func(blocks []*proto.Block) bool {
 		return len(blocks) == 1 && blocks[0] == block2

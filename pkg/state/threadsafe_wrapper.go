@@ -358,7 +358,7 @@ func (a *ThreadSafeReadWrapper) ProvidesStateHashes() (bool, error) {
 	return a.s.ProvidesStateHashes()
 }
 
-func (a *ThreadSafeReadWrapper) LegacyStateHashAtHeight(height uint64) (*proto.StateHash, error) {
+func (a *ThreadSafeReadWrapper) LegacyStateHashAtHeight(height uint64) (proto.StateHash, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.LegacyStateHashAtHeight(height)
@@ -416,6 +416,47 @@ func (a *ThreadSafeReadWrapper) IsActiveLightNodeNewBlocksFields(blockHeight pro
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.IsActiveLightNodeNewBlocksFields(blockHeight)
+}
+
+func (a *ThreadSafeReadWrapper) FindGenerator(
+	height proto.Height, lookup func(GeneratorInfo) bool,
+) (GeneratorInfo, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.FindGenerator(height, lookup)
+}
+
+func (a *ThreadSafeReadWrapper) CommittedGenerators(height proto.Height) ([]GeneratorInfo, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.CommittedGenerators(height)
+}
+
+func (a *ThreadSafeReadWrapper) LastFinalizedHeight() (proto.Height, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.LastFinalizedHeight()
+}
+
+func (a *ThreadSafeReadWrapper) LastFinalizedBlock() (*proto.BlockHeader, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.LastFinalizedBlock()
+}
+
+// CheckRollbackHeightAuto validates automatic rollback height constraints.
+func (a *ThreadSafeReadWrapper) CheckRollbackHeightAuto(height proto.Height) error {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.CheckRollbackHeightAuto(height)
+}
+
+func (a *ThreadSafeReadWrapper) BuildLocalEndorsementMessage(
+	height proto.Height, parentID proto.BlockID,
+) (proto.EndorsementCryptoMessage, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.BuildLocalEndorsementMessage(height, parentID)
 }
 
 func NewThreadSafeReadWrapper(mu *sync.RWMutex, s StateInfo) StateInfo {
@@ -499,16 +540,16 @@ func (a *ThreadSafeWriteWrapper) AddDeserializedBlocksWithSnapshots(
 	return a.s.AddDeserializedBlocksWithSnapshots(blocks, snapshots)
 }
 
-func (a *ThreadSafeWriteWrapper) RollbackToHeight(height proto.Height) error {
+func (a *ThreadSafeWriteWrapper) RollbackToHeight(height proto.Height, isAutoRollback bool) error {
 	a.lock()
 	defer a.unlock()
-	return a.s.RollbackToHeight(height)
+	return a.s.RollbackToHeight(height, isAutoRollback)
 }
 
-func (a *ThreadSafeWriteWrapper) RollbackTo(removalEdge proto.BlockID) error {
+func (a *ThreadSafeWriteWrapper) RollbackTo(removalEdge proto.BlockID, isAutoRollback bool) error {
 	a.lock()
 	defer a.unlock()
-	return a.s.RollbackTo(removalEdge)
+	return a.s.RollbackTo(removalEdge, isAutoRollback)
 }
 
 func (a *ThreadSafeWriteWrapper) TxValidation(f func(validation TxValidation) error) error {
@@ -562,9 +603,9 @@ func (a *ThreadSafeWriteWrapper) unlockUnsafe() {
 
 func (a *ThreadSafeWriteWrapper) lock() {
 	if !atomic.CompareAndSwapInt32(a.i, 0, 1) {
-		// previous value was not `0`, so it means we already locked
-		// this should never happen, cause all write action happens in only 1 thread.
-		// most likely than we change state in another thread and it's forbidden
+		// The previous value was not 0, meaning the state is already being modified.
+		// This violates the invariant that all writes are single-threaded.
+		// Reaching this point indicates unexpected concurrent mutation.
 		panic("already modifying state")
 	}
 	a.mu.Lock()

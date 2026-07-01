@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
+	"strconv"
 	"time"
 
 	"github.com/pkg/errors"
 
+	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
@@ -25,12 +28,8 @@ type PeersKnown struct {
 // PeersAll is a list of all known not banned, not suspended and not blacklisted peers with a publicly
 // available declared address.
 func (a *App) PeersAll() (PeersKnown, error) {
-	suspended := a.peers.Suspended()
 	blackList := a.peers.BlackList()
-	restrictedIPsMap := make(map[string]struct{}, len(suspended)+len(blackList))
-	for _, suspendedPeer := range suspended {
-		restrictedIPsMap[suspendedPeer.IP.String()] = struct{}{}
-	}
+	restrictedIPsMap := make(map[string]struct{}, len(blackList))
 	for _, blackListedPeer := range blackList {
 		restrictedIPsMap[blackListedPeer.IP.String()] = struct{}{}
 	}
@@ -41,13 +40,14 @@ func (a *App) PeersAll() (PeersKnown, error) {
 
 	out := make([]Peer, 0, len(knownPeers))
 	for _, knownPeer := range knownPeers {
-		ip := knownPeer.String()
-		if _, in := restrictedIPsMap[ip]; in {
+		ip := knownPeer.IP() // extract IP from KnownPeer
+		ipStr := ip.String() // convert IP to string for comparison
+		if _, in := restrictedIPsMap[ipStr]; in {
 			continue
 		}
 		// FIXME(nickeksov): add normal lastSeen field
 		out = append(out, Peer{
-			Address:  "/" + ip,
+			Address:  "/" + knownPeer.String(), // addr with port
 			LastSeen: uint64(nowMillis),
 		})
 	}
@@ -81,12 +81,12 @@ func (a *App) PeersConnect(ctx context.Context, apiKey string, addr string) (*Pe
 	d := proto.NewTCPAddrFromString(addr)
 	if d.Empty() {
 		slog.Error("Invalid peer's address to connect", "address", addr)
-		return nil, wrapToBadRequestError(errors.New("invalid address"))
+		return nil, apiErrs.NewBadRequestError(errors.New("invalid address"))
 	}
 
 	err = a.peers.Connect(ctx, d)
 	if err != nil {
-		return nil, wrapToBadRequestError(err)
+		return nil, apiErrs.NewBadRequestError(err)
 	}
 
 	return &PeersConnectResponse{
@@ -143,21 +143,6 @@ type RestrictedPeerInfo struct {
 	Reason    string `json:"reason,omitempty"`
 }
 
-func (a *App) PeersSuspended() []RestrictedPeerInfo {
-	suspended := a.peers.Suspended()
-
-	out := make([]RestrictedPeerInfo, 0, len(suspended))
-	for _, p := range suspended {
-		out = append(out, RestrictedPeerInfo{
-			Hostname:  "/" + p.IP.String(),
-			Timestamp: p.RestrictTimestampMillis,
-			Reason:    p.Reason,
-		})
-	}
-
-	return out
-}
-
 func (a *App) PeersBlackListed() []RestrictedPeerInfo {
 	blackList := a.peers.BlackList()
 
@@ -171,6 +156,64 @@ func (a *App) PeersBlackListed() []RestrictedPeerInfo {
 	}
 
 	return out
+}
+
+func resolveAddrToIPsV4(addr string) ([]net.IP, error) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return proto.ResolveHostToIPsv4(addr) // try resolve addr as a host
+	}
+	if pNum, pErr := strconv.ParseUint(port, 10, 16); pErr != nil || pNum == 0 { // validate port num
+		return nil, errors.Errorf("invalid port '%s'", port)
+	}
+	return proto.ResolveHostToIPsv4(host)
+}
+
+func filterUnspecifiedIPs(ips []net.IP) []net.IP {
+	filtered := make([]net.IP, 0, len(ips))
+	for _, ip := range ips {
+		if ip.IsUnspecified() {
+			continue
+		}
+		filtered = append(filtered, ip)
+	}
+	return filtered
+}
+
+func (a *App) PeersBlackList(blacklistedAddr, requestID, clientIP string) error {
+	iPsv4, err := resolveAddrToIPsV4(blacklistedAddr)
+	if err != nil {
+		slog.Info("Invalid peer's address to blacklist",
+			slog.String("address", blacklistedAddr),
+			slog.String("client-ip", clientIP),
+			slog.String("request-id", requestID),
+		)
+		return apiErrs.NewBadRequestError(errors.Wrapf(err,
+			"failed to resolve blacklisted host '%s'", blacklistedAddr,
+		))
+	}
+	iPsv4Filtered := filterUnspecifiedIPs(iPsv4)
+	if len(iPsv4Filtered) == 0 {
+		slog.Warn("No peer's blacklisted host found",
+			slog.String("address", blacklistedAddr),
+			slog.String("client-ip", clientIP),
+			slog.String("request-id", requestID),
+			slog.Any("resolved-ips", iPsv4),
+		)
+		return apiErrs.NewBadRequestError(errors.Errorf(
+			"no valid IPs found for blacklisted host '%s'", blacklistedAddr,
+		))
+	}
+	now := time.Now().UTC()
+	reason := fmt.Sprintf(
+		"blacklisted by API at now='%s' by client='%s' with request-id='%s' addresses='%v'",
+		now.Format(time.RFC3339), clientIP, requestID, iPsv4Filtered,
+	)
+	for _, ip := range iPsv4Filtered {
+		ipAddr := proto.NewTCPAddr(ip, 0)
+		a.peers.AddToBlackListByIP(ipAddr, now, reason)
+	}
+	return nil
 }
 
 type PeersClearBlackListResponse struct {

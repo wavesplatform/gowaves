@@ -1,0 +1,254 @@
+package proto
+
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"slices"
+
+	"github.com/ccoveille/go-safecast/v2"
+	"github.com/pkg/errors"
+
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
+)
+
+// EndorsementCryptoMessage is used to calculate and validate signatures of block endorsements.
+// Only one-way serialization is implemented. The structure is never intended for deserialization from bytes.
+type EndorsementCryptoMessage struct {
+	FinalizedBlockID     BlockID
+	FinalizedBlockHeight uint32
+	EndorsedBlockID      BlockID
+}
+
+func NewEndorsementCryptoMessage(
+	finalizedBlockID, endorsedBlockID BlockID, finalizedBlockHeight uint32,
+) *EndorsementCryptoMessage {
+	return &EndorsementCryptoMessage{
+		FinalizedBlockID:     finalizedBlockID,
+		FinalizedBlockHeight: finalizedBlockHeight,
+		EndorsedBlockID:      endorsedBlockID,
+	}
+}
+
+func (msg *EndorsementCryptoMessage) WriteTo(w io.Writer) (int64, error) {
+	n, err := msg.FinalizedBlockID.WriteTo(w)
+	if err != nil {
+		return n, err
+	}
+	n1, err := U32(msg.FinalizedBlockHeight).WriteTo(w)
+	n += n1
+	if err != nil {
+		return n, err
+	}
+	n2, err := msg.EndorsedBlockID.WriteTo(w)
+	n += n2
+	return n, err
+}
+
+func (msg *EndorsementCryptoMessage) Bytes() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	_, err := msg.WriteTo(buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// BlockEndorsement represents an endorsement of a block by a validator.
+type BlockEndorsement struct {
+	EndorserIndex        uint32        `json:"endorserIndex"`
+	FinalizedBlockID     BlockID       `json:"finalizedBlockId"`
+	FinalizedBlockHeight uint32        `json:"finalizedHeight"`
+	EndorsedBlockID      BlockID       `json:"endorsedBlockId"`
+	Signature            bls.Signature `json:"signature"`
+}
+
+func (e *BlockEndorsement) Marshal() ([]byte, error) {
+	endBlockProto, err := e.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
+	return endBlockProto.MarshalVTStrict()
+}
+
+func (e *BlockEndorsement) CryptoMessage() *EndorsementCryptoMessage {
+	return &EndorsementCryptoMessage{
+		FinalizedBlockID:     e.FinalizedBlockID,
+		FinalizedBlockHeight: e.FinalizedBlockHeight,
+		EndorsedBlockID:      e.EndorsedBlockID,
+	}
+}
+func (e *BlockEndorsement) UnmarshalFromProtobuf(data []byte) error {
+	var pbEndorsement = &g.EndorseBlock{}
+	err := pbEndorsement.UnmarshalVT(data)
+	if err != nil {
+		return err
+	}
+	var c ProtobufConverter
+	res, err := c.EndorseBlock(pbEndorsement)
+	if err != nil {
+		return err
+	}
+	*e = res
+	return nil
+}
+
+func (e *BlockEndorsement) ToProtobuf() (*g.EndorseBlock, error) {
+	idx, err := safecast.Convert[int32](e.EndorserIndex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert block endorsement: %w", err)
+	}
+	eb := &g.EndorseBlock{
+		EndorserIndex:        idx,
+		FinalizedBlockId:     e.FinalizedBlockID.Bytes(),
+		FinalizedBlockHeight: e.FinalizedBlockHeight,
+		EndorsedBlockId:      e.EndorsedBlockID.Bytes(),
+		Signature:            e.Signature.Bytes(),
+	}
+	return eb, nil
+}
+
+func (e *BlockEndorsement) String() string {
+	return fmt.Sprintf("BlockEndorsement{EndorserIndex: %d, FinalizedBlockID: %s, FinalizedBlockHeight: %d, "+
+		"EndorsedBlockID: %s, Signature: %s}", e.EndorserIndex, e.FinalizedBlockID.String(),
+		e.FinalizedBlockHeight, e.EndorsedBlockID.String(), e.Signature.String())
+}
+
+type FinalizationVoting struct {
+	EndorserIndexes                []uint32           `json:"endorserIndexes,omitempty"`
+	FinalizedBlockHeight           Height             `json:"finalizedHeight"`
+	AggregatedEndorsementSignature *bls.Signature     `json:"aggregatedEndorsementSignature"`
+	ConflictEndorsements           []BlockEndorsement `json:"conflictEndorsements,omitempty"`
+}
+
+func (f *FinalizationVoting) IsEmpty() bool {
+	return len(f.EndorserIndexes) == 0 && f.FinalizedBlockHeight == 0 && len(f.ConflictEndorsements) == 0 &&
+		(f.AggregatedEndorsementSignature == nil)
+}
+
+// Validate checks that FinalizationVoting doesn't have any duplicate endorsers indexes.
+func (f *FinalizationVoting) Validate() error {
+	if f.IsEmpty() { // Empty structure nothing to check.
+		return nil
+	}
+	const genesisBlockHeight = 1
+	if f.FinalizedBlockHeight < genesisBlockHeight {
+		return fmt.Errorf("invalid finalization voting: finalized block height %d is less than genesis block height %d",
+			f.FinalizedBlockHeight, genesisBlockHeight)
+	}
+	if len(f.EndorserIndexes) == 0 && len(f.ConflictEndorsements) == 0 {
+		return fmt.Errorf("invalid finalization voting: both endorsers and conflict endorsements are empty")
+	}
+	indexes := make(map[uint32]struct{}, len(f.ConflictEndorsements)+len(f.EndorserIndexes))
+	for _, ce := range f.ConflictEndorsements {
+		if _, seen := indexes[ce.EndorserIndex]; seen {
+			return fmt.Errorf(
+				"invalid finalization voting: duplicate conflicting endorsement with endorser index %d",
+				ce.EndorserIndex,
+			)
+		}
+		indexes[ce.EndorserIndex] = struct{}{}
+	}
+	for _, idx := range f.EndorserIndexes {
+		if _, seen := indexes[idx]; seen {
+			return fmt.Errorf("invalid finalization voting: duplicate endorser index %d", idx)
+		}
+		indexes[idx] = struct{}{}
+	}
+	return nil
+}
+
+// CheckSizes validates the sizes of finalization fields against the size of generator set.
+// The number of endorsements and conflicting endorsements must not exceed the generator set size.
+func (f *FinalizationVoting) CheckSizes(generatorSetSize int) error {
+	if generatorSetSize < 0 {
+		return fmt.Errorf("invalid generator set size: %d", generatorSetSize)
+	}
+	if ces := len(f.ConflictEndorsements); ces > generatorSetSize {
+		return fmt.Errorf("conflicting endorsements count %d exceeds generator set size %d",
+			ces, generatorSetSize)
+	}
+	if eis := len(f.EndorserIndexes); eis > generatorSetSize {
+		return fmt.Errorf("endorsements count %d exceeds generator set size %d", eis, generatorSetSize)
+	}
+	return nil
+}
+
+func (f *FinalizationVoting) Marshal() ([]byte, error) {
+	endBlockProto, err := f.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
+	return endBlockProto.MarshalVTStrict()
+}
+
+func (f *FinalizationVoting) UnmarshalFromProtobuf(data []byte) error {
+	var pbFinalization = &g.FinalizationVoting{}
+	err := pbFinalization.UnmarshalVT(data)
+	if err != nil {
+		return err
+	}
+	var c ProtobufConverter
+	res, err := c.FinalizationVoting(pbFinalization)
+	if err != nil {
+		return err
+	}
+	*f = res
+	return nil
+}
+
+func (f *FinalizationVoting) ToProtobuf() (*g.FinalizationVoting, error) {
+	indexes := make([]int32, len(f.EndorserIndexes))
+	for i, v := range f.EndorserIndexes {
+		idx, err := safecast.Convert[int32](v)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert finalization voting to protobuf: %w", err)
+		}
+		indexes[i] = idx
+	}
+	conflictEndorsements := make([]*g.EndorseBlock, len(f.ConflictEndorsements))
+	for i, ce := range f.ConflictEndorsements {
+		var err error
+		conflictEndorsements[i], err = ce.ToProtobuf()
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert finalization voting to protobuf: %w", err)
+		}
+	}
+	finalizedBlockHeight, err := safecast.Convert[int32](f.FinalizedBlockHeight)
+	if err != nil {
+		return nil, errors.Errorf("finalized block height conversion error: %v", err)
+	}
+	var sb []byte
+	if f.AggregatedEndorsementSignature != nil {
+		sb = f.AggregatedEndorsementSignature.Bytes()
+	}
+	finalizationVoting := g.FinalizationVoting{
+		EndorserIndexes:                indexes,
+		FinalizedBlockHeight:           finalizedBlockHeight,
+		AggregatedEndorsementSignature: sb,
+		ConflictEndorsements:           conflictEndorsements,
+	}
+	return &finalizationVoting, nil
+}
+
+func (f *FinalizationVoting) String() string {
+	return fmt.Sprintf("FinalizationVoting{EndorserIndexes: %v, FinalizedBlockHeight: %d, "+
+		"AggregatedEndorsementSignature: %s, ConflictEndorsements: %v}", f.EndorserIndexes, f.FinalizedBlockHeight,
+		f.AggregatedEndorsementSignature, f.ConflictEndorsements)
+}
+
+func CombineFinalizationVoting(voting1, voting2 *FinalizationVoting) *FinalizationVoting {
+	switch {
+	case voting1 == nil && voting2 == nil:
+		return nil
+	case voting1 == nil:
+		return voting2
+	case voting2 == nil:
+		return voting1
+	default:
+		res := *voting2
+		res.ConflictEndorsements = slices.Concat(voting1.ConflictEndorsements, voting2.ConflictEndorsements)
+		return &res
+	}
+}

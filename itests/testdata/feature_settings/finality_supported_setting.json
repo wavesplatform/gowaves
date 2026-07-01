@@ -1,0 +1,10 @@
+{
+  "payments_fix_after_height": 1,
+  "preactivated_features": [
+    {
+      "feature": 22,
+      "height": 1
+    }
+  ],
+  "supported_features": [25]
+}

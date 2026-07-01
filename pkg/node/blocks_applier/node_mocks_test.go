@@ -48,7 +48,7 @@ func TestMockStateManager_RollbackToHeight(t *testing.T) {
 	require.NoError(t, err)
 	actualHeight, _ := m.Height()
 	require.EqualValues(t, 2, actualHeight)
-	err = m.RollbackToHeight(1)
+	err = m.RollbackToHeight(1, false)
 	require.NoError(t, err)
 	actualHeight, _ = m.Height()
 	require.EqualValues(t, 1, actualHeight)
