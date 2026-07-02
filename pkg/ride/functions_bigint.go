@@ -3,6 +3,7 @@ package ride
 import (
 	"math/big"
 	"sort"
+	"unicode/utf8"
 
 	"github.com/ericlagergren/decimal"
 	"github.com/pkg/errors"
@@ -10,6 +11,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/math"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
+
+const base10 = 10
 
 var (
 	zeroBigInt = big.NewInt(0)
@@ -516,10 +519,15 @@ func stringToBigInt(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "stringToBigInt")
 	}
-	if l := len(s); l > 155 { // 155 symbols is the length of math.MinBigInt value is string representation
+	const maxBitIntStringSize = 155 // The maximum allowed length of math.MinBigInt string.
+	if l := utf8.RuneCountInString(string(s)); l > maxBitIntStringSize {
 		return nil, errors.Errorf("stringToBigInt: string is too long (%d symbols) for a BigInt", l)
 	}
-	r, ok := new(big.Int).SetString(string(s), 10)
+	ns, err := normalizeDigits(string(s))
+	if err != nil {
+		return nil, errors.Wrap(err, "stringToBigInt")
+	}
+	r, ok := new(big.Int).SetString(ns, base10)
 	if !ok {
 		return nil, errors.Errorf("stringToBigInt: failed to convert string '%s' to BigInt", s)
 	}
