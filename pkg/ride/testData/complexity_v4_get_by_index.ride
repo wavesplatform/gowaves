@@ -1,0 +1,33 @@
+{-# STDLIB_VERSION 4 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+# Functions under test (by-index variants, applies to STDLIB_VERSION 4-8):
+#
+#   Option variants: getInteger / getBoolean / getBinary / getString (List, Int)
+#     Scala doc complexity = 4 each
+#     Go key: "getInteger", "getBoolean", "getBinary", "getString"
+#
+#   Throwing variants: getIntegerValue / getBooleanValue / getBinaryValue / getStringValue (List, Int)
+#     Scala doc complexity = 4 each
+#     Go key: "@extrUser(getInteger)", "@extrUser(getBoolean)", "@extrUser(getBinary)", "@extrUser(getString)"
+#
+# Each of the 8 functions is called exactly once: 4 * 8 = 32.
+# IsDefined costs 1 each, equality checks cost 1 each, size check costs 1: 1 * 4 = 4
+# Lists creation is counted as 4*(1+2) = 12.
+# Additionally, the script contains 3 equality checks and 1 size check: 3 * 1 + 1 = 4.
+# Total estimation complexity: 32 + 4 + 12 + 4 = 52.
+
+let iData = [IntegerEntry("k", 1)] # 1+2 - 1 for List creation and 2 for *Entry constructor.
+let bData = [BooleanEntry("k", true)] # 1+2
+let nData = [BinaryEntry("k", base58'')] # 1+2
+let sData = [StringEntry("k", "s")] # 1+2
+
+isDefined(getInteger(iData, 0)) && # 1+4 - 1 for isDefined and 4 for getInteger.
+isDefined(getBoolean(bData, 0)) && # 1+4
+isDefined(getBinary(nData, 0)) && # 1+4
+isDefined(getString(sData, 0)) && # 1+4
+getIntegerValue(iData, 0) == 1 && # 4+1 - 4 for getIntegerValue and 1 for equality check.
+getBooleanValue(bData, 0) && # 4
+size(getBinaryValue(nData, 0)) == 0 && # 1+4+1 - 1 for size, 4 for getBinaryValue, 1 for equality check.
+getStringValue(sData, 0) == "s" # 4+1

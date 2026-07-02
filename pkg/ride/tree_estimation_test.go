@@ -4,6 +4,8 @@ import (
 	"encoding/base64"
 	stderrs "errors"
 	"fmt"
+	"io"
+	"os"
 	"testing"
 	"time"
 
@@ -677,4 +679,32 @@ func TestRideV9ScalaCompatibility(t *testing.T) {
 	assert.Equal(t, 176, est.Functions["swap"])
 	assert.Equal(t, 51, est.Functions["addAdditionalRewards"])
 	assert.Equal(t, 36280, est.Functions["distributeTokens"])
+}
+
+func TestUserFunctionEstimation(t *testing.T) {
+	for _, test := range []struct {
+		fn                 string
+		estimatorVersion   int
+		expectedComplexity int
+	}{
+		{fn: "testData/complexity_v3_get_value_by_index.ride", estimatorVersion: 4, expectedComplexity: 140},
+		{fn: "testData/complexity_v4_get_by_index.ride", estimatorVersion: 4, expectedComplexity: 52},
+		{fn: "testData/complexity_v6_address_from_public_key.ride", estimatorVersion: 4, expectedComplexity: 2},
+		{fn: "testData/complexity_v9_get_by_index.ride", estimatorVersion: 4, expectedComplexity: 39},
+	} {
+		t.Run(fmt.Sprintf("Estimation test '%s' with estimatorV%d", test.fn, test.estimatorVersion),
+			func(t *testing.T) {
+				f, err := os.Open(test.fn)
+				require.NoError(t, err)
+				src, err := io.ReadAll(f)
+				require.NoError(t, err)
+				code := string(src)
+				tree, errs := ridec.CompileToTree(code)
+				require.Empty(t, errs)
+				e, err := EstimateTree(tree, test.estimatorVersion)
+				require.NoError(t, err)
+				assert.Equal(t, test.expectedComplexity, e.Estimation)
+				assert.Equal(t, test.expectedComplexity, e.Verifier)
+			})
+	}
 }

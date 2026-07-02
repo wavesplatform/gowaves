@@ -1,0 +1,13 @@
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+# Function under test: addressFromPublicKey(ByteVector)
+# Applies to STDLIB_VERSION 6-9.
+#
+# Discrepancy: Scala doc complexity = 1, Go catalogue = 63
+# Delta: 63 - 1 = 62 (Go over-estimates by 62 per call)
+#
+# addressFromPublicKey is called once.
+
+addressFromPublicKey(tx.senderPublicKey) == this
