@@ -6467,8 +6467,7 @@ func TestCallVerifierWithThrow(t *testing.T) {
 }
 
 func TestUserFunctionEvaluationComplexities(t *testing.T) {
-	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
-	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+	dApp1 := newTestAccount(t, "DAPP1") // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
 
 	for _, test := range []struct {
 		fn                 string
@@ -6492,7 +6491,7 @@ func TestUserFunctionEvaluationComplexities(t *testing.T) {
 				env := newTestEnv(t).withLibVersion(tree.LibVersion).withComplexityLimit(complexityLimit).
 					withBlockV5Activated().withProtobufTx().withRideV6Activated().
 					withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().
-					withThis(dApp1).withDApp(dApp1).withSender(sender).
+					withThis(dApp1).withDApp(dApp1).withSender(dApp1).
 					withInvocation("verify", withTransactionID(crypto.Digest{})).withTree(dApp1, tree).
 					withWrappedState()
 

@@ -38,4 +38,4 @@ getIntegerValue(iData, 0) == 1 && # 1 + 2
 getBooleanValue(bData, 0) && # 2
 size(getBinaryValue(nData, 0)) == 0 && # 1 + 2 + 1
 getStringValue(sData, 0) == "s" && # 1 + 2
-(addr == this || addr != this) # 1 + 1
+(addr == this || addr != this) # EvC: 1 (only one branch is evaluated), EsC: 1 + 1
