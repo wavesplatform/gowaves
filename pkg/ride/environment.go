@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -1026,6 +1027,167 @@ func (ws *WrappedState) ApplyToState(
 	}
 
 	return actions, nil
+}
+
+func (ws *WrappedState) validateChangedAccountWavesBalancesAgainstBlockchain(
+	diff diffState, fn rideString, scriptActions []proto.ScriptAction,
+) error {
+	changedWavesBalances, err := extractChangedWavesBalances(diff)
+	if err != nil {
+		return errors.Wrapf(err, "failed to extract changed balances after '%s' invocation", fn.String())
+	}
+	oldWavesBalances, err := getAccountBalancesBeforeTx(diff.state, changedWavesBalances)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get balances before tx after '%s' invocation", fn.String())
+	}
+	addressesWithChangedLeaseBalances, err := getChangedLeaseBalancesAccountsAfterCurrentInvoke(diff, scriptActions)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get changed lease balances accounts after '%s' invocation", fn.String())
+	}
+	vErr := validateChangedWavesBalancesWithOldBalancesBeforeTx(
+		changedWavesBalances, oldWavesBalances, addressesWithChangedLeaseBalances,
+	)
+	if vErr != nil {
+		return errors.Wrapf(vErr, "failed to validate changed balances after '%s' invocation", fn.String())
+	}
+	return nil
+}
+
+type changedWavesBalancesProfile struct {
+	addrID proto.AddressID
+	diff   diffBalance
+}
+
+func validateChangedWavesBalancesWithOldBalancesBeforeTx(
+	changedWavesBalances, oldWavesBalances []changedWavesBalancesProfile,
+	changedLeaseBalancesAccountsAfterCurrentInvoke map[proto.AddressID]struct{},
+) error {
+	if len(changedWavesBalances) != len(oldWavesBalances) { // sanity check, length must be the same
+		return errors.Errorf(
+			"BUG: changed and old balances lengths are different: len(changed)=%d, len(old)=%d",
+			len(changedWavesBalances), len(oldWavesBalances),
+		)
+	}
+	for i := range changedWavesBalances {
+		if changedWavesBalances[i].addrID != oldWavesBalances[i].addrID { // sanity check
+			return errors.Errorf(
+				"BUG: changed and old balances addresses are different at index %d: changed=%s, old=%s", i,
+				base58.Encode(changedWavesBalances[i].addrID.Bytes()),
+				base58.Encode(oldWavesBalances[i].addrID.Bytes()),
+			)
+		}
+		addrID := changedWavesBalances[i].addrID
+		changedBalance := changedWavesBalances[i].diff
+		oldBalance := oldWavesBalances[i].diff
+
+		if _, err := changedBalance.checkedRegularBalance(); err != nil { // check regular balance
+			return errors.Wrap(err, "failed to validate regular changed balance")
+		}
+		var (
+			wavesAfter               = changedBalance.balance // regular balance
+			wavesWithoutDepositAfter = wavesAfter             // TODO: need to take deposit into account
+		)
+		var (
+			currentLeaseIn                        = changedBalance.leaseIn
+			currentLeaseOut                       = changedBalance.leaseOut
+			_, leaseBalanceChangedInCurrentInvoke = changedLeaseBalancesAccountsAfterCurrentInvoke[addrID]
+		)
+		if !leaseBalanceChangedInCurrentInvoke { // no lease changes in current snapshot
+			currentLeaseIn = oldBalance.leaseIn
+			currentLeaseOut = oldBalance.leaseOut
+		}
+		scalaLikeEffectiveBalance := wavesWithoutDepositAfter + currentLeaseIn - currentLeaseOut
+		if scalaLikeEffectiveBalance < 0 {
+			return errors.Errorf(
+				"negative scala-like effective balance, leaseBalanceChangedInCurrentInvoke=%t: before %s; after %s",
+				leaseBalanceChangedInCurrentInvoke,
+				formStateChangesStringPartForErr(oldBalance.balance, oldBalance.leaseOut),
+				formStateChangesStringPartForErr(wavesAfter, currentLeaseOut),
+			)
+		}
+	}
+	return nil
+}
+
+func formStateChangesStringPartForErr(wavesRegularBalance int64, leaseOut int64) string {
+	return fmt.Sprintf("(spendable=%d waves=%d leaseOut=%d)", // TODO: add deposit
+		wavesRegularBalance-leaseOut, wavesRegularBalance, leaseOut,
+	)
+}
+
+func getChangedLeaseBalancesAccountsAfterCurrentInvoke(
+	diff diffState, scriptActions []proto.ScriptAction,
+) (map[proto.AddressID]struct{}, error) {
+	changedLeaseBalancesAccounts := make(map[proto.AddressID]struct{})
+	for _, action := range scriptActions { // find lease and lease cancel actions in current invoke
+		switch a := action.(type) {
+		case *proto.LeaseScriptAction:
+			l, ok := diff.leases[a.ID] // get active lease with sanity checks
+			if !ok {
+				return nil, errors.Errorf("failed to find lease by ID %s", a.ID.String())
+			}
+			if !l.active {
+				return nil, errors.Errorf("lease by ID %s is not active", a.ID.String())
+			}
+			changedLeaseBalancesAccounts[l.sender.ID()] = struct{}{}
+			changedLeaseBalancesAccounts[l.recipient.ID()] = struct{}{}
+		case *proto.LeaseCancelScriptAction:
+			l, ok := diff.leases[a.LeaseID] // get canceled lease with sanity checks
+			if !ok {
+				return nil, errors.Errorf("failed to find lease cancel by ID %s", a.LeaseID.String())
+			}
+			if l.active {
+				return nil, errors.Errorf("lease cancel by ID %s is active", a.LeaseID.String())
+			}
+			changedLeaseBalancesAccounts[l.sender.ID()] = struct{}{}
+			changedLeaseBalancesAccounts[l.recipient.ID()] = struct{}{}
+		default:
+			continue // skip other actions, we are interested only in lease and lease cancel actions
+		}
+	}
+	return changedLeaseBalancesAccounts, nil
+}
+
+func extractChangedWavesBalances(diff diffState) ([]changedWavesBalancesProfile, error) {
+	changedWavesBalances := make([]changedWavesBalancesProfile, 0)
+	for key := range diff.changedAccounts {
+		if key.asset.Present {
+			continue // skip non waves assets
+		}
+		balance, ok := diff.wavesBalances[key.account]
+		if !ok {
+			return nil, errors.Errorf("failed to find waves balance diff by addrID '%s'",
+				base58.Encode(key.account.Bytes()),
+			)
+		}
+		changedWavesBalances = append(changedWavesBalances, changedWavesBalancesProfile{
+			addrID: key.account,
+			diff:   balance,
+		})
+	}
+	return changedWavesBalances, nil
+}
+
+func getAccountBalancesBeforeTx(
+	origState types.EnrichedSmartState,
+	changedWavesBalances []changedWavesBalancesProfile,
+) ([]changedWavesBalancesProfile, error) {
+	cleanDiff := newDiffState(origState)
+	oldWavesBalances := make([]changedWavesBalancesProfile, 0, len(changedWavesBalances))
+	for _, p := range changedWavesBalances {
+		// load balance to clean diff, so we can get the original balance before tx
+		diff, err := cleanDiff.loadWavesBalance(p.addrID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to load waves balance for addr '%s'",
+				base58.Encode(p.addrID.Bytes()),
+			)
+		}
+		oldWavesBalances = append(oldWavesBalances, changedWavesBalancesProfile{
+			addrID: p.addrID,
+			diff:   diff,
+		})
+	}
+	return oldWavesBalances, nil
 }
 
 type EvaluationEnvironment struct {
