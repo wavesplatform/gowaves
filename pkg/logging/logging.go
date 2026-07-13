@@ -62,7 +62,7 @@ func isColorized(w io.Writer) bool {
 }
 
 func buildPrettyHandler(w io.Writer, level slog.Level, colorize, addSource bool) slog.Handler {
-	tintHandler := tint.NewHandler(w, &tint.Options{
+	tintHandler := tint.NewTextHandler(w, &tint.Options{
 		Level:      level,
 		TimeFormat: "2006-01-02T15:04:05.000Z07:00",
 		NoColor:    !colorize,
