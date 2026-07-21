@@ -25,7 +25,7 @@ require (
 	github.com/lanrat/extsort v1.4.2
 	github.com/lmittmann/tint v1.2.0
 	github.com/mattn/go-isatty v0.0.22
-	github.com/minio/minlz v1.1.1
+	github.com/minio/minlz v1.2.0
 	github.com/mr-tron/base58 v1.3.0
 	github.com/nats-io/nats-server/v2 v2.14.3
 	github.com/nats-io/nats.go v1.52.0
@@ -53,7 +53,7 @@ require (
 	golang.org/x/exp v0.0.0-20260527015227-08cc5374adb3
 	golang.org/x/sync v0.22.0
 	golang.org/x/sys v0.47.0
-	google.golang.org/grpc v1.82.0
+	google.golang.org/grpc v1.82.1
 	google.golang.org/protobuf v1.36.11
 )
 
@@ -87,7 +87,7 @@ require (
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
-	github.com/klauspost/compress v1.18.6 // indirect
+	github.com/klauspost/compress v1.19.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/minio/highwayhash v1.0.4 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
