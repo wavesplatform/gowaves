@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	stderrs "errors"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 	"testing"
 
@@ -6462,4 +6464,41 @@ func TestCallVerifierWithThrow(t *testing.T) {
 		assert.Equal(t, 1, EvaluationErrorSpentComplexity(err))
 		assert.Equal(t, UserError, GetEvaluationErrorType(err))
 	})
+}
+
+func TestUserFunctionEvaluationComplexities(t *testing.T) {
+	dApp1 := newTestAccount(t, "DAPP1") // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+
+	for _, test := range []struct {
+		fn                 string
+		expectedComplexity int
+	}{
+		{fn: "testData/complexity_v4_get_by_index.ride", expectedComplexity: 48},
+		{fn: "testData/complexity_v6_address_from_public_key.ride", expectedComplexity: 2},
+		{fn: "testData/complexity_v9_get_by_index.ride", expectedComplexity: 34},
+	} {
+		const complexityLimit = 1000
+		t.Run(fmt.Sprintf("Evaluation test '%s'", test.fn),
+			func(t *testing.T) {
+				f, err := os.Open(test.fn)
+				require.NoError(t, err)
+				t.Cleanup(func() { require.NoError(t, f.Close()) })
+				src, err := io.ReadAll(f)
+				require.NoError(t, err)
+				code := string(src)
+				tree, errs := ridec.CompileToTree(code)
+				require.Empty(t, errs)
+
+				env := newTestEnv(t).withLibVersion(tree.LibVersion).withComplexityLimit(complexityLimit).
+					withBlockV5Activated().withProtobufTx().withRideV6Activated().
+					withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().
+					withThis(dApp1).withDApp(dApp1).withSender(dApp1).
+					withInvocation("verify", withTransactionID(crypto.Digest{})).withTree(dApp1, tree).
+					withWrappedState()
+
+				res, err := CallVerifier(env.toEnv(), tree)
+				require.NoError(t, err)
+				assert.Equal(t, test.expectedComplexity, res.Complexity())
+			})
+	}
 }

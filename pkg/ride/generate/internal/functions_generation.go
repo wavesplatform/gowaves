@@ -298,10 +298,10 @@ func catalogueV3() map[string]int {
 	m["@extrNative(1051)"] = 100
 	m["@extrNative(1052)"] = 100
 	m["@extrNative(1053)"] = 100
-	m["@extrUser(getInteger)"] = 10
-	m["@extrUser(getBoolean)"] = 10
-	m["@extrUser(getBinary)"] = 10
-	m["@extrUser(getString)"] = 10
+	m["@extrUser(getInteger)"] = 30
+	m["@extrUser(getBoolean)"] = 30
+	m["@extrUser(getBinary)"] = 30
+	m["@extrUser(getString)"] = 30
 	m["@extrUser(addressFromString)"] = 124
 	m["parseIntValue"] = 20
 	m["value"] = 13
@@ -528,6 +528,14 @@ func catalogueV4() map[string]int {
 	m["@extrNative(1052)"] = 10
 	m["@extrNative(1053)"] = 10
 	m["@extrNative(1062)"] = 1
+	m["getInteger"] = 4
+	m["getBoolean"] = 4
+	m["getBinary"] = 4
+	m["getString"] = 4
+	m["@extrUser(getInteger)"] = 4
+	m["@extrUser(getBoolean)"] = 4
+	m["@extrUser(getBinary)"] = 4
+	m["@extrUser(getString)"] = 4
 
 	m["contains"] = 3
 	m["containsElement"] = 5
@@ -957,14 +965,14 @@ func catalogueV9() map[string]int {
 	m["1214"] = 2 // New function ReplaceFirst
 	m["1215"] = 2 // New function ReplaceAll
 
-	m["getInteger"] = 7
-	m["getBoolean"] = 7
-	m["getBinary"] = 7
-	m["getString"] = 7
-	m["@extrUser(getInteger)"] = 14
-	m["@extrUser(getBoolean)"] = 14
-	m["@extrUser(getBinary)"] = 14
-	m["@extrUser(getString)"] = 14
+	m["getInteger"] = 2
+	m["getBoolean"] = 2
+	m["getBinary"] = 2
+	m["getString"] = 2
+	m["@extrUser(getInteger)"] = 2
+	m["@extrUser(getBoolean)"] = 2
+	m["@extrUser(getBinary)"] = 2
+	m["@extrUser(getString)"] = 2
 
 	constructorsCatalogue(ast.LibV9, m)
 	return m
