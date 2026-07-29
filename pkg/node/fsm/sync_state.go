@@ -3,6 +3,7 @@ package fsm
 import (
 	"context"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/pkg/errors"
@@ -270,7 +271,12 @@ func (a *SyncState) applyBlocksWithSnapshots(
 	} else {
 		err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
 			var errApply error
-			_, errApply = a.baseInfo.blocksApplier.Apply(s, blocks)
+			for bs := range slices.Chunk(blocks, 1) {
+				_, errApply = a.baseInfo.blocksApplier.Apply(s, bs)
+				if errApply != nil {
+					return errApply
+				}
+			}
 			return errApply
 		})
 	}
