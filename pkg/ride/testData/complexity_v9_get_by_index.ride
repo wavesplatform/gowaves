@@ -19,10 +19,11 @@
 # Function addressFromPublicKey called once: 1
 # Each list creation is counted as 1 + 2: 4 * (1 + 2) = 12
 # IsDefined called 4 times: 4 * 1 = 4
-# 4 equality checks: 4 * 1 = 4 and 1 inequality check: 1, 5 in total
+# Estimation comparisons: 4 equality checks (4) + 1 inequality check (1) = 5 (from `addr == this || addr != this`)
+# Evaluation comparisons: short-circuited `||`, so only 4 equality checks are executed
 # One size call: 1
 # Total Estimation Complexity: 16 + 1 + 12 + 4 + 5 + 1 = 39.
-# Total Evaluation Complexity: 16 + 1 + 8 + 4 + 5 + 1 = 35.
+# Total Evaluation Complexity: 16 + 1 + 8 + 4 + 4 + 1 = 34.
 
 let iData = [IntegerEntry("k", 1)] # EvC: 1 + 1 = 2, EsC: 1 + 2 = 3
 let bData = [BooleanEntry("k", true)] # EvC: 2, EsC: 3

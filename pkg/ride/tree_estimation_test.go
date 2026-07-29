@@ -696,6 +696,7 @@ func TestUserFunctionEstimation(t *testing.T) {
 			func(t *testing.T) {
 				f, err := os.Open(test.fn)
 				require.NoError(t, err)
+				t.Cleanup(func() { require.NoError(t, f.Close()) })
 				src, err := io.ReadAll(f)
 				require.NoError(t, err)
 				code := string(src)

@@ -5,9 +5,9 @@
 # Function under test: addressFromPublicKey(ByteVector)
 # Applies to STDLIB_VERSION 6-9.
 #
-# Discrepancy: Scala doc complexity = 1, Go catalogue = 63
-# Delta: 63 - 1 = 62 (Go over-estimates by 62 per call)
+# In STDLIB_VERSION >= 6, addressFromPublicKey is compiled as native id 1063 (Go catalogue cost = 1),
+# matching Scala doc complexity = 1.
 #
-# addressFromPublicKey is called once.
+# Function addressFromPublicKey is called once.
 
 addressFromPublicKey(tx.senderPublicKey) == this
