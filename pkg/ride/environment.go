@@ -1030,7 +1030,7 @@ func (ws *WrappedState) ApplyToState(
 }
 
 func (ws *WrappedState) validateChangedAccountWavesBalancesAgainstBlockchain(
-	diff diffState, fn rideString, scriptActions []proto.ScriptAction,
+	scheme proto.Scheme, diff diffState, fn rideString, scriptActions []proto.ScriptAction,
 ) error {
 	changedWavesBalances, err := extractChangedWavesBalances(diff)
 	if err != nil {
@@ -1045,7 +1045,7 @@ func (ws *WrappedState) validateChangedAccountWavesBalancesAgainstBlockchain(
 		return errors.Wrapf(err, "failed to get changed lease balances accounts after '%s' invocation", fn.String())
 	}
 	vErr := validateChangedWavesBalancesWithOldBalancesBeforeTx(
-		changedWavesBalances, oldWavesBalances, addressesWithChangedLeaseBalances,
+		scheme, changedWavesBalances, oldWavesBalances, addressesWithChangedLeaseBalances,
 	)
 	if vErr != nil {
 		return errors.Wrapf(vErr, "failed to validate changed balances after '%s' invocation", fn.String())
@@ -1059,6 +1059,7 @@ type changedWavesBalancesProfile struct {
 }
 
 func validateChangedWavesBalancesWithOldBalancesBeforeTx(
+	scheme proto.Scheme,
 	changedWavesBalances, oldWavesBalances []changedWavesBalancesProfile,
 	changedLeaseBalancesAccountsAfterCurrentInvoke map[proto.AddressID]struct{},
 ) error {
@@ -1098,8 +1099,14 @@ func validateChangedWavesBalancesWithOldBalancesBeforeTx(
 		}
 		scalaLikeEffectiveBalance := wavesWithoutDepositAfter + currentLeaseIn - currentLeaseOut
 		if scalaLikeEffectiveBalance < 0 {
+			addrIDBytes := addrID.Bytes()
+			addr, aErr := proto.RebuildAddress(scheme, addrIDBytes)
+			if aErr != nil {
+				return errors.Wrapf(aErr, "failed to rebuild address from addrID '%s'", base58.Encode(addrIDBytes))
+			}
 			return errors.Errorf(
-				"negative scala-like effective balance, leaseBalanceChangedInCurrentInvoke=%t: before %s; after %s",
+				"negative scala-like effective balance for '%s', leaseBalanceChangedInCurrentInvoke=%t: before %s; after %s",
+				addr.String(),
 				leaseBalanceChangedInCurrentInvoke,
 				formStateChangesStringPartForErr(oldBalance.balance, oldBalance.leaseOut),
 				formStateChangesStringPartForErr(wavesAfter, currentLeaseOut),

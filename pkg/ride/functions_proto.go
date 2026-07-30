@@ -366,7 +366,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	// here we do validations that should happen in the end of the invocation,
 	// but before returning the result to the caller
 	if env.scheme() == proto.MainNetScheme && env.height() >= validateActionsAgainstCleanStateSinceMainnetHeight {
-		vErr := ws.validateChangedAccountWavesBalancesAgainstBlockchain(ws.diff, fn, scriptActions)
+		vErr := ws.validateChangedAccountWavesBalancesAgainstBlockchain(env.scheme(), ws.diff, fn, scriptActions)
 		if vErr != nil {
 			if GetEvaluationErrorType(vErr) == Undefined {
 				return nil, InternalInvocationError.Wrapf(vErr,
