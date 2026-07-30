@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	sh256 "crypto/sha256"
 	"crypto/x509"
+	"log/slog"
 	"math/big"
 	"slices"
 
@@ -121,6 +122,8 @@ const (
 	// actually, not all actions should be validated, only balances, but almost all actions touch balances.
 	validateActionsAgainstCleanStateSinceMainnetHeight = 5253552
 )
+
+const txID = "29duQM71x7UtgSkco7ipidhMVA69xNaxCojJBx2VJwPq"
 
 func performInvoke(invocation invocation, env environment, args ...rideType) (rideType, error) {
 	ws, ok := env.state().(*WrappedState)
@@ -332,12 +335,30 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		}
 	}
 
+	hitTx := base58.Encode(transactionID) == txID
+	if hitTx {
+		print() // breakpoint for debugging
+	}
+
+	slog.Debug("Entering fn",
+		slog.String("txID", base58.Encode(transactionID)),
+		slog.String("fn", string(fn)),
+		slog.String("recipientAddr", recipientAddr.String()),
+		slog.Int("invCount", ws.invCount()),
+	)
+
 	res, err := invokeFunctionFromDApp(env, tree, fn, arguments)
 	if err != nil {
 		return nil, EvaluationErrorPushf(err, "%s at '%s' function %s with arguments %v",
 			invocation.name(), recipientAddr, fn, arguments,
 		)
 	}
+	slog.Debug("Exiting fn",
+		slog.String("txID", base58.Encode(transactionID)),
+		slog.String("fn", string(fn)),
+		slog.String("recipientAddr", recipientAddr.String()),
+		slog.Int("invCount", ws.invCount()),
+	)
 
 	if !lightNodeActivated { // Check payments result balances here BEFORE Light Node activation
 		if pErr := checkPaymentsApplication(InternalInvocationError); pErr != nil {
