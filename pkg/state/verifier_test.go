@@ -186,7 +186,7 @@ func TestExchangeVerifier(t *testing.T) {
 		err = verifyExchangeTransaction(&tx, scheme, true, true)
 		assert.NoError(t, err)
 	})
-	t.Run("verify_first_oder", func(t *testing.T) {
+	t.Run("verify_first_order", func(t *testing.T) {
 		o := tx.GetOrder1()
 		ok, vErr := o.Verify(scheme)
 		assert.True(t, ok)

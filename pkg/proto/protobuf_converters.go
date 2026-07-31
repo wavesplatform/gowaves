@@ -1,8 +1,6 @@
 package proto
 
 import (
-	"bytes"
-
 	"github.com/ccoveille/go-safecast/v2"
 	"github.com/pkg/errors"
 
@@ -689,9 +687,9 @@ func (c *ProtobufConverter) signature(data []byte) crypto.Signature {
 	return sig
 }
 
-// transformToStandardSig transforms signature from protobuf message to standard 65 bytes format
-// (r[32] + s[32] + v[1]) if it is in 65 bytes format with r and s values padded with 32 bytes prefix data.
-// This transformation is required due to the bug in Scala implementation, which allows
+// transformToStandardSig transforms a padded 129-byte signature from protobuf message into the standard 65-byte format
+// (r[32] + s[32] + v[1]) by dropping the left 32-byte padding of both r and s.
+// This transformation is required due to a bug in Scala implementation, which allows
 // signature values to be padded with 32 bytes prefix data.
 // Padded signatures are disallowed since deterministic finality feature (25) activation.
 func transformToStandardSig(data []byte) []byte {
@@ -704,7 +702,12 @@ func transformToStandardSig(data []byte) []byte {
 	}
 	r, s := data[:doubledParamSize], data[doubledParamSize:doubledSigSize-1]
 	rc, sc := r[ethereumSignatureParamSize:], s[ethereumSignatureParamSize:] // cut left unnecessary part
-	return bytes.Join([][]byte{rc, sc, data[doubledSigSize-1:]}, nil)
+	// build the standard signature in the format of r[32] + s[32] + v[1]
+	out := make([]byte, EthereumSignatureLength)
+	copy(out[:ethereumSignatureParamSize], rc)                             // write r part
+	copy(out[ethereumSignatureParamSize:2*ethereumSignatureParamSize], sc) // write s part
+	out[2*ethereumSignatureParamSize] = data[doubledSigSize-1]             // write v byte
+	return out
 }
 
 func (c *ProtobufConverter) ethOrderSignature(data []byte) EthereumSignature {

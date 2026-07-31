@@ -629,7 +629,8 @@ func (a *txAppender) doAppendTx(
 
 func tryGetAbnormalMainnetTxPatch(txIDBytes []byte, blockHeight proto.Height) (abnormalTxInfo, bool, error) {
 	if blockHeight == nextHeightAfterLastAbnormalTxMainnet {
-		cleanAbnormalTxsMainnet() // clean unnecessary map
+		cleanAbnormalTxsMainnet()           // clean unnecessary map
+		return abnormalTxInfo{}, false, nil // immediately return because abnormalTxMap is empty now
 	}
 	txID, err := crypto.NewDigestFromBytes(txIDBytes)
 	if err != nil {

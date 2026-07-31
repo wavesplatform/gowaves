@@ -871,10 +871,10 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 		return nil, err
 	}
 	if errO1 := checkOrderWithFeatures(o1, metamaskActivated, deterministicFinalityActivated); errO1 != nil {
-		return nil, errors.Wrap(errO1, "order1 metamask feature checks failed")
+		return nil, errors.Wrap(errO1, "order1 features checks failed")
 	}
 	if errO2 := checkOrderWithFeatures(o2, metamaskActivated, deterministicFinalityActivated); errO2 != nil {
-		return nil, errors.Wrap(errO2, "order2 metamask feature checks failed")
+		return nil, errors.Wrap(errO2, "order2 features checks failed")
 	}
 
 	// Check assets.

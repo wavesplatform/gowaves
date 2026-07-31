@@ -30,7 +30,7 @@ const (
 	BoostBlockReward        // 23
 	ecrecoverFix            // 24, intentionally package private
 	DeterministicFinality   // 25 Deterministic Finality and RideV9
-	InvokeExpression        // 25
+	InvokeExpression        // 26
 )
 
 type FeatureInfo struct {
