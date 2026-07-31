@@ -3866,8 +3866,10 @@ func TestOriginCaller(t *testing.T) {
 	txID, err := crypto.NewDigestFromBase58("BuCo8EEM2VbvjJbC6VyBVa64m2fNmdSoKLSxmoshnbmv")
 	require.NoError(t, err)
 
+	const height = 11
+
 	env := newTestEnv(t).withScheme(proto.MainNetScheme).withBlockV5Activated().withProtobufTx().
-		withLibVersion(ast.LibV5).withComplexityLimit(2000).
+		withLibVersion(ast.LibV5).withComplexityLimit(2000).withHeight(height).
 		withMessageLengthV3().withDataEntriesSizeV2().withValidateInternalPayments().
 		withThis(dApp1).withSender(sender).withDApp(dApp1).withAdditionalDApp(dApp2).
 		withTree(dApp1, tree1).withTree(dApp2, tree2).
@@ -3948,8 +3950,11 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 	txID, err := crypto.NewDigestFromBase58("BuCo8EEM2VbvjJbC6VyBVa64m2fNmdSoKLSxmoshnbmv")
 	require.NoError(t, err)
 
+	const height = 11
+
 	env := newTestEnv(t).withScheme(proto.MainNetScheme).withBlockV5Activated().withProtobufTx().
 		withLibVersion(ast.LibV5).withComplexityLimit(2000).withMessageLengthV3().withDataEntriesSizeV2().
+		withHeight(height).
 		withThis(dApp1).withSender(sender).withDApp(dApp1).withAdditionalDApp(dApp2).
 		withTree(dApp1, tree1).withTree(dApp2, tree2).
 		withAsset(&proto.FullAssetInfo{AssetInfo: proto.AssetInfo{
