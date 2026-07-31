@@ -133,6 +133,14 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return rideUnit{}, RuntimeError.Errorf("%s: too many internal invocations", invocation.name())
 	}
 	defer ws.setInvocationCount(ic)
+
+	validateActionsAgainstCleanState := env.scheme() == proto.MainNetScheme &&
+		env.height() >= validateActionsAgainstCleanStateSinceMainnetHeight
+	if validateActionsAgainstCleanState {
+		ws.lbc.initNewLayeredWavesBalanceChanges()
+		defer ws.lbc.squashLastChanges()
+	}
+
 	callerAddress, ok := env.this().(rideAddress)
 	if !ok {
 		return rideUnit{}, RuntimeError.Errorf("%s: this has an unexpected type '%s'", invocation.name(), env.this().instanceOf())
@@ -365,7 +373,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 
 	// here we do validations that should happen in the end of the invocation,
 	// but before returning the result to the caller
-	if env.scheme() == proto.MainNetScheme && env.height() >= validateActionsAgainstCleanStateSinceMainnetHeight {
+	if validateActionsAgainstCleanState {
 		vErr := ws.validateChangedAccountWavesBalancesAgainstBlockchain(env.scheme(), ws.diff, fn, scriptActions)
 		if vErr != nil {
 			if GetEvaluationErrorType(vErr) == Undefined {
