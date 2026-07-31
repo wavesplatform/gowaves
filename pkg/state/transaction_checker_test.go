@@ -626,7 +626,7 @@ func TestCheckEthExchangeWithPaddedOrderSig(t *testing.T) {
 		return to, info
 	}
 	t.Run("NoRideV6", func(t *testing.T) {
-		const expErrStr = "order2 metamask feature checks failed: " +
+		const expErrStr = "order2 features checks failed: " +
 			"ethereum order is not allowed before metamask feature activation"
 		t.Run("NoDeterministicFinalityActivation", func(t *testing.T) {
 			to, info := createEnv(t)
