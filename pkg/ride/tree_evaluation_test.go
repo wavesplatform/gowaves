@@ -6483,31 +6483,55 @@ func TestUnleaseLeaseTransferMainnet(t *testing.T) {
 		{-# CONTENT_TYPE DAPP #-}
 		{-# SCRIPT_TYPE ACCOUNT #-}
 
+		let dapp = Address(base58'%s')
+
 		@Callable(i)
 		func bar() = {
-		  strict x = invoke(Address(base58'%s'), "updateLease", [], [])
-		  strict y = invoke(Address(base58'%s'), "refund", [], [])
+		  strict x = invoke(dapp, "updateLease", [], [])
+		  strict y = invoke(dapp, "refund", [], [])
 		  []
 		}
-	`, dapp.address().String(), dapp.address().String())
+
+		@Callable(i)
+		func foo() = {
+		  strict x = invoke(dapp, "updateLeaseRefund", [], [])
+		  []
+		}
+	`,
+		dapp.address().String(),
+	)
 
 	dappSrc := fmt.Sprintf(`
 		{-# STDLIB_VERSION 6 #-}
 		{-# CONTENT_TYPE DAPP #-}
 		{-# SCRIPT_TYPE ACCOUNT #-}
 
-		@Callable(i)
-		func updateLease() = [
-		  LeaseCancel(base58'%s'),
-		  Lease(Address(base58'%s'), 9500000000),
-		  ScriptTransfer(i.caller, 200000000, unit)
+		let proxy = Address(base58'%s')
+		let originalLeaseID = base58'%s'
+		let leaseTarget = Address(base58'%s')
+
+		func refundInternal() = [
+		  ScriptTransfer(proxy, 250000000, unit)
 		]
 
 		@Callable(i)
-		func refund() = [
-		  ScriptTransfer(i.caller, 250000000, unit)
+		func updateLease() = [
+		  LeaseCancel(originalLeaseID),
+		  Lease(leaseTarget, 9500000000),
+		  ScriptTransfer(proxy, 200000000, unit)
 		]
-	`, originalLeaseID.String(), leaseTarget.address().String())
+
+		@Callable(i)
+		func refund() = refundInternal()
+
+		@Callable(i)
+		func updateLeaseRefund() = {
+		  strict x = reentrantInvoke(this, "updateLease", [], [])
+		  refundInternal()
+		}
+	`,
+		proxy.address().String(), originalLeaseID.String(), leaseTarget.address().String(),
+	)
 
 	proxyTree, errs := ridec.CompileToTree(proxySrc)
 	require.Empty(t, errs)
@@ -6538,25 +6562,44 @@ func TestUnleaseLeaseTransferMainnet(t *testing.T) {
 	}
 
 	t.Run("before_mainnet_height_of_tx_B9Uxg5eXYdgW7i8Wxwg8BTJBVvTbR1avwXdRNKQN9kKd", func(t *testing.T) {
-		env := buildEnv(t, validateActionsAgainstCleanStateSinceMainnetHeight-1)
-		res, err := CallFunction(env.toEnv(), proxyTree, proto.NewFunctionCall("bar", proto.Arguments{}))
-		require.NoError(t, err)
-		require.NotNil(t, res)
-		r, ok := res.(DAppResult)
-		require.True(t, ok)
-		_, _, err = proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
-		require.NoError(t, err)
+		const height = validateActionsAgainstCleanStateSinceMainnetHeight - 1
+		doTest := func(t *testing.T, fn string) {
+			env := buildEnv(t, height)
+			res, err := CallFunction(env.toEnv(), proxyTree, proto.NewFunctionCall(fn, proto.Arguments{}))
+			require.NoError(t, err)
+			require.NotNil(t, res)
+			r, ok := res.(DAppResult)
+			require.True(t, ok)
+			_, _, err = proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+			require.NoError(t, err)
+		}
+		t.Run("bar", func(t *testing.T) { doTest(t, "bar") })
+		t.Run("foo", func(t *testing.T) { doTest(t, "foo") })
 	})
 	t.Run("since_mainnet_height_of_tx_B9Uxg5eXYdgW7i8Wxwg8BTJBVvTbR1avwXdRNKQN9kKd", func(t *testing.T) {
-		env := buildEnv(t, validateActionsAgainstCleanStateSinceMainnetHeight)
-		res, err := CallFunction(env.toEnv(), proxyTree, proto.NewFunctionCall("bar", proto.Arguments{}))
-		require.Nil(t, res)
-		require.EqualError(t, err,
-			"invoke: failed to validate current call '\"refund\"' intermediate balances in scala-like way: "+
-				"failed to validate changed balances after '\"refund\"' invocation: "+
-				"negative scala-like effective balance -350000000 for '3PLDia9jbzMby2g5uGwdhtFgQXzykKi8SPk', "+
-				"leaseBalanceChangedInCurrentInvoke=false: "+
-				"before (spendable=100000000 waves=10000000000 leaseOut=9900000000 leaseIn=0); "+
-				"after (spendable=-350000000 waves=9550000000 leaseOut=9900000000 leaseIn=0)")
+		const height = validateActionsAgainstCleanStateSinceMainnetHeight
+		t.Run("bar", func(t *testing.T) {
+			env := buildEnv(t, height)
+			res, err := CallFunction(env.toEnv(), proxyTree, proto.NewFunctionCall("bar", proto.Arguments{}))
+			require.Nil(t, res)
+			require.EqualError(t, err,
+				"invoke: failed to validate current call '\"refund\"' intermediate balances in scala-like way: "+
+					"failed to validate changed balances after '\"refund\"' invocation: "+
+					"negative scala-like effective balance -350000000 for '3PLDia9jbzMby2g5uGwdhtFgQXzykKi8SPk', "+
+					"leaseBalanceChangedInCurrentInvoke=false: "+
+					"before (spendable=100000000 waves=10000000000 leaseOut=9900000000 leaseIn=0); "+
+					"after (spendable=-350000000 waves=9550000000 leaseOut=9900000000 leaseIn=0)",
+			)
+		})
+		t.Run("foo", func(t *testing.T) {
+			env := buildEnv(t, height)
+			res, err := CallFunction(env.toEnv(), proxyTree, proto.NewFunctionCall("foo", proto.Arguments{}))
+			require.NoError(t, err)
+			require.NotNil(t, res)
+			r, ok := res.(DAppResult)
+			require.True(t, ok)
+			_, _, err = proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+			require.NoError(t, err)
+		})
 	})
 }
