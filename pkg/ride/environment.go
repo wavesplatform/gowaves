@@ -1221,20 +1221,21 @@ func validateChangedWavesBalancesWithOldBalancesBeforeTx(
 				return errors.Wrapf(aErr, "failed to rebuild address from addrID '%s'", base58.Encode(addrIDBytes))
 			}
 			return errors.Errorf(
-				"negative scala-like effective balance for '%s', leaseBalanceChangedInCurrentInvoke=%t: before %s; after %s",
+				"negative scala-like effective balance %d for '%s', leaseBalanceChangedInCurrentInvoke=%t: before %s; after %s",
+				scalaLikeEffectiveBalance,
 				addr.String(),
 				leaseBalanceChangedInCurrentInvoke,
-				formStateChangesStringPartForErr(oldBalance.balance, oldBalance.leaseOut),
-				formStateChangesStringPartForErr(wavesAfter, currentLeaseOut),
+				formStateChangesStringPartForErr(oldBalance.balance, oldBalance.leaseOut, oldBalance.leaseIn),
+				formStateChangesStringPartForErr(wavesAfter, currentLeaseOut, currentLeaseIn),
 			)
 		}
 	}
 	return nil
 }
 
-func formStateChangesStringPartForErr(wavesRegularBalance int64, leaseOut int64) string {
-	return fmt.Sprintf("(spendable=%d waves=%d leaseOut=%d)", // TODO: add deposit
-		wavesRegularBalance-leaseOut, wavesRegularBalance, leaseOut,
+func formStateChangesStringPartForErr(wavesRegularBalance int64, leaseOut int64, leaseIn int64) string {
+	return fmt.Sprintf("(spendable=%d waves=%d leaseOut=%d leaseIn=%d)", // TODO: add deposit
+		wavesRegularBalance-leaseOut, wavesRegularBalance, leaseOut, leaseIn,
 	)
 }
 
