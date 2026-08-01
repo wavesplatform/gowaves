@@ -1177,7 +1177,7 @@ type changedWavesBalancesProfile struct {
 func validateChangedWavesBalancesWithOldBalancesBeforeTx(
 	scheme proto.Scheme,
 	changedWavesBalances, oldWavesBalances []changedWavesBalancesProfile,
-	changedLeaseBalancesAccountsAfterCurrentInvoke map[proto.AddressID]struct{},
+	changedLeaseBalancesAccountsAtTheLastChangesLayer map[proto.AddressID]struct{},
 ) error {
 	if len(changedWavesBalances) != len(oldWavesBalances) { // sanity check, length must be the same
 		return errors.Errorf(
@@ -1205,11 +1205,11 @@ func validateChangedWavesBalancesWithOldBalancesBeforeTx(
 			wavesWithoutDepositAfter = wavesAfter             // TODO: need to take deposit into account
 		)
 		var (
-			currentLeaseIn                        = changedBalance.leaseIn
-			currentLeaseOut                       = changedBalance.leaseOut
-			_, leaseBalanceChangedInCurrentInvoke = changedLeaseBalancesAccountsAfterCurrentInvoke[addrID]
+			currentLeaseIn                       = changedBalance.leaseIn
+			currentLeaseOut                      = changedBalance.leaseOut
+			_, leaseBalanceChangedAtTheLastLayer = changedLeaseBalancesAccountsAtTheLastChangesLayer[addrID]
 		)
-		if !leaseBalanceChangedInCurrentInvoke { // no lease changes in current snapshot
+		if !leaseBalanceChangedAtTheLastLayer { // no lease changes at the last layer of balance changes
 			currentLeaseIn = oldBalance.leaseIn
 			currentLeaseOut = oldBalance.leaseOut
 		}
@@ -1221,10 +1221,10 @@ func validateChangedWavesBalancesWithOldBalancesBeforeTx(
 				return errors.Wrapf(aErr, "failed to rebuild address from addrID '%s'", base58.Encode(addrIDBytes))
 			}
 			return errors.Errorf(
-				"negative scala-like effective balance %d for '%s', leaseBalanceChangedInCurrentInvoke=%t: before %s; after %s",
+				"negative scala-like effective balance %d for '%s', leaseBalanceChangedAtTheLastLayer=%t: before %s; after %s",
 				scalaLikeEffectiveBalance,
 				addr.String(),
-				leaseBalanceChangedInCurrentInvoke,
+				leaseBalanceChangedAtTheLastLayer,
 				formStateChangesStringPartForErr(oldBalance.balance, oldBalance.leaseOut, oldBalance.leaseIn),
 				formStateChangesStringPartForErr(wavesAfter, currentLeaseOut, currentLeaseIn),
 			)

@@ -6586,7 +6586,7 @@ func TestUnleaseLeaseTransferMainnet(t *testing.T) {
 				"invoke: failed to validate current call '\"refund\"' intermediate balances in scala-like way: "+
 					"failed to validate changed balances after '\"refund\"' invocation: "+
 					"negative scala-like effective balance -350000000 for '3PLDia9jbzMby2g5uGwdhtFgQXzykKi8SPk', "+
-					"leaseBalanceChangedInCurrentInvoke=false: "+
+					"leaseBalanceChangedAtTheLastLayer=false: "+
 					"before (spendable=100000000 waves=10000000000 leaseOut=9900000000 leaseIn=0); "+
 					"after (spendable=-350000000 waves=9550000000 leaseOut=9900000000 leaseIn=0)",
 			)
