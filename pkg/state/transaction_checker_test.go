@@ -650,7 +650,7 @@ func TestCheckEthExchangeWithPaddedOrderSig(t *testing.T) {
 	// TODO: uncomment when DeterministicFinality feature will be set to implemented.
 	/*
 		t.Run("DeterministicFinalityActivated", func(t *testing.T) {
-			const expErrStr = "order2 metamask feature checks failed: " +
+			const expErrStr = "order2 features checks failed: " +
 				"invalid original EIP-712 signature length for ethereum order: got 129, want 65"
 			to, info := createEnv(t, settings.RideV6, settings.DeterministicFinality)
 			_, err := to.tc.checkExchangeWithProofs(tx, info)
