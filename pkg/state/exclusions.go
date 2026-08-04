@@ -1,8 +1,6 @@
 package state
 
 import (
-	"sync"
-
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -58,19 +56,29 @@ type abnormalTxInfo struct {
 
 //nolint:gochecknoglobals // special case
 var (
-	abnormalTxsMainnetInitializer sync.Once
-	abnormalTxsMainnetCleaner     sync.Once
-	abnormalTxsMainnet            map[crypto.Digest]abnormalTxInfo
+	abnormalTxsMainnet map[crypto.Digest]abnormalTxInfo
 )
 
+// getAbnormalTxMainnet returns the abnormal transaction information for the given transaction ID on the mainnet.
+// It initializes the abnormal transactions map if it's nil and returns the corresponding
+// abnormal transaction information if it exists and a boolean value indicating whether the transaction
+// ID was found in the map.
+//
+// Function IS NOT thread safe.
 func getAbnormalTxMainnet(txID crypto.Digest) (abnormalTxInfo, bool) {
-	abnormalTxsMainnetInitializer.Do(func() { abnormalTxsMainnet = newAbnormalTxsMainnet() })
+	if abnormalTxsMainnet == nil { // initialize map
+		abnormalTxsMainnet = newAbnormalTxsMainnet()
+	}
 	tx, ok := abnormalTxsMainnet[txID]
 	return tx, ok
 }
 
+// cleanAbnormalTxsMainnet resets the abnormal mainnet transactions map to nil.
+// Map can be initialized again if needed by calling getAbnormalTxMainnet.
+//
+// Function IS NOT thread safe.
 func cleanAbnormalTxsMainnet() {
-	abnormalTxsMainnetCleaner.Do(func() { abnormalTxsMainnet = nil })
+	abnormalTxsMainnet = nil
 }
 
 //nolint:funlen // abnormal txs generator
