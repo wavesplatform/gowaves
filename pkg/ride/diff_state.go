@@ -2,6 +2,7 @@ package ride
 
 import (
 	"fmt"
+	"iter"
 
 	"github.com/pkg/errors"
 
@@ -199,6 +200,19 @@ func (b changedAccounts) addAssetBalanceChange(account proto.AddressID, asset cr
 		asset:   *proto.NewOptionalAssetFromDigest(asset),
 	}
 	b[key] = struct{}{}
+}
+
+func (b changedAccounts) changedWavesBalancesAccounts() iter.Seq[proto.AddressID] {
+	return func(yield func(proto.AddressID) bool) {
+		for key := range b {
+			if key.asset.Present {
+				continue // skip non waves assets
+			}
+			if !yield(key.account) {
+				return
+			}
+		}
+	}
 }
 
 type diffState struct {
