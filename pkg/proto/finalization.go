@@ -133,7 +133,9 @@ func (f *FinalizationVoting) Validate() error {
 		return nil
 	}
 	const genesisBlockHeight = 1
-	if f.FinalizedBlockHeight < genesisBlockHeight {
+	// Finalized block height is meaningful only for endorsements, votings with conflicting endorsements
+	// only carry no finalized block height.
+	if len(f.EndorserIndexes) > 0 && f.FinalizedBlockHeight < genesisBlockHeight {
 		return fmt.Errorf("invalid finalization voting: finalized block height %d is less than genesis block height %d",
 			f.FinalizedBlockHeight, genesisBlockHeight)
 	}

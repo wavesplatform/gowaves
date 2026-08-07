@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -150,6 +151,79 @@ func TestFinalizationVotingValidation(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestFinalizationVotingFinalizedHeightValidation(t *testing.T) {
+	conflict := proto.BlockEndorsement{
+		EndorserIndex:        0,
+		FinalizedBlockID:     proto.MustBlockIDFromBase58("4L1nScCRDdRkvVHwrhubtQtn5n7EWh68WFn6oZMt8KHW"),
+		FinalizedBlockHeight: 123,
+		EndorsedBlockID:      proto.MustBlockIDFromBase58("7rm2AyHHb2iud2hqid2jVD8z4cJ8iAuWQoAQ441VvfVc"),
+		Signature:            bls.Signature{},
+	}
+	for i, test := range []struct {
+		indexes   []uint32
+		conflicts []proto.BlockEndorsement
+		height    proto.Height
+		err       string
+	}{
+		{indexes: nil, conflicts: []proto.BlockEndorsement{conflict}, height: 0}, // Conflicts only, no height.
+		{indexes: []uint32{1}, conflicts: nil, height: 123},
+		{indexes: []uint32{1}, conflicts: nil, height: 0,
+			err: "invalid finalization voting: finalized block height 0 is less than genesis block height 1"},
+	} {
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			fv := proto.FinalizationVoting{
+				EndorserIndexes:                test.indexes,
+				FinalizedBlockHeight:           test.height,
+				AggregatedEndorsementSignature: nil,
+				ConflictEndorsements:           test.conflicts,
+			}
+			err := fv.Validate()
+			if test.err != "" {
+				assert.EqualError(t, err, test.err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestFinalizationVotingProtobufRoundTrip(t *testing.T) {
+	conflict := proto.BlockEndorsement{
+		EndorserIndex:        0,
+		FinalizedBlockID:     proto.MustBlockIDFromBase58("4L1nScCRDdRkvVHwrhubtQtn5n7EWh68WFn6oZMt8KHW"),
+		FinalizedBlockHeight: 123,
+		EndorsedBlockID:      proto.MustBlockIDFromBase58("7rm2AyHHb2iud2hqid2jVD8z4cJ8iAuWQoAQ441VvfVc"),
+		Signature:            bls.Signature{},
+	}
+	sig := bls.Signature{}
+	for i, fv := range []proto.FinalizationVoting{
+		{
+			EndorserIndexes:                []uint32{0, 1, 2},
+			FinalizedBlockHeight:           123,
+			AggregatedEndorsementSignature: &sig,
+			ConflictEndorsements:           nil,
+		},
+		{ // Conflicting endorsements only, no aggregated signature.
+			EndorserIndexes:                nil,
+			FinalizedBlockHeight:           0,
+			AggregatedEndorsementSignature: nil,
+			ConflictEndorsements:           []proto.BlockEndorsement{conflict},
+		},
+	} {
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			b, err := fv.Marshal()
+			require.NoError(t, err)
+			var r proto.FinalizationVoting
+			require.NoError(t, r.UnmarshalFromProtobuf(b))
+			assert.Equal(t, fv.AggregatedEndorsementSignature, r.AggregatedEndorsementSignature)
+			assert.Equal(t, fv.FinalizedBlockHeight, r.FinalizedBlockHeight)
+			rb, err := r.Marshal()
+			require.NoError(t, err)
+			assert.Equal(t, b, rb) // Serialization must be stable, block ID and signature depend on it.
 		})
 	}
 }
