@@ -127,18 +127,45 @@ func (f *FinalizationVoting) IsEmpty() bool {
 		(f.AggregatedEndorsementSignature == nil)
 }
 
-// Validate checks that FinalizationVoting doesn't have any duplicate endorsers indexes.
+// validateEndorsementsSet checks that endorsements, the finalized block height and the aggregated signature come as
+// a set: a voting either carries endorsements together with the endorsed height and the aggregated signature of them,
+// or none of the three. Votings that carry conflicting endorsements only have no endorsements at all.
+func (f *FinalizationVoting) validateEndorsementsSet() error {
+	const genesisBlockHeight = 1
+	if len(f.EndorserIndexes) == 0 {
+		if f.FinalizedBlockHeight != 0 {
+			return fmt.Errorf("invalid finalization voting: non-zero finalized block height %d "+
+				"in voting without endorsements", f.FinalizedBlockHeight)
+		}
+		if f.AggregatedEndorsementSignature != nil {
+			return errors.New("invalid finalization voting: aggregated endorsement signature " +
+				"in voting without endorsements")
+		}
+		return nil
+	}
+	if f.FinalizedBlockHeight < genesisBlockHeight {
+		return fmt.Errorf(
+			"invalid finalization voting: finalized block height %d is less than genesis block height %d",
+			f.FinalizedBlockHeight, genesisBlockHeight,
+		)
+	}
+	if f.AggregatedEndorsementSignature == nil {
+		return errors.New("invalid finalization voting: no aggregated endorsement signature")
+	}
+	return nil
+}
+
+// Validate checks that FinalizationVoting is consistent: endorsements come together with the endorsed height and
+// their aggregated signature, and there are no duplicate endorsers indexes.
 func (f *FinalizationVoting) Validate() error {
 	if f.IsEmpty() { // Empty structure nothing to check.
 		return nil
 	}
-	const genesisBlockHeight = 1
-	if f.FinalizedBlockHeight < genesisBlockHeight {
-		return fmt.Errorf("invalid finalization voting: finalized block height %d is less than genesis block height %d",
-			f.FinalizedBlockHeight, genesisBlockHeight)
-	}
 	if len(f.EndorserIndexes) == 0 && len(f.ConflictEndorsements) == 0 {
 		return fmt.Errorf("invalid finalization voting: both endorsers and conflict endorsements are empty")
+	}
+	if err := f.validateEndorsementsSet(); err != nil {
+		return err
 	}
 	indexes := make(map[uint32]struct{}, len(f.ConflictEndorsements)+len(f.EndorserIndexes))
 	for _, ce := range f.ConflictEndorsements {

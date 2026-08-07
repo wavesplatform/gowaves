@@ -1829,9 +1829,16 @@ func (c *ProtobufConverter) FinalizationVoting(finalizationVoting *g.Finalizatio
 		}
 		conflictEndorsements = append(conflictEndorsements, cbe)
 	}
-	aggregatedSignature, err := bls.NewSignatureFromBytes(finalizationVoting.AggregatedEndorsementSignature)
-	if err != nil {
-		return FinalizationVoting{}, errors.Errorf("failed to parse aggregated BLS signature: %v", err)
+	// Aggregated signature is absent in votings without endorsements, e.g. in votings with conflicting
+	// endorsements only. Parse it only if presented, otherwise leave it nil to keep the conversion
+	// symmetrical with FinalizationVoting.ToProtobuf.
+	var aggregatedSignature *bls.Signature
+	if len(finalizationVoting.AggregatedEndorsementSignature) != 0 {
+		sig, err := bls.NewSignatureFromBytes(finalizationVoting.AggregatedEndorsementSignature)
+		if err != nil {
+			return FinalizationVoting{}, errors.Errorf("failed to parse aggregated BLS signature: %v", err)
+		}
+		aggregatedSignature = &sig
 	}
 	finalizedBlockHeight, err := safecast.Convert[uint64](finalizationVoting.FinalizedBlockHeight)
 	if err != nil {
@@ -1839,7 +1846,7 @@ func (c *ProtobufConverter) FinalizationVoting(finalizationVoting *g.Finalizatio
 	}
 	return FinalizationVoting{
 		EndorserIndexes:                indexes,
-		AggregatedEndorsementSignature: &aggregatedSignature,
+		AggregatedEndorsementSignature: aggregatedSignature,
 		ConflictEndorsements:           conflictEndorsements,
 		FinalizedBlockHeight:           finalizedBlockHeight,
 	}, nil

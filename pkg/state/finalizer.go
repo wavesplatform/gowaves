@@ -54,48 +54,18 @@ func (f *finalizer) processBlockFinalization(
 		return err
 	}
 	// Check that other endorsers are valid to endorse the parent block.
-	var endorsersBalance uint64 = 0
 	bgi, bg, err := f.generators.blockGenerator(height)
 	if err != nil {
 		return fmt.Errorf("failed to get block generator: %w", err)
 	}
-	pks := make([]bls.PublicKey, 0, len(finalizationVoting.EndorserIndexes))
-	for _, ei := range finalizationVoting.EndorserIndexes {
-		g, gErr := f.generators.generator(ei, height)
-		if gErr != nil {
-			return fmt.Errorf("failed to get endorser by index %d: %w", ei, gErr)
-		}
-		if g.Ban {
-			return fmt.Errorf("banned generator '%s' finalization voting found", g.Address.String())
-		}
-		if bgi == ei {
-			return fmt.Errorf("block generator with index %d found in finalization voting", bgi)
-		}
-		balance := g.Balance
-		if balance == 0 {
-			return fmt.Errorf("generator '%s' with insufficient generation balance found in finalization voting",
-				g.Address.String())
-		}
-		pks = append(pks, g.BLSPublicKey)
-		endorsersBalance += balance
-	}
-	// Add block generator's balance to endorsers balance.
-	endorsersBalance += bg.Balance // Balance of block generator already checked.
-	// Check aggregate signature.
-	msg, err := f.finality.buildRemoteEndorsementMessage(finalizationVoting.FinalizedBlockHeight, block.Parent)
+	pks, endorsersBalance, err := f.collectEndorsers(finalizationVoting.EndorserIndexes, bgi, height)
 	if err != nil {
 		return err
 	}
-	mb, err := msg.Bytes()
-	if err != nil {
-		return fmt.Errorf("failed to serialize local endorsement crypto message: %w", err)
-	}
-	var sig bls.Signature
-	if finalizationVoting.AggregatedEndorsementSignature != nil {
-		sig = *finalizationVoting.AggregatedEndorsementSignature
-	}
-	if !bls.VerifyAggregate(pks, mb, sig) {
-		return errors.New("invalid aggregated signature of finalization voting")
+	// Add block generator's balance to endorsers balance.
+	endorsersBalance += bg.Balance // Balance of block generator already checked.
+	if vErr := f.verifyAggregatedEndorsementSignature(finalizationVoting, block.Parent, pks); vErr != nil {
+		return vErr
 	}
 
 	// A block is considered finalized if the total endorsers' balance is at least 2/3 of the committed
@@ -111,6 +81,62 @@ func (f *finalizer) processBlockFinalization(
 		if fErr := f.finality.updatePendingFinalization(finalizedHeight, blockID); fErr != nil {
 			return fmt.Errorf("failed to update pending finalization: %w", fErr)
 		}
+	}
+	return nil
+}
+
+// collectEndorsers validates the generators referenced by the given endorser indexes and returns their BLS public
+// keys along with their total generation balance.
+func (f *finalizer) collectEndorsers(
+	endorserIndexes []uint32, blockGeneratorIndex uint32, height proto.Height,
+) ([]bls.PublicKey, uint64, error) {
+	var endorsersBalance uint64 = 0
+	pks := make([]bls.PublicKey, 0, len(endorserIndexes))
+	for _, ei := range endorserIndexes {
+		g, err := f.generators.generator(ei, height)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to get endorser by index %d: %w", ei, err)
+		}
+		if g.Ban {
+			return nil, 0, fmt.Errorf("banned generator '%s' finalization voting found", g.Address.String())
+		}
+		if blockGeneratorIndex == ei {
+			return nil, 0, fmt.Errorf("block generator with index %d found in finalization voting", blockGeneratorIndex)
+		}
+		balance := g.Balance
+		if balance == 0 {
+			return nil, 0, fmt.Errorf("generator '%s' with insufficient generation balance found in finalization voting",
+				g.Address.String())
+		}
+		pks = append(pks, g.BLSPublicKey)
+		endorsersBalance += balance
+	}
+	return pks, endorsersBalance, nil
+}
+
+// verifyAggregatedEndorsementSignature checks the aggregated signature of endorsements. Voting without endorsements,
+// e.g. with conflicting endorsements only, carries no aggregated signature, so there is nothing to verify.
+// FinalizationVoting.Validate, invoked earlier in the call stack, guarantees that such votings have no signature at
+// all, the nil check below is only a defence in depth.
+func (f *finalizer) verifyAggregatedEndorsementSignature(
+	finalizationVoting proto.FinalizationVoting, parentID proto.BlockID, pks []bls.PublicKey,
+) error {
+	if len(pks) == 0 {
+		return nil
+	}
+	if finalizationVoting.AggregatedEndorsementSignature == nil {
+		return errors.New("no aggregated signature in finalization voting with endorsements")
+	}
+	msg, err := f.finality.buildRemoteEndorsementMessage(finalizationVoting.FinalizedBlockHeight, parentID)
+	if err != nil {
+		return err
+	}
+	mb, err := msg.Bytes()
+	if err != nil {
+		return fmt.Errorf("failed to serialize local endorsement crypto message: %w", err)
+	}
+	if !bls.VerifyAggregate(pks, mb, *finalizationVoting.AggregatedEndorsementSignature) {
+		return errors.New("invalid aggregated signature of finalization voting")
 	}
 	return nil
 }
