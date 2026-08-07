@@ -642,7 +642,6 @@ func (a *NodeApi) PeersClearBlackList(w http.ResponseWriter, _ *http.Request) er
 }
 
 func (a *NodeApi) PeersBlackList(w http.ResponseWriter, r *http.Request) error {
-	defer r.Body.Close() // ensure that body will be closed after reading, even if error occurs
 	bodyBytesRaw, err := io.ReadAll(io.LimitReader(r.Body, postMessageSizeLimit))
 	if err != nil {
 		return apiErrs.NewBadRequestError(
