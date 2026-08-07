@@ -116,6 +116,8 @@ func (f *finalizer) collectEndorsers(
 
 // verifyAggregatedEndorsementSignature checks the aggregated signature of endorsements. Voting without endorsements,
 // e.g. with conflicting endorsements only, carries no aggregated signature, so there is nothing to verify.
+// FinalizationVoting.Validate, invoked earlier in the call stack, guarantees that such votings have no signature at
+// all, the nil check below is only a defence in depth.
 func (f *finalizer) verifyAggregatedEndorsementSignature(
 	finalizationVoting proto.FinalizationVoting, parentID proto.BlockID, pks []bls.PublicKey,
 ) error {
