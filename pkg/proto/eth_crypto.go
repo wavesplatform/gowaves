@@ -6,6 +6,7 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 	btcECDSA "github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -14,9 +15,7 @@ var (
 	secp256k1halfN = new(big.Int).Div(secp256k1N, big2)
 )
 
-// ValidateEthereumSignatureValues verifies whether the signature values are valid with
-// the given chain rules. The v value is assumed to be either 0 or 1.
-func ValidateEthereumSignatureValues(v byte, r, s *big.Int) bool {
+func validateEthereumSignatureRS(r, s *big.Int) bool {
 	if r.Cmp(big1) < 0 || s.Cmp(big1) < 0 {
 		return false
 	}
@@ -26,7 +25,13 @@ func ValidateEthereumSignatureValues(v byte, r, s *big.Int) bool {
 		return false
 	}
 	// Frontier: allow s to be in full N range
-	return r.Cmp(secp256k1N) < 0 && s.Cmp(secp256k1N) < 0 && (v == 0 || v == 1)
+	return r.Cmp(secp256k1N) < 0 && s.Cmp(secp256k1N) < 0
+}
+
+// ValidateEthereumSignatureValues verifies whether the signature values are valid with
+// the given chain rules. The v value is assumed to be either 0 or 1.
+func ValidateEthereumSignatureValues(v byte, r, s *big.Int) bool {
+	return validateEthereumSignatureRS(r, s) && (v == 0 || v == 1)
 }
 
 // VerifyEthereumSignature checks that the given public key created signature over hash.
@@ -49,14 +54,14 @@ func VerifyEthereumSignature(pubKey *EthereumPublicKey, rBig, sBig *big.Int, has
 
 // EthereumSignature represents ethereum signature (v, r, s signature values).
 type EthereumSignature struct {
-	sig [ethereumSignatureLength]byte
+	sig [EthereumSignatureLength]byte
 }
 
 func NewEthereumSignatureFromVRS(v byte, r, s *big.Int) (EthereumSignature, error) {
 	if !ValidateEthereumSignatureValues(v, r, s) {
 		return EthereumSignature{}, ErrInvalidSig
 	}
-	var sig [ethereumSignatureLength]byte
+	var sig [EthereumSignatureLength]byte
 	// encode the signature in uncompressed format
 	rBytes, sBytes := r.Bytes(), s.Bytes()
 	copy(sig[32-len(rBytes):32], rBytes)
@@ -121,8 +126,8 @@ func (es *EthereumSignature) MarshalBinary() (data []byte, err error) {
 
 func (es *EthereumSignature) UnmarshalBinary(data []byte) error {
 	sigLen := len(data)
-	if sigLen != ethereumSignatureLength {
-		return errors.Errorf("eip712Signature should be of length %d", ethereumSignatureLength)
+	if sigLen != EthereumSignatureLength {
+		return errors.Errorf("eip712Signature should be of length %d", EthereumSignatureLength)
 	}
 	copy(es.sig[:], data)
 	return nil
@@ -143,6 +148,9 @@ func (es *EthereumSignature) UnmarshalJSON(bytes []byte) error {
 }
 
 func (es *EthereumSignature) RecoverEthereumPublicKey(digest []byte) (*EthereumPublicKey, error) {
+	if !validateEthereumSignatureRS(es.R(), es.S()) {
+		return nil, errors.Wrap(ErrInvalidSig, "failed to recover Ethereum public key")
+	}
 	pk, err := crypto.ECDSARecoverPublicKey(digest, es.Bytes())
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to recover public from signature %s with digest %q",

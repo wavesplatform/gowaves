@@ -718,10 +718,35 @@ func (c *ProtobufConverter) signature(data []byte) crypto.Signature {
 	return sig
 }
 
-func (c *ProtobufConverter) ethSignature(data []byte) EthereumSignature {
+// transformToStandardSig transforms a padded 129-byte signature from protobuf message into the standard 65-byte format
+// (r[32] + s[32] + v[1]) by dropping the left 32-byte padding of both r and s.
+// This transformation is required due to a bug in Scala implementation, which allows
+// signature values to be padded with 32 bytes prefix data.
+// Padded signatures are disallowed since deterministic finality feature (25) activation.
+func transformToStandardSig(data []byte) []byte {
+	const (
+		doubledParamSize = 2 * ethereumSignatureParamSize
+		doubledSigSize   = 1 + 2*doubledParamSize
+	)
+	if len(data) != doubledSigSize { // handle case when sig values padded with 32 bytes prefix data.
+		return data
+	}
+	r, s := data[:doubledParamSize], data[doubledParamSize:doubledSigSize-1]
+	rc, sc := r[ethereumSignatureParamSize:], s[ethereumSignatureParamSize:] // cut left unnecessary part
+	// build the standard signature in the format of r[32] + s[32] + v[1]
+	out := make([]byte, EthereumSignatureLength)
+	copy(out[:ethereumSignatureParamSize], rc)                             // write r part
+	copy(out[ethereumSignatureParamSize:2*ethereumSignatureParamSize], sc) // write s part
+	out[2*ethereumSignatureParamSize] = data[doubledSigSize-1]             // write v byte
+	return out
+}
+
+func (c *ProtobufConverter) ethOrderSignature(data []byte) EthereumSignature {
 	if c.err != nil {
 		return EthereumSignature{}
 	}
+
+	data = transformToStandardSig(data)
 	sig, err := NewEthereumSignatureFromBytes(data)
 	if err != nil {
 		c.err = err
@@ -806,8 +831,9 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 		}
 		if sig, ok := o.Sender.(*g.Order_Eip712Signature); ok {
 			ethOrder := EthereumOrderV4{
-				Eip712Signature: c.ethSignature(sig.Eip712Signature),
-				OrderV4:         orderV4,
+				Eip712Signature:          c.ethOrderSignature(sig.Eip712Signature),
+				origEip712SignatureBytes: sig.Eip712Signature,
+				OrderV4:                  orderV4,
 			}
 			if err := ethOrder.GenerateSenderPK(scheme); err != nil {
 				c.err = err

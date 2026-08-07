@@ -2,8 +2,11 @@ package ride
 
 import (
 	"fmt"
+	"iter"
+	"maps"
 	"math"
 
+	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -19,6 +22,112 @@ var (
 	errDeletedEntry = errors.Wrap(proto.ErrNotFound, "entry has been deleted")
 )
 
+type changesLayer struct {
+	changedWavesBalances map[proto.AddressID]struct{}
+	changedLeaseBalances map[proto.AddressID]struct{}
+}
+
+type layeredBalanceChanges struct {
+	changes      []changesLayer
+	origState    types.EnrichedSmartState
+	origBalances diffState
+}
+
+func newLayeredWavesBalanceChanges(origState types.EnrichedSmartState) layeredBalanceChanges {
+	return layeredBalanceChanges{
+		origState: origState,
+		changes: []changesLayer{ // init root script level
+			{
+				changedWavesBalances: make(map[proto.AddressID]struct{}),
+				changedLeaseBalances: make(map[proto.AddressID]struct{}),
+			},
+		},
+		origBalances: newDiffState(origState),
+	}
+}
+
+func (c *layeredBalanceChanges) lastChanges() (changesLayer, bool) {
+	if len(c.changes) == 0 {
+		return changesLayer{}, false
+	}
+	return c.changes[len(c.changes)-1], true
+}
+
+func (c *layeredBalanceChanges) initNewLayeredWavesBalanceChanges() {
+	c.changes = append(c.changes, changesLayer{
+		changedWavesBalances: make(map[proto.AddressID]struct{}),
+		changedLeaseBalances: make(map[proto.AddressID]struct{}),
+	})
+}
+
+func (c *layeredBalanceChanges) addWavesBalanceChanges(seq iter.Seq[proto.AddressID]) {
+	last, ok := c.lastChanges()
+	if !ok { // no layers, nothing to add
+		return
+	}
+	for addr := range seq {
+		last.changedWavesBalances[addr] = struct{}{}
+	}
+}
+
+func (c *layeredBalanceChanges) addLeaseBalanceChanges(seq iter.Seq[proto.AddressID]) {
+	last, ok := c.lastChanges()
+	if !ok { // no layers, nothing to add
+		return
+	}
+	for addr := range seq {
+		last.changedLeaseBalances[addr] = struct{}{}
+	}
+}
+
+func (c *layeredBalanceChanges) loadWavesBalanceChanges(diff diffState) (
+	[]changedWavesBalancesProfile, []changedWavesBalancesProfile, error,
+) {
+	last, okCh := c.lastChanges()
+	if !okCh {
+		return nil, nil, errors.New("no layers available")
+	}
+	var (
+		changedWavesBalances = make([]changedWavesBalancesProfile, 0, len(last.changedWavesBalances))
+		oldWavesBalances     = make([]changedWavesBalancesProfile, 0, len(last.changedWavesBalances))
+	)
+	for addrID := range last.changedWavesBalances {
+		balance, ok := diff.wavesBalances[addrID] // changes must be already loaded in the memory diff
+		if !ok {
+			return nil, nil, errors.Errorf("failed to find waves balance diff by addrID '%s'",
+				base58.Encode(addrID.Bytes()),
+			)
+		}
+		oldBalance, err := c.origBalances.loadWavesBalance(addrID)
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "failed to load waves balance for addr '%s'",
+				base58.Encode(addrID.Bytes()),
+			)
+		}
+		changedWavesBalances = append(changedWavesBalances, changedWavesBalancesProfile{
+			addrID: addrID,
+			diff:   balance,
+		})
+		oldWavesBalances = append(oldWavesBalances, changedWavesBalancesProfile{
+			addrID: addrID,
+			diff:   oldBalance,
+		})
+	}
+	return changedWavesBalances, oldWavesBalances, nil
+}
+
+func (c *layeredBalanceChanges) squashLastChanges() {
+	if len(c.changes) < 2 { // nothing to squash
+		return
+	}
+	last := c.changes[len(c.changes)-1]
+	c.changes[len(c.changes)-1] = changesLayer{} // cleanup memory
+	c.changes = c.changes[:len(c.changes)-1]     // pop the last elem
+	// add changed to the penultimate layer
+	c.addWavesBalanceChanges(maps.Keys(last.changedWavesBalances))
+	c.addLeaseBalanceChanges(maps.Keys(last.changedLeaseBalances))
+}
+
 type WrappedState struct {
 	diff                      diffState
 	cle                       rideAddress
@@ -31,6 +140,8 @@ type WrappedState struct {
 	rootScriptLibVersion      ast.LibraryVersion
 	rootActionsCountValidator proto.ActionsCountValidator
 	isLightNodeActivated      bool
+
+	lbc layeredBalanceChanges
 }
 
 func newWrappedState(
@@ -46,6 +157,7 @@ func newWrappedState(
 		rootScriptLibVersion:      rootScriptLibVersion,
 		rootActionsCountValidator: proto.NewScriptActionsCountValidator(),
 		isLightNodeActivated:      env.lightNodeActivated(),
+		lbc:                       newLayeredWavesBalanceChanges(originalStateForWrappedState),
 	}
 }
 
@@ -1026,6 +1138,138 @@ func (ws *WrappedState) ApplyToState(
 	}
 
 	return actions, nil
+}
+
+func (ws *WrappedState) validateChangedAccountWavesBalancesAgainstBlockchain(
+	scheme proto.Scheme, diff diffState, fn rideString, scriptActions []proto.ScriptAction,
+) error {
+	// get new changed lease balances accounts
+	addressesWithChangedLeaseBalances, err := getChangedLeaseBalancesAccountsAfterCurrentInvoke(diff, scriptActions)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get changed lease balances accounts after '%s' invocation", fn.String())
+	}
+	ws.lbc.addWavesBalanceChanges(diff.changedAccounts.changedWavesBalancesAccounts()) // update changed waves balances
+	ws.lbc.addLeaseBalanceChanges(maps.Keys(addressesWithChangedLeaseBalances))        // update changed lease balances
+
+	changedWavesBalances, oldWavesBalances, err := ws.lbc.loadWavesBalanceChanges(diff)
+	if err != nil {
+		return errors.Wrapf(err, "failed to load changed and old balances accounts after '%s' invocation", fn.String())
+	}
+	lastChangedAccounts, ok := ws.lbc.lastChanges()
+	if !ok {
+		return errors.Errorf("failed to load last changed accounts layer after '%s' invocation", fn.String())
+	}
+
+	vErr := validateChangedWavesBalancesWithOldBalancesBeforeTx(
+		scheme, changedWavesBalances, oldWavesBalances, lastChangedAccounts.changedLeaseBalances,
+	)
+	if vErr != nil {
+		return errors.Wrapf(vErr, "failed to validate changed balances after '%s' invocation", fn.String())
+	}
+	return nil
+}
+
+type changedWavesBalancesProfile struct {
+	addrID proto.AddressID
+	diff   diffBalance
+}
+
+func validateChangedWavesBalancesWithOldBalancesBeforeTx(
+	scheme proto.Scheme,
+	changedWavesBalances, oldWavesBalances []changedWavesBalancesProfile,
+	changedLeaseBalancesAccountsAtTheLastChangesLayer map[proto.AddressID]struct{},
+) error {
+	if len(changedWavesBalances) != len(oldWavesBalances) { // sanity check, length must be the same
+		return errors.Errorf(
+			"BUG: changed and old balances lengths are different: len(changed)=%d, len(old)=%d",
+			len(changedWavesBalances), len(oldWavesBalances),
+		)
+	}
+	for i := range changedWavesBalances {
+		if changedWavesBalances[i].addrID != oldWavesBalances[i].addrID { // sanity check
+			return errors.Errorf(
+				"BUG: changed and old balances addresses are different at index %d: changed=%s, old=%s", i,
+				base58.Encode(changedWavesBalances[i].addrID.Bytes()),
+				base58.Encode(oldWavesBalances[i].addrID.Bytes()),
+			)
+		}
+		addrID := changedWavesBalances[i].addrID
+		changedBalance := changedWavesBalances[i].diff
+		oldBalance := oldWavesBalances[i].diff
+
+		if _, err := changedBalance.checkedRegularBalance(); err != nil { // check regular balance
+			return errors.Wrap(err, "failed to validate regular changed balance")
+		}
+		var (
+			wavesAfter               = changedBalance.balance // regular balance
+			wavesWithoutDepositAfter = wavesAfter             // TODO: need to take deposit into account
+		)
+		var (
+			currentLeaseIn                       = changedBalance.leaseIn
+			currentLeaseOut                      = changedBalance.leaseOut
+			_, leaseBalanceChangedAtTheLastLayer = changedLeaseBalancesAccountsAtTheLastChangesLayer[addrID]
+		)
+		if !leaseBalanceChangedAtTheLastLayer { // no lease changes at the last layer of balance changes
+			currentLeaseIn = oldBalance.leaseIn
+			currentLeaseOut = oldBalance.leaseOut
+		}
+		scalaLikeEffectiveBalance := wavesWithoutDepositAfter + currentLeaseIn - currentLeaseOut
+		if scalaLikeEffectiveBalance < 0 {
+			addrIDBytes := addrID.Bytes()
+			addr, aErr := proto.RebuildAddress(scheme, addrIDBytes)
+			if aErr != nil {
+				return errors.Wrapf(aErr, "failed to rebuild address from addrID '%s'", base58.Encode(addrIDBytes))
+			}
+			return errors.Errorf(
+				"negative scala-like effective balance %d for '%s', leaseBalanceChangedAtTheLastLayer=%t: before %s; after %s",
+				scalaLikeEffectiveBalance,
+				addr.String(),
+				leaseBalanceChangedAtTheLastLayer,
+				formStateChangesStringPartForErr(oldBalance.balance, oldBalance.leaseOut, oldBalance.leaseIn),
+				formStateChangesStringPartForErr(wavesAfter, currentLeaseOut, currentLeaseIn),
+			)
+		}
+	}
+	return nil
+}
+
+func formStateChangesStringPartForErr(wavesRegularBalance int64, leaseOut int64, leaseIn int64) string {
+	return fmt.Sprintf("(spendable=%d waves=%d leaseOut=%d leaseIn=%d)", // TODO: add deposit
+		wavesRegularBalance-leaseOut, wavesRegularBalance, leaseOut, leaseIn,
+	)
+}
+
+func getChangedLeaseBalancesAccountsAfterCurrentInvoke(
+	diff diffState, scriptActions []proto.ScriptAction,
+) (map[proto.AddressID]struct{}, error) {
+	changedLeaseBalancesAccounts := make(map[proto.AddressID]struct{})
+	for _, action := range scriptActions { // find lease and lease cancel actions in current invoke
+		switch a := action.(type) {
+		case *proto.LeaseScriptAction:
+			l, ok := diff.leases[a.ID] // get active lease with sanity checks
+			if !ok {
+				return nil, errors.Errorf("failed to find lease by ID %s", a.ID.String())
+			}
+			if !l.active {
+				return nil, errors.Errorf("lease by ID %s is not active", a.ID.String())
+			}
+			changedLeaseBalancesAccounts[l.sender.ID()] = struct{}{}
+			changedLeaseBalancesAccounts[l.recipient.ID()] = struct{}{}
+		case *proto.LeaseCancelScriptAction:
+			l, ok := diff.leases[a.LeaseID] // get canceled lease with sanity checks
+			if !ok {
+				return nil, errors.Errorf("failed to find lease cancel by ID %s", a.LeaseID.String())
+			}
+			if l.active {
+				return nil, errors.Errorf("lease cancel by ID %s is active", a.LeaseID.String())
+			}
+			changedLeaseBalancesAccounts[l.sender.ID()] = struct{}{}
+			changedLeaseBalancesAccounts[l.recipient.ID()] = struct{}{}
+		default:
+			continue // skip other actions, we are interested only in lease and lease cancel actions
+		}
+	}
+	return changedLeaseBalancesAccounts, nil
 }
 
 type EvaluationEnvironment struct {

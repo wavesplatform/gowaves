@@ -118,6 +118,12 @@ func (i *reentrantInvocation) blocklist() bool {
 	return false
 }
 
+const (
+	// block height of mainnet tx 'B9Uxg5eXYdgW7i8Wxwg8BTJBVvTbR1avwXdRNKQN9kKd'
+	// actually, not all actions should be validated, only balances, but almost all actions touch balances.
+	validateActionsAgainstCleanStateSinceMainnetHeight = 5253552
+)
+
 func performInvoke(invocation invocation, env environment, args ...rideType) (rideType, error) {
 	ws, ok := env.state().(*WrappedState)
 	if !ok {
@@ -129,6 +135,14 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return rideUnit{}, RuntimeError.Errorf("%s: too many internal invocations", invocation.name())
 	}
 	defer ws.setInvocationCount(ic)
+
+	validateActionsAgainstCleanState := env.scheme() == proto.MainNetScheme &&
+		env.height() >= validateActionsAgainstCleanStateSinceMainnetHeight
+	if validateActionsAgainstCleanState {
+		ws.lbc.initNewLayeredWavesBalanceChanges()
+		defer ws.lbc.squashLastChanges()
+	}
+
 	callerAddress, ok := env.this().(rideAddress)
 	if !ok {
 		return rideUnit{}, RuntimeError.Errorf("%s: this has an unexpected type '%s'", invocation.name(), env.this().instanceOf())
@@ -333,7 +347,8 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		}
 	}
 
-	err = ws.smartAppendActions(res.ScriptActions(), env, &localActionsCountValidator)
+	scriptActions := res.ScriptActions()
+	err = ws.smartAppendActions(scriptActions, env, &localActionsCountValidator)
 	if err != nil {
 		if GetEvaluationErrorType(err) == Undefined {
 			return nil, InternalInvocationError.Wrapf(err, "%s: failed to apply actions", invocation.name())
@@ -356,6 +371,21 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 			return nil, RuntimeError.Wrapf(err, "%s: failed to validate balances", invocation.name())
 		}
 		return nil, InternalInvocationError.Wrapf(err, "%s: failed to validate balances", invocation.name())
+	}
+
+	// here we do validations that should happen in the end of the invocation,
+	// but before returning the result to the caller
+	if validateActionsAgainstCleanState {
+		vErr := ws.validateChangedAccountWavesBalancesAgainstBlockchain(env.scheme(), ws.diff, fn, scriptActions)
+		if vErr != nil {
+			if GetEvaluationErrorType(vErr) == Undefined {
+				return nil, InternalInvocationError.Wrapf(vErr,
+					"%s: failed to validate current call '%s' intermediate balances in scala-like way",
+					invocation.name(), fn.String(),
+				)
+			}
+			return nil, vErr
+		}
 	}
 
 	env.setNewDAppAddress(proto.WavesAddress(callerAddress))

@@ -3868,8 +3868,10 @@ func TestOriginCaller(t *testing.T) {
 	txID, err := crypto.NewDigestFromBase58("BuCo8EEM2VbvjJbC6VyBVa64m2fNmdSoKLSxmoshnbmv")
 	require.NoError(t, err)
 
+	const height = 11
+
 	env := newTestEnv(t).withScheme(proto.MainNetScheme).withBlockV5Activated().withProtobufTx().
-		withLibVersion(ast.LibV5).withComplexityLimit(2000).
+		withLibVersion(ast.LibV5).withComplexityLimit(2000).withHeight(height).
 		withMessageLengthV3().withDataEntriesSizeV2().withValidateInternalPayments().
 		withThis(dApp1).withSender(sender).withDApp(dApp1).withAdditionalDApp(dApp2).
 		withTree(dApp1, tree1).withTree(dApp2, tree2).
@@ -3950,8 +3952,11 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 	txID, err := crypto.NewDigestFromBase58("BuCo8EEM2VbvjJbC6VyBVa64m2fNmdSoKLSxmoshnbmv")
 	require.NoError(t, err)
 
+	const height = 11
+
 	env := newTestEnv(t).withScheme(proto.MainNetScheme).withBlockV5Activated().withProtobufTx().
 		withLibVersion(ast.LibV5).withComplexityLimit(2000).withMessageLengthV3().withDataEntriesSizeV2().
+		withHeight(height).
 		withThis(dApp1).withSender(sender).withDApp(dApp1).withAdditionalDApp(dApp2).
 		withTree(dApp1, tree1).withTree(dApp2, tree2).
 		withAsset(&proto.FullAssetInfo{AssetInfo: proto.AssetInfo{
@@ -6501,4 +6506,139 @@ func TestUserFunctionEvaluationComplexities(t *testing.T) {
 				assert.Equal(t, test.expectedComplexity, res.Complexity())
 			})
 	}
+}
+
+func TestUnleaseLeaseTransferMainnet(t *testing.T) {
+	const scheme = proto.MainNetScheme
+
+	proxy := newTestAccountWithScheme(t, scheme, "PROXY_LLT")
+	dapp := newTestAccountWithScheme(t, scheme, "DAPP_LLT")
+	leaseTarget := newTestAccountWithScheme(t, scheme, "TARGET_LLT")
+
+	originalLeaseID := crypto.MustDigestFromBase58("HXa5senn3qfi4sKPPLADnTaYnT2foBrhXnMymqFgpVp8")
+
+	proxySrc := fmt.Sprintf(`
+		{-# STDLIB_VERSION 6 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+
+		let dapp = Address(base58'%s')
+
+		@Callable(i)
+		func bar() = {
+		  strict x = invoke(dapp, "updateLease", [], [])
+		  strict y = invoke(dapp, "refund", [], [])
+		  []
+		}
+
+		@Callable(i)
+		func foo() = {
+		  strict x = invoke(dapp, "updateLeaseRefund", [], [])
+		  []
+		}
+	`,
+		dapp.address().String(),
+	)
+
+	dappSrc := fmt.Sprintf(`
+		{-# STDLIB_VERSION 6 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+
+		let proxy = Address(base58'%s')
+		let originalLeaseID = base58'%s'
+		let leaseTarget = Address(base58'%s')
+
+		func refundInternal() = [
+		  ScriptTransfer(proxy, 250000000, unit)
+		]
+
+		@Callable(i)
+		func updateLease() = [
+		  LeaseCancel(originalLeaseID),
+		  Lease(leaseTarget, 9500000000),
+		  ScriptTransfer(proxy, 200000000, unit)
+		]
+
+		@Callable(i)
+		func refund() = refundInternal()
+
+		@Callable(i)
+		func updateLeaseRefund() = {
+		  strict x = reentrantInvoke(this, "updateLease", [], [])
+		  refundInternal()
+		}
+	`,
+		proxy.address().String(), originalLeaseID.String(), leaseTarget.address().String(),
+	)
+
+	proxyTree, errs := ridec.CompileToTree(proxySrc)
+	require.Empty(t, errs)
+
+	dappTree, errs := ridec.CompileToTree(dappSrc)
+	require.Empty(t, errs)
+
+	buildEnv := func(t *testing.T, height int) *testEnv {
+		return newTestEnv(t).withLibVersion(ast.LibV6).withComplexityLimit(2000).
+			withScheme(scheme).withHeight(height).
+			withBlockV5Activated().withProtobufTx().withRideV6Activated().
+			withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().
+			withThis(proxy).withDApp(proxy).withSender(proxy).
+			withInvocation("bar", withTransactionID(crypto.Digest{})).
+			withTree(proxy, proxyTree).
+			withAdditionalDApp(dapp).withTree(dapp, dappTree).
+			withAdditionalDApp(leaseTarget).
+			withLeasing(originalLeaseID, &proto.LeaseInfo{
+				IsActive:    true,
+				LeaseAmount: 99 * proto.PriceConstant,
+				Sender:      dapp.address(),
+				Recipient:   leaseTarget.address(),
+			}).
+			withWavesBalance(proxy, 1*proto.PriceConstant).
+			withWavesBalance(dapp, 100*proto.PriceConstant, 0, 99*proto.PriceConstant).
+			withWavesBalance(leaseTarget, 0, 99*proto.PriceConstant).
+			withWrappedState()
+	}
+
+	t.Run("before_mainnet_height_of_tx_B9Uxg5eXYdgW7i8Wxwg8BTJBVvTbR1avwXdRNKQN9kKd", func(t *testing.T) {
+		const height = validateActionsAgainstCleanStateSinceMainnetHeight - 1
+		doTest := func(t *testing.T, fn string) {
+			env := buildEnv(t, height)
+			res, err := CallFunction(env.toEnv(), proxyTree, proto.NewFunctionCall(fn, proto.Arguments{}))
+			require.NoError(t, err)
+			require.NotNil(t, res)
+			r, ok := res.(DAppResult)
+			require.True(t, ok)
+			_, _, err = proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+			require.NoError(t, err)
+		}
+		t.Run("bar", func(t *testing.T) { doTest(t, "bar") })
+		t.Run("foo", func(t *testing.T) { doTest(t, "foo") })
+	})
+	t.Run("since_mainnet_height_of_tx_B9Uxg5eXYdgW7i8Wxwg8BTJBVvTbR1avwXdRNKQN9kKd", func(t *testing.T) {
+		const height = validateActionsAgainstCleanStateSinceMainnetHeight
+		t.Run("bar", func(t *testing.T) {
+			env := buildEnv(t, height)
+			res, err := CallFunction(env.toEnv(), proxyTree, proto.NewFunctionCall("bar", proto.Arguments{}))
+			require.Nil(t, res)
+			require.EqualError(t, err,
+				"invoke: failed to validate current call '\"refund\"' intermediate balances in scala-like way: "+
+					"failed to validate changed balances after '\"refund\"' invocation: "+
+					"negative scala-like effective balance -350000000 for '3PLDia9jbzMby2g5uGwdhtFgQXzykKi8SPk', "+
+					"leaseBalanceChangedAtTheLastLayer=false: "+
+					"before (spendable=100000000 waves=10000000000 leaseOut=9900000000 leaseIn=0); "+
+					"after (spendable=-350000000 waves=9550000000 leaseOut=9900000000 leaseIn=0)",
+			)
+		})
+		t.Run("foo", func(t *testing.T) {
+			env := buildEnv(t, height)
+			res, err := CallFunction(env.toEnv(), proxyTree, proto.NewFunctionCall("foo", proto.Arguments{}))
+			require.NoError(t, err)
+			require.NotNil(t, res)
+			r, ok := res.(DAppResult)
+			require.True(t, ok)
+			_, _, err = proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+			require.NoError(t, err)
+		})
+	})
 }
