@@ -1211,7 +1211,6 @@ func (s *stateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWav
 		Effective:  effective,
 		LeaseIn:    profile.LeaseInAsUint64(),
 		LeaseOut:   profile.LeaseOutAsUint64(),
-		//TODO: Add Deposit to the profile.
 	}, nil
 }
 
@@ -1271,9 +1270,9 @@ func (s *stateManager) WavesBalanceProfile(id proto.AddressID) (*types.WavesBala
 		Balance:    profile.Balance,
 		LeaseIn:    profile.LeaseIn,
 		LeaseOut:   profile.LeaseOut,
+		Deposit:    profile.Deposit,
 		Generating: generating,
 		Challenged: challenged,
-		//TODO: Add Deposit to the profile.
 	}, nil
 }
 

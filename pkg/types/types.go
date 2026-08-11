@@ -62,6 +62,7 @@ type WavesBalanceProfile struct {
 	Balance    uint64
 	LeaseIn    int64
 	LeaseOut   int64
+	Deposit    uint64
 	Generating uint64
 	Challenged bool // if Challenged true, the account considered as challenged at the current height.
 }
@@ -81,14 +82,22 @@ func (bp *WavesBalanceProfile) EffectiveBalance() (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return common.SubInt(val, uint64(bp.LeaseOut))
+	val, err = common.SubInt(val, uint64(bp.LeaseOut))
+	if err != nil {
+		return 0, err
+	}
+	return common.SubInt(val, bp.Deposit)
 }
 
 func (bp *WavesBalanceProfile) SpendableBalance() (uint64, error) {
 	if bp.LeaseOut < 0 {
 		return 0, fmt.Errorf("negative lease out balance %d", bp.LeaseOut)
 	}
-	return common.SubInt(bp.Balance, uint64(bp.LeaseOut))
+	val, err := common.SubInt(bp.Balance, uint64(bp.LeaseOut))
+	if err != nil {
+		return 0, err
+	}
+	return common.SubInt(val, bp.Deposit)
 }
 
 func (bp *WavesBalanceProfile) ToFullWavesBalance() (*proto.FullWavesBalance, error) {
