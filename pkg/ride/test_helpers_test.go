@@ -285,22 +285,7 @@ func newTestEnv(t *testing.T) *testEnv {
 				return nil, err
 			}
 			if profile, ok := r.waves[addr]; ok {
-				eff := int64(profile.Balance) + profile.LeaseIn - profile.LeaseOut
-				if eff < 0 {
-					return nil, errors.New("negative effective balance")
-				}
-				spb := int64(profile.Balance) - profile.LeaseOut
-				if spb < 0 {
-					return nil, errors.New("negative spendable balance")
-				}
-				return &proto.FullWavesBalance{
-					Regular:    profile.Balance,
-					Generating: profile.Generating,
-					Available:  uint64(spb),
-					Effective:  uint64(eff),
-					LeaseIn:    uint64(profile.LeaseIn),
-					LeaseOut:   uint64(profile.LeaseOut),
-				}, nil
+				return profile.ToFullWavesBalance()
 			}
 			return nil, errors.Errorf("no balance profile for address '%s'", addr.String())
 		}).Maybe()
