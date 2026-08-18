@@ -36,7 +36,7 @@ func (esk *EthereumPrivateKey) EthereumPublicKey() *EthereumPublicKey {
 type EthereumPublicKey btcec.PublicKey
 
 // MarshalJSON marshal EthereumPublicKey in hex encoding.
-func (epk *EthereumPublicKey) MarshalJSON() ([]byte, error) {
+func (epk EthereumPublicKey) MarshalJSON() ([]byte, error) {
 	data := epk.SerializeXYCoordinates()
 	return HexBytes(data).MarshalJSON()
 }

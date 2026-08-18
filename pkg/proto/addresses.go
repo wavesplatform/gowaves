@@ -671,7 +671,7 @@ func (r *aliasRecipient) String() string {
 	return r.al.String()
 }
 
-func (r *aliasRecipient) MarshalJSON() ([]byte, error) {
+func (r aliasRecipient) MarshalJSON() ([]byte, error) {
 	return r.al.MarshalJSON()
 }
 
@@ -726,7 +726,7 @@ func (r *wavesAddressRecipient) ToProtobuf() (*g.Recipient, error) {
 	return &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: r.addr.Body()}}, nil
 }
 
-func (r *wavesAddressRecipient) MarshalJSON() ([]byte, error) {
+func (r wavesAddressRecipient) MarshalJSON() ([]byte, error) {
 	return r.addr.MarshalJSON()
 }
 
