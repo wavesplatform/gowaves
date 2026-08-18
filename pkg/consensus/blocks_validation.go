@@ -13,14 +13,9 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
-const (
-	// Maximum forward offset (to the future) for block timestamps.
-	// In milliseconds.
-	maxTimeDrift = 100
-
-	generatingBalanceForGenerator1 = uint64(1000000000000)
-	generatingBalanceForGenerator2 = uint64(100000000000)
-)
+// Maximum forward offset (to the future) for block timestamps.
+// In milliseconds.
+const maxTimeDrift = 100
 
 // Invalid blocks that are already in blockchain.
 var mainNetInvalidBlocks = map[string]uint64{
@@ -42,6 +37,7 @@ type stateInfoProvider interface {
 	NewestIsActiveAtHeight(featureID int16, height proto.Height) (bool, error)
 	NewestActivationHeight(featureID int16) (uint64, error)
 	NewestAccountHasScript(addr proto.WavesAddress) (bool, error)
+	NewestMinimalGeneratingBalanceAtHeight(height proto.Height, timestamp uint64) uint64
 }
 
 type Validator struct {
@@ -61,10 +57,6 @@ func NewValidator(state stateInfoProvider, settings *settings.BlockchainSettings
 	}
 }
 
-func (cv *Validator) smallerMinimalGeneratingBalanceActivated(height uint64) (bool, error) {
-	return cv.state.NewestIsActiveAtHeight(int16(settings.SmallerMinimalGeneratingBalance), height)
-}
-
 func (cv *Validator) fairPosActivated(height uint64) (bool, error) {
 	return cv.state.NewestIsActiveAtHeight(int16(settings.FairPoS), height)
 }
@@ -75,6 +67,10 @@ func (cv *Validator) blockV5Activated(height uint64) (bool, error) {
 
 func (cv *Validator) rideV6Activated(height uint64) (bool, error) {
 	return cv.state.NewestIsActiveAtHeight(int16(settings.RideV6), height)
+}
+
+func (cv *Validator) finalityActivated(height uint64) (bool, error) {
+	return cv.state.NewestIsActiveAtHeight(int16(settings.DeterministicFinality), height)
 }
 
 func (cv *Validator) posAlgo(height uint64) (PosCalculator, error) {
@@ -150,6 +146,9 @@ func (cv *Validator) ValidateHeaderBeforeBlockApplying(
 	if err := cv.validateLightNodeBlockFields(newestHeader, blockHeight); err != nil {
 		return errors.Wrap(err, "light node block fields validation failed")
 	}
+	if err := cv.validateFinalizationVoting(newestHeader, blockHeight); err != nil {
+		return errors.Wrap(err, "finalization voting validation failed")
+	}
 	return nil
 }
 
@@ -188,31 +187,18 @@ func (cv *Validator) ValidateHeadersBatch(headers []proto.BlockHeader, startHeig
 }
 
 func (cv *Validator) validateGeneratingBalance(header *proto.BlockHeader, balance, height uint64) error {
-	if header.Timestamp < cv.settings.MinimalGeneratingBalanceCheckAfterTime {
-		return nil
-	}
-	smallerGeneratingBalance, err := cv.smallerMinimalGeneratingBalanceActivated(height)
-	if err != nil {
-		return err
-	}
-	if smallerGeneratingBalance {
-		if balance < generatingBalanceForGenerator2 {
-			return errors.Errorf(
-				"generator's generating balance is less than required for generation: expected %d, found %d",
-				generatingBalanceForGenerator2, balance,
-			)
-		}
-		return nil
-	}
-	if balance < generatingBalanceForGenerator1 {
+	mgb := cv.state.NewestMinimalGeneratingBalanceAtHeight(height, header.Timestamp)
+	if balance < mgb {
 		return errors.Errorf(
 			"generator's generating balance is less than required for generation: expected %d, found %d",
-			generatingBalanceForGenerator1, balance,
+			mgb, balance,
 		)
 	}
 	return nil
 }
 
+// minerGenerationBalance returns generation balance of the generator of the block.
+// The height passed here is a height of the state.
 func (cv *Validator) minerGeneratingBalance(height uint64, header *proto.BlockHeader) (uint64, error) {
 	return cv.state.NewestMinerGeneratingBalance(header, height)
 }
@@ -387,21 +373,22 @@ func (cv *Validator) generateAndCheckNextHitSource(height uint64, header *proto.
 				header.GenSignature.String(), header.ID.String(), height, base58.Encode(refGenSig))
 		}
 		return hs, pos, gsp, vrf, nil
-	} else {
-		refGenSig, err := cv.state.NewestHitSourceAtHeight(height)
-		if err != nil {
-			return nil, nil, nil, false, errors.Wrap(err, "failed to generate hit source")
-		}
-		ok, hs, err := gsp.VerifyGenerationSignature(header.GeneratorPublicKey, refGenSig, header.GenSignature)
-		if err != nil {
-			return nil, nil, nil, false, errors.Wrap(err, "failed to validate hit source")
-		}
-		if !ok {
-			return nil, nil, nil, false, errors.Errorf("invalid hit source '%s' of block '%s' at height %d (ref gen-sig '%s'), without vrf",
-				header.GenSignature.String(), header.ID.String(), height, base58.Encode(refGenSig))
-		}
-		return hs, pos, gsp, vrf, nil
 	}
+	refGenSig, err := cv.state.NewestHitSourceAtHeight(height)
+	if err != nil {
+		return nil, nil, nil, false, errors.Wrap(err, "failed to generate hit source")
+	}
+	ok, hs, err := gsp.VerifyGenerationSignature(header.GeneratorPublicKey, refGenSig, header.GenSignature)
+	if err != nil {
+		return nil, nil, nil, false, errors.Wrap(err, "failed to validate hit source")
+	}
+	if !ok {
+		return nil, nil, nil, false, errors.Errorf(
+			"invalid hit source '%s' of block '%s' at height %d (ref gen-sig '%s'), without vrf",
+			header.GenSignature.String(), header.ID.String(), height, base58.Encode(refGenSig),
+		)
+	}
+	return hs, pos, gsp, vrf, nil
 }
 
 func (cv *Validator) validateGeneratorSignatureAndBlockDelay(height uint64, header *proto.BlockHeader) error {
@@ -462,4 +449,27 @@ func (cv *Validator) validateBlockTimestamp(header *proto.BlockHeader) error {
 			header.Timestamp-currentTimestamp)
 	}
 	return nil
+}
+
+// validateFinalizationVoting checks that a block has finalization voting field only after activation of Deterministic
+// Finality feature. Also, it checks that finalization voting doesn't have any duplications.
+func (cv *Validator) validateFinalizationVoting(header *proto.BlockHeader, height uint64) error {
+	finalityActive, err := cv.finalityActivated(height)
+	if err != nil {
+		return fmt.Errorf("failed to validate finalization voting header at height %d: %w", height, err)
+	}
+	voting, hasVoting := header.GetFinalizationVoting()
+	if !finalityActive && hasVoting {
+		return fmt.Errorf("block '%s' at height %d has non-empty finalization voting but Deterministic Finality "+
+			"feature is not activated", header.BlockID().String(), height)
+	}
+	if len(voting.ConflictEndorsements) > cv.settings.MaxEndorsements {
+		return fmt.Errorf("block '%s' at height %d has more than %d conflicting endorsements",
+			header.BlockID().String(), height, cv.settings.MaxEndorsements)
+	}
+	if len(voting.EndorserIndexes) > cv.settings.MaxEndorsements {
+		return fmt.Errorf("block '%s' at height %d has more than %d endorsements",
+			header.BlockID().String(), height, cv.settings.MaxEndorsements)
+	}
+	return voting.Validate()
 }

@@ -49,6 +49,7 @@ type Services struct {
 	Scheduler       types.Scheduler
 	BlocksApplier   BlocksApplier
 	UtxPool         types.UtxPool
+	EndorsementPool types.EndorsementPool
 	Scheme          proto.Scheme
 	InvRequester    types.InvRequester
 	Time            types.Time

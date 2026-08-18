@@ -1,3 +1,4 @@
+//nolint:exhaustive // Complicated usage of generated pegRules.
 package compiler
 
 import (
@@ -10,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 
 	"github.com/mr-tron/base58"
@@ -1148,9 +1150,9 @@ func (p *astParser) ruleBooleanAtomHandler(node *node32) (ast.Node, s.Type) {
 	value := p.nodeValue(node)
 	var boolValue bool
 	switch value {
-	case "true":
+	case proto.TrueString:
 		boolValue = true
-	case "false":
+	case proto.FalseString:
 		boolValue = false
 	}
 	return ast.NewBooleanNode(boolValue), s.BooleanType
@@ -1711,7 +1713,7 @@ func (p *astParser) loadMeta(name string, argsTypes []s.Type) error {
 	switch p.tree.LibVersion {
 	case ast.LibV1, ast.LibV2, ast.LibV3, ast.LibV4, ast.LibV5:
 		return p.loadMetaBeforeV6(name, argsTypes)
-	case ast.LibV6, ast.LibV7, ast.LibV8:
+	case ast.LibV6, ast.LibV7, ast.LibV8, ast.LibV9:
 		return p.loadMetaV6(name, argsTypes)
 	}
 	return nil
@@ -1843,7 +1845,7 @@ func (p *astParser) ruleAnnotatedFunc(node *node32) {
 			if !s.CallableRetV4.EqualWithEntry(retType) && !s.ThrowType.Equal(retType) {
 				p.addError(curNode.token32, "CallableFunc must return %s,but return %s", s.CallableRetV4.String(), retType.String())
 			}
-		case ast.LibV5, ast.LibV6, ast.LibV7, ast.LibV8:
+		case ast.LibV5, ast.LibV6, ast.LibV7, ast.LibV8, ast.LibV9:
 			if !s.CallableRetV5.EqualWithEntry(retType) && !s.ThrowType.Equal(retType) {
 				p.addError(curNode.token32, "CallableFunc must return %s, but return %s", s.CallableRetV5.String(), retType.String())
 			}

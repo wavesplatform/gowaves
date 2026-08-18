@@ -1,0 +1,24 @@
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+# Functions under test: getIntegerValue(List[DataEntry], Int)
+#                        getBooleanValue(List[DataEntry], Int)
+#                        getBinaryValue(List[DataEntry], Int)
+#                        getStringValue(List[DataEntry], Int)
+#
+# Discrepancy (by-index throwing variants, V3 only):
+#   Scala doc complexity = 30 each, Go catalogue (@extrUser) = 10 each
+#
+# Each function is called exactly once.
+# The total delta between Scala and Go estimation = 4 * (30 - 10) = 80.
+
+let iData = [DataEntry("k", 1)]
+let bData = [DataEntry("k", true)]
+let nData = [DataEntry("k", base58'')]
+let sData = [DataEntry("k", "s")]
+
+getIntegerValue(iData, 0) == 1 &&
+getBooleanValue(bData, 0) &&
+size(getBinaryValue(nData, 0)) == 0 &&
+getStringValue(sData, 0) == "s"

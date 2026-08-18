@@ -114,11 +114,119 @@ type WrongJsonError struct {
 func NewWrongJsonError(cause string, validationErrors []error) *WrongJsonError {
 	return &WrongJsonError{
 		genericError: genericError{
-			ID:       WrongJsonErrorID,
+			ID:       WrongJSONErrorID,
 			HttpCode: http.StatusBadRequest,
 			Message:  "failed to parse json message",
 		},
 		Cause:            cause,
 		ValidationErrors: validationErrors,
+	}
+}
+
+// UnavailableError UnknownError is a wrapper for any error related to service unavailability.
+type UnavailableError struct {
+	genericError
+	inner error
+}
+
+func (u *UnavailableError) Unwrap() error {
+	return u.inner
+}
+
+func (u *UnavailableError) Error() string {
+	if u.Unwrap() != nil {
+		return fmt.Sprintf(
+			"%s; inner error (%T): %s",
+			u.genericError.Error(),
+			u.Unwrap(), u.Unwrap().Error(),
+		)
+	}
+	return u.genericError.Error()
+}
+
+func NewUnavailableError(inner error) *UnavailableError {
+	return NewUnavailableErrorWithMsg("Service is unavailable", inner)
+}
+
+func NewUnavailableErrorWithMsg(message string, inner error) *UnavailableError {
+	return &UnavailableError{
+		genericError: genericError{
+			ID:       ServiceUnavailableErrorID,
+			HttpCode: http.StatusServiceUnavailable,
+			Message:  message,
+		},
+		inner: inner,
+	}
+}
+
+// BadRequestError is a wrapper for any bad request error.
+type BadRequestError struct {
+	genericError
+	inner error
+}
+
+func (u *BadRequestError) Unwrap() error {
+	return u.inner
+}
+
+func (u *BadRequestError) Error() string {
+	if u.Unwrap() != nil {
+		return fmt.Sprintf(
+			"%s; inner error (%T): %s",
+			u.genericError.Error(),
+			u.Unwrap(), u.Unwrap().Error(),
+		)
+	}
+	return u.genericError.Error()
+}
+
+func NewBadRequestError(inner error) *BadRequestError {
+	return NewBadRequestErrorWithMsg("Bad request", inner)
+}
+
+func NewBadRequestErrorWithMsg(message string, inner error) *BadRequestError {
+	return &BadRequestError{
+		genericError: genericError{
+			ID:       BadRequestErrorID,
+			HttpCode: http.StatusBadRequest,
+			Message:  message,
+		},
+		inner: inner,
+	}
+}
+
+// NotImplementedError is a wrapper for any not implemented error.
+type NotImplementedError struct {
+	genericError
+	inner error
+}
+
+func (u *NotImplementedError) Unwrap() error {
+	return u.inner
+}
+
+func (u *NotImplementedError) Error() string {
+	if u.Unwrap() != nil {
+		return fmt.Sprintf(
+			"%s; inner error (%T): %s",
+			u.genericError.Error(),
+			u.Unwrap(), u.Unwrap().Error(),
+		)
+	}
+	return u.genericError.Error()
+}
+
+func NewNotImplementedError(inner error) *NotImplementedError {
+	return NewNotImplementedErrorWithMsg("Not implemented", inner)
+}
+
+func NewNotImplementedErrorWithMsg(message string, inner error) *NotImplementedError {
+	return &NotImplementedError{
+		genericError: genericError{
+			ID:       NotImplementedErrorID,
+			HttpCode: http.StatusNotImplemented,
+			Message:  message,
+		},
+		inner: inner,
 	}
 }

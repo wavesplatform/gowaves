@@ -188,7 +188,7 @@ func createKeyBlock(t *testing.T, hitSource []byte, cfg *settings.BlockchainSett
 	nxt := proto.NxtConsensus{BaseTarget: bt, GenSignature: gs}
 
 	bl, err := proto.CreateBlock(proto.Transactions(nil), ts, parentID, generatorPK, nxt, proto.ProtobufBlockVersion,
-		nil, int64(cfg.InitialBlockReward), cfg.AddressSchemeCharacter, &sh)
+		nil, int64(cfg.InitialBlockReward), cfg.AddressSchemeCharacter, &sh, nil)
 	require.NoError(t, err, "failed to create block")
 
 	// Sign the block and generate its ID.
@@ -214,7 +214,7 @@ func createMicroBlockAndInv(t *testing.T, b proto.Block, cfg *settings.Blockchai
 	require.NoError(t, err, "failed to generate block ID")
 
 	mb := &proto.MicroBlock{
-		VersionField:          byte(b.Version),
+		VersionField:          b.Version,
 		SenderPK:              generatorPK,
 		Transactions:          b.Transactions,
 		TransactionCount:      uint32(b.TransactionCount),

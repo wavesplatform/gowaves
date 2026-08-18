@@ -9,6 +9,7 @@ require (
 	github.com/ccoveille/go-safecast/v2 v2.0.1
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/cespare/xxhash/v2 v2.3.0
+	github.com/cloudflare/circl v1.6.3
 	github.com/consensys/gnark v0.15.0
 	github.com/consensys/gnark-crypto v0.20.1
 	github.com/coocood/freecache v1.2.7

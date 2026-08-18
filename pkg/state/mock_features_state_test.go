@@ -62,7 +62,7 @@ type MockFeaturesState_activateFeature_Call struct {
 //   - featureID int16
 //   - r *activatedFeaturesRecord
 //   - blockID proto.BlockID
-func (_e *MockFeaturesState_Expecter) activateFeature(featureID interface{}, r interface{}, blockID interface{}) *MockFeaturesState_activateFeature_Call {
+func (_e *MockFeaturesState_Expecter) activateFeature(featureID any, r any, blockID any) *MockFeaturesState_activateFeature_Call {
 	return &MockFeaturesState_activateFeature_Call{Call: _e.mock.On("activateFeature", featureID, r, blockID)}
 }
 
@@ -132,7 +132,7 @@ type MockFeaturesState_activationHeight_Call struct {
 
 // activationHeight is a helper method to define mock.On call
 //   - featureID int16
-func (_e *MockFeaturesState_Expecter) activationHeight(featureID interface{}) *MockFeaturesState_activationHeight_Call {
+func (_e *MockFeaturesState_Expecter) activationHeight(featureID any) *MockFeaturesState_activationHeight_Call {
 	return &MockFeaturesState_activationHeight_Call{Call: _e.mock.On("activationHeight", featureID)}
 }
 
@@ -184,7 +184,7 @@ type MockFeaturesState_addVote_Call struct {
 // addVote is a helper method to define mock.On call
 //   - featureID int16
 //   - blockID proto.BlockID
-func (_e *MockFeaturesState_Expecter) addVote(featureID interface{}, blockID interface{}) *MockFeaturesState_addVote_Call {
+func (_e *MockFeaturesState_Expecter) addVote(featureID any, blockID any) *MockFeaturesState_addVote_Call {
 	return &MockFeaturesState_addVote_Call{Call: _e.mock.On("addVote", featureID, blockID)}
 }
 
@@ -304,7 +304,7 @@ type MockFeaturesState_approvalHeight_Call struct {
 
 // approvalHeight is a helper method to define mock.On call
 //   - featureID int16
-func (_e *MockFeaturesState_Expecter) approvalHeight(featureID interface{}) *MockFeaturesState_approvalHeight_Call {
+func (_e *MockFeaturesState_Expecter) approvalHeight(featureID any) *MockFeaturesState_approvalHeight_Call {
 	return &MockFeaturesState_approvalHeight_Call{Call: _e.mock.On("approvalHeight", featureID)}
 }
 
@@ -357,7 +357,7 @@ type MockFeaturesState_approveFeature_Call struct {
 //   - featureID int16
 //   - r *approvedFeaturesRecord
 //   - blockID proto.BlockID
-func (_e *MockFeaturesState_Expecter) approveFeature(featureID interface{}, r interface{}, blockID interface{}) *MockFeaturesState_approveFeature_Call {
+func (_e *MockFeaturesState_Expecter) approveFeature(featureID any, r any, blockID any) *MockFeaturesState_approveFeature_Call {
 	return &MockFeaturesState_approveFeature_Call{Call: _e.mock.On("approveFeature", featureID, r, blockID)}
 }
 
@@ -460,7 +460,7 @@ type MockFeaturesState_featureVotes_Call struct {
 
 // featureVotes is a helper method to define mock.On call
 //   - featureID int16
-func (_e *MockFeaturesState_Expecter) featureVotes(featureID interface{}) *MockFeaturesState_featureVotes_Call {
+func (_e *MockFeaturesState_Expecter) featureVotes(featureID any) *MockFeaturesState_featureVotes_Call {
 	return &MockFeaturesState_featureVotes_Call{Call: _e.mock.On("featureVotes", featureID)}
 }
 
@@ -521,7 +521,7 @@ type MockFeaturesState_featureVotesAtHeight_Call struct {
 // featureVotesAtHeight is a helper method to define mock.On call
 //   - featureID int16
 //   - height uint64
-func (_e *MockFeaturesState_Expecter) featureVotesAtHeight(featureID interface{}, height interface{}) *MockFeaturesState_featureVotesAtHeight_Call {
+func (_e *MockFeaturesState_Expecter) featureVotesAtHeight(featureID any, height any) *MockFeaturesState_featureVotesAtHeight_Call {
 	return &MockFeaturesState_featureVotesAtHeight_Call{Call: _e.mock.On("featureVotesAtHeight", featureID, height)}
 }
 
@@ -578,7 +578,7 @@ type MockFeaturesState_finishVoting_Call struct {
 // finishVoting is a helper method to define mock.On call
 //   - curHeight uint64
 //   - blockID proto.BlockID
-func (_e *MockFeaturesState_Expecter) finishVoting(curHeight interface{}, blockID interface{}) *MockFeaturesState_finishVoting_Call {
+func (_e *MockFeaturesState_Expecter) finishVoting(curHeight any, blockID any) *MockFeaturesState_finishVoting_Call {
 	return &MockFeaturesState_finishVoting_Call{Call: _e.mock.On("finishVoting", curHeight, blockID)}
 }
 
@@ -643,7 +643,7 @@ type MockFeaturesState_isActivated_Call struct {
 
 // isActivated is a helper method to define mock.On call
 //   - featureID int16
-func (_e *MockFeaturesState_Expecter) isActivated(featureID interface{}) *MockFeaturesState_isActivated_Call {
+func (_e *MockFeaturesState_Expecter) isActivated(featureID any) *MockFeaturesState_isActivated_Call {
 	return &MockFeaturesState_isActivated_Call{Call: _e.mock.On("isActivated", featureID)}
 }
 
@@ -695,7 +695,7 @@ type MockFeaturesState_isActivatedAtHeight_Call struct {
 // isActivatedAtHeight is a helper method to define mock.On call
 //   - featureID int16
 //   - height uint64
-func (_e *MockFeaturesState_Expecter) isActivatedAtHeight(featureID interface{}, height interface{}) *MockFeaturesState_isActivatedAtHeight_Call {
+func (_e *MockFeaturesState_Expecter) isActivatedAtHeight(featureID any, height any) *MockFeaturesState_isActivatedAtHeight_Call {
 	return &MockFeaturesState_isActivatedAtHeight_Call{Call: _e.mock.On("isActivatedAtHeight", featureID, height)}
 }
 
@@ -760,7 +760,7 @@ type MockFeaturesState_isApproved_Call struct {
 
 // isApproved is a helper method to define mock.On call
 //   - featureID int16
-func (_e *MockFeaturesState_Expecter) isApproved(featureID interface{}) *MockFeaturesState_isApproved_Call {
+func (_e *MockFeaturesState_Expecter) isApproved(featureID any) *MockFeaturesState_isApproved_Call {
 	return &MockFeaturesState_isApproved_Call{Call: _e.mock.On("isApproved", featureID)}
 }
 
@@ -812,7 +812,7 @@ type MockFeaturesState_isApprovedAtHeight_Call struct {
 // isApprovedAtHeight is a helper method to define mock.On call
 //   - featureID int16
 //   - height uint64
-func (_e *MockFeaturesState_Expecter) isApprovedAtHeight(featureID interface{}, height interface{}) *MockFeaturesState_isApprovedAtHeight_Call {
+func (_e *MockFeaturesState_Expecter) isApprovedAtHeight(featureID any, height any) *MockFeaturesState_isApprovedAtHeight_Call {
 	return &MockFeaturesState_isApprovedAtHeight_Call{Call: _e.mock.On("isApprovedAtHeight", featureID, height)}
 }
 
@@ -840,6 +840,63 @@ func (_c *MockFeaturesState_isApprovedAtHeight_Call) Return(b bool) *MockFeature
 }
 
 func (_c *MockFeaturesState_isApprovedAtHeight_Call) RunAndReturn(run func(featureID int16, height uint64) bool) *MockFeaturesState_isApprovedAtHeight_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// minimalGeneratingBalanceAtHeight provides a mock function for the type MockFeaturesState
+func (_mock *MockFeaturesState) minimalGeneratingBalanceAtHeight(v proto.Height, v1 uint64) uint64 {
+	ret := _mock.Called(v, v1)
+
+	if len(ret) == 0 {
+		panic("no return value specified for minimalGeneratingBalanceAtHeight")
+	}
+
+	var r0 uint64
+	if returnFunc, ok := ret.Get(0).(func(proto.Height, uint64) uint64); ok {
+		r0 = returnFunc(v, v1)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+	return r0
+}
+
+// MockFeaturesState_minimalGeneratingBalanceAtHeight_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'minimalGeneratingBalanceAtHeight'
+type MockFeaturesState_minimalGeneratingBalanceAtHeight_Call struct {
+	*mock.Call
+}
+
+// minimalGeneratingBalanceAtHeight is a helper method to define mock.On call
+//   - v proto.Height
+//   - v1 uint64
+func (_e *MockFeaturesState_Expecter) minimalGeneratingBalanceAtHeight(v any, v1 any) *MockFeaturesState_minimalGeneratingBalanceAtHeight_Call {
+	return &MockFeaturesState_minimalGeneratingBalanceAtHeight_Call{Call: _e.mock.On("minimalGeneratingBalanceAtHeight", v, v1)}
+}
+
+func (_c *MockFeaturesState_minimalGeneratingBalanceAtHeight_Call) Run(run func(v proto.Height, v1 uint64)) *MockFeaturesState_minimalGeneratingBalanceAtHeight_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 proto.Height
+		if args[0] != nil {
+			arg0 = args[0].(proto.Height)
+		}
+		var arg1 uint64
+		if args[1] != nil {
+			arg1 = args[1].(uint64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockFeaturesState_minimalGeneratingBalanceAtHeight_Call) Return(v2 uint64) *MockFeaturesState_minimalGeneratingBalanceAtHeight_Call {
+	_c.Call.Return(v2)
+	return _c
+}
+
+func (_c *MockFeaturesState_minimalGeneratingBalanceAtHeight_Call) RunAndReturn(run func(v proto.Height, v1 uint64) uint64) *MockFeaturesState_minimalGeneratingBalanceAtHeight_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -877,7 +934,7 @@ type MockFeaturesState_newestActivationHeight_Call struct {
 
 // newestActivationHeight is a helper method to define mock.On call
 //   - featureID int16
-func (_e *MockFeaturesState_Expecter) newestActivationHeight(featureID interface{}) *MockFeaturesState_newestActivationHeight_Call {
+func (_e *MockFeaturesState_Expecter) newestActivationHeight(featureID any) *MockFeaturesState_newestActivationHeight_Call {
 	return &MockFeaturesState_newestActivationHeight_Call{Call: _e.mock.On("newestActivationHeight", featureID)}
 }
 
@@ -937,7 +994,7 @@ type MockFeaturesState_newestApprovalHeight_Call struct {
 
 // newestApprovalHeight is a helper method to define mock.On call
 //   - featureID int16
-func (_e *MockFeaturesState_Expecter) newestApprovalHeight(featureID interface{}) *MockFeaturesState_newestApprovalHeight_Call {
+func (_e *MockFeaturesState_Expecter) newestApprovalHeight(featureID any) *MockFeaturesState_newestApprovalHeight_Call {
 	return &MockFeaturesState_newestApprovalHeight_Call{Call: _e.mock.On("newestApprovalHeight", featureID)}
 }
 
@@ -997,7 +1054,7 @@ type MockFeaturesState_newestIsActivated_Call struct {
 
 // newestIsActivated is a helper method to define mock.On call
 //   - featureID int16
-func (_e *MockFeaturesState_Expecter) newestIsActivated(featureID interface{}) *MockFeaturesState_newestIsActivated_Call {
+func (_e *MockFeaturesState_Expecter) newestIsActivated(featureID any) *MockFeaturesState_newestIsActivated_Call {
 	return &MockFeaturesState_newestIsActivated_Call{Call: _e.mock.On("newestIsActivated", featureID)}
 }
 
@@ -1049,7 +1106,7 @@ type MockFeaturesState_newestIsActivatedAtHeight_Call struct {
 // newestIsActivatedAtHeight is a helper method to define mock.On call
 //   - featureID int16
 //   - height uint64
-func (_e *MockFeaturesState_Expecter) newestIsActivatedAtHeight(featureID interface{}, height interface{}) *MockFeaturesState_newestIsActivatedAtHeight_Call {
+func (_e *MockFeaturesState_Expecter) newestIsActivatedAtHeight(featureID any, height any) *MockFeaturesState_newestIsActivatedAtHeight_Call {
 	return &MockFeaturesState_newestIsActivatedAtHeight_Call{Call: _e.mock.On("newestIsActivatedAtHeight", featureID, height)}
 }
 
@@ -1115,7 +1172,7 @@ type MockFeaturesState_newestIsActivatedForNBlocks_Call struct {
 // newestIsActivatedForNBlocks is a helper method to define mock.On call
 //   - featureID int16
 //   - n int
-func (_e *MockFeaturesState_Expecter) newestIsActivatedForNBlocks(featureID interface{}, n interface{}) *MockFeaturesState_newestIsActivatedForNBlocks_Call {
+func (_e *MockFeaturesState_Expecter) newestIsActivatedForNBlocks(featureID any, n any) *MockFeaturesState_newestIsActivatedForNBlocks_Call {
 	return &MockFeaturesState_newestIsActivatedForNBlocks_Call{Call: _e.mock.On("newestIsActivatedForNBlocks", featureID, n)}
 }
 
@@ -1180,7 +1237,7 @@ type MockFeaturesState_newestIsApproved_Call struct {
 
 // newestIsApproved is a helper method to define mock.On call
 //   - featureID int16
-func (_e *MockFeaturesState_Expecter) newestIsApproved(featureID interface{}) *MockFeaturesState_newestIsApproved_Call {
+func (_e *MockFeaturesState_Expecter) newestIsApproved(featureID any) *MockFeaturesState_newestIsApproved_Call {
 	return &MockFeaturesState_newestIsApproved_Call{Call: _e.mock.On("newestIsApproved", featureID)}
 }
 
@@ -1231,7 +1288,7 @@ type MockFeaturesState_resetVotes_Call struct {
 
 // resetVotes is a helper method to define mock.On call
 //   - blockID proto.BlockID
-func (_e *MockFeaturesState_Expecter) resetVotes(blockID interface{}) *MockFeaturesState_resetVotes_Call {
+func (_e *MockFeaturesState_Expecter) resetVotes(blockID any) *MockFeaturesState_resetVotes_Call {
 	return &MockFeaturesState_resetVotes_Call{Call: _e.mock.On("resetVotes", blockID)}
 }
 

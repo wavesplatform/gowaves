@@ -63,7 +63,7 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	LightNode:                       {true, "Light Node"},
 	BoostBlockReward:                {true, "Boost Block Reward"},
 	ecrecoverFix:                    {true, "Fixed ecrecover function"},
-	DeterministicFinality:           {false, "Deterministic Finality and Ride V9"},
+	DeterministicFinality:           {true, "Deterministic Finality and Ride V9"},
 	InvokeExpression:                {false, "InvokeExpression"},
 }
 

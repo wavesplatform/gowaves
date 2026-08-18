@@ -587,7 +587,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 			return false, err
 		}
 		localEnv.SetThisFromAssetInfo(assetInfo)
-	default:
+	case ast.LibV4, ast.LibV5, ast.LibV6, ast.LibV7, ast.LibV8, ast.LibV9:
 		assetInfo, err := ws.NewestFullAssetInfo(asset.ID)
 		if err != nil {
 			return false, err
@@ -1449,7 +1449,10 @@ func (e *EvaluationEnvironment) SetLastBlockFromBlockInfo(info *proto.BlockInfo)
 	if err != nil {
 		return err
 	}
-	block := blockInfoToObject(info, v)
+	block, err := blockInfoToObject(info, v)
+	if err != nil {
+		return err
+	}
 	e.setLastBlock(block)
 	return nil
 }

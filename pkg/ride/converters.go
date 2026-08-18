@@ -1,6 +1,9 @@
 package ride
 
 import (
+	"fmt"
+
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -80,6 +83,8 @@ func transactionToObject(env reducedReadOnlyEnv, tx proto.Transaction) (rideType
 		return ethereumTransactionToObject(env.state(), env.blockRewardDistributionActivated(), ver, scheme, transaction)
 	case *proto.InvokeExpressionTransactionWithProofs:
 		return invokeExpressionWithProofsToObject(scheme, transaction)
+	case *proto.CommitToGenerationWithProofs:
+		return commitToGenerationToObject(scheme, transaction)
 	default:
 		return nil, EvaluationFailure.Errorf("conversion to RIDE object is not implemented for %T", transaction)
 	}
@@ -122,7 +127,7 @@ func bytesToByteVectorOrUnit(b []byte) rideType {
 	return rideUnit{}
 }
 
-func blockInfoToObject(info *proto.BlockInfo, v ast.LibraryVersion) rideType {
+func blockInfoToObject(info *proto.BlockInfo, v ast.LibraryVersion) (rideType, error) {
 	switch v {
 	case ast.LibV1, ast.LibV2, ast.LibV3:
 		return newRideBlockInfoV3(
@@ -132,7 +137,7 @@ func blockInfoToObject(info *proto.BlockInfo, v ast.LibraryVersion) rideType {
 			rideInt(info.Timestamp),
 			rideInt(info.Height),
 			rideAddress(info.Generator),
-		)
+		), nil
 
 	case ast.LibV4, ast.LibV5, ast.LibV6:
 		return newRideBlockInfoV4(
@@ -143,8 +148,8 @@ func blockInfoToObject(info *proto.BlockInfo, v ast.LibraryVersion) rideType {
 			rideInt(info.Timestamp),
 			rideInt(info.Height),
 			rideAddress(info.Generator),
-		)
-	default: // V7 and higher
+		), nil
+	case ast.LibV7, ast.LibV8, ast.LibV9:
 		rl := make(rideList, len(info.Rewards))
 		for i, r := range info.Rewards {
 			rl[i] = tuple2{el1: rideAddress(r.Address()), el2: rideInt(r.Amount())}
@@ -158,7 +163,9 @@ func blockInfoToObject(info *proto.BlockInfo, v ast.LibraryVersion) rideType {
 			rideInt(info.Height),
 			rideAddress(info.Generator),
 			rl,
-		)
+		), nil
+	default:
+		return rideUnit{}, fmt.Errorf("invalid library version %d", v)
 	}
 }
 
@@ -873,9 +880,9 @@ func invokeScriptWithProofsToObject(ver ast.LibraryVersion, scheme byte, tx *pro
 	}
 	args := make(rideList, len(tx.FunctionCall.Arguments()))
 	for i, arg := range tx.FunctionCall.Arguments() {
-		a, err := convertArgument(arg)
-		if err != nil {
-			return rideUnit{}, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
+		a, arErr := convertArgument(arg)
+		if arErr != nil {
+			return rideUnit{}, EvaluationFailure.Wrap(arErr, "invokeScriptWithProofsToObject")
 		}
 		args[i] = a
 	}
@@ -900,7 +907,7 @@ func invokeScriptWithProofsToObject(ver ast.LibraryVersion, scheme byte, tx *pro
 			rideInt(tx.Version),
 			rideAddress(sender),
 		), nil
-	default:
+	case ast.LibV4, ast.LibV5, ast.LibV6, ast.LibV7, ast.LibV8, ast.LibV9:
 		pl := make(rideList, len(tx.Payments))
 		for i, p := range tx.Payments {
 			pl[i] = attachedPaymentToObject(p)
@@ -920,6 +927,8 @@ func invokeScriptWithProofsToObject(ver ast.LibraryVersion, scheme byte, tx *pro
 			rideInt(tx.Version),
 			rideAddress(sender),
 		), nil
+	default:
+		return rideUnit{}, fmt.Errorf("invalid library version %d", ver)
 	}
 }
 
@@ -1056,7 +1065,7 @@ func ethereumTransactionToObject(
 				rideInt(tx.GetVersion()),
 				rideAddress(sender),
 			), nil
-		default:
+		case ast.LibV4, ast.LibV5, ast.LibV6, ast.LibV7, ast.LibV8, ast.LibV9:
 			var payments = make(rideList, len(scriptPayments))
 			for i, p := range scriptPayments {
 				payments[i] = attachedPaymentToObject(p)
@@ -1076,9 +1085,11 @@ func ethereumTransactionToObject(
 				rideInt(tx.GetVersion()),
 				rideAddress(sender),
 			), nil
+		default:
+			return nil, fmt.Errorf("invalid library version %d", ver)
 		}
 	default:
-		return nil, errors.New("unknown ethereum transaction kind")
+		return nil, errors.New("unknown Ethereum transaction kind")
 	}
 }
 
@@ -1192,12 +1203,14 @@ func invocationToObject(rideVersion ast.LibraryVersion, scheme byte, tx proto.Tr
 			if len(transaction.Payments) > 0 {
 				payment = attachedPaymentToObject(transaction.Payments[0])
 			}
-		default:
+		case ast.LibV4, ast.LibV5, ast.LibV6, ast.LibV7, ast.LibV8, ast.LibV9:
 			ps := make(rideList, len(transaction.Payments))
 			for i, p := range transaction.Payments {
 				ps[i] = attachedPaymentToObject(p)
 			}
 			payments = ps
+		default:
+			return nil, fmt.Errorf("unsupported library version %d", rideVersion)
 		}
 	case *proto.InvokeExpressionTransactionWithProofs:
 		senderPK = transaction.SenderPK
@@ -1205,11 +1218,11 @@ func invocationToObject(rideVersion ast.LibraryVersion, scheme byte, tx proto.Tr
 		feeAsset = transaction.FeeAsset
 		fee = transaction.Fee
 	default:
-		return rideInvocationV5{}, errors.Errorf("failed to fill invocation object: wrong transaction type (%T)", tx)
+		return nil, errors.Errorf("failed to fill invocation object: wrong transaction type (%T)", tx)
 	}
 	sender, err := proto.NewAddressFromPublicKey(scheme, senderPK)
 	if err != nil {
-		return rideInvocationV5{}, err
+		return nil, err
 	}
 	callerPK := rideByteVector(common.Dup(senderPK.Bytes()))
 	switch rideVersion {
@@ -1231,7 +1244,7 @@ func invocationToObject(rideVersion ast.LibraryVersion, scheme byte, tx proto.Tr
 			rideAddress(sender),
 			rideInt(fee),
 		), nil
-	default:
+	case ast.LibV5, ast.LibV6, ast.LibV7, ast.LibV8, ast.LibV9:
 		return newRideInvocationV5(
 			rideAddress(sender),
 			payments,
@@ -1242,17 +1255,22 @@ func invocationToObject(rideVersion ast.LibraryVersion, scheme byte, tx proto.Tr
 			rideAddress(sender),
 			rideInt(fee),
 		), nil
+	default:
+		return nil, errors.Errorf("unsupported library version %d", rideVersion)
 	}
 }
 
-func ethereumInvocationToObject(rideVersion ast.LibraryVersion, scheme proto.Scheme, tx *proto.EthereumTransaction, scriptPayments []proto.ScriptPayment) (rideType, error) {
+func ethereumInvocationToObject(
+	rideVersion ast.LibraryVersion, scheme proto.Scheme, tx *proto.EthereumTransaction,
+	scriptPayments []proto.ScriptPayment,
+) (rideType, error) {
 	sender, err := tx.WavesAddressFrom(scheme)
 	if err != nil {
 		return rideInvocationV5{}, err
 	}
 	callerEthereumPK, err := tx.FromPK()
 	if err != nil {
-		return rideInvocationV5{}, errors.Errorf("failed to get public key from ethereum transaction %v", err)
+		return rideInvocationV5{}, errors.Errorf("failed to get public key from Ethereum transaction %v", err)
 	}
 	callerPK := rideByteVector(callerEthereumPK.SerializeXYCoordinates()) // 64 bytes
 	wavesAsset := proto.NewOptionalAssetWaves()
@@ -1283,7 +1301,7 @@ func ethereumInvocationToObject(rideVersion ast.LibraryVersion, scheme proto.Sch
 			rideAddress(sender),
 			rideInt(int64(tx.GetFee())),
 		), nil
-	default:
+	case ast.LibV5, ast.LibV6, ast.LibV7, ast.LibV8, ast.LibV9:
 		payments := make(rideList, len(scriptPayments))
 		for i, p := range scriptPayments {
 			payments[i] = attachedPaymentToObject(p)
@@ -1298,7 +1316,50 @@ func ethereumInvocationToObject(rideVersion ast.LibraryVersion, scheme proto.Sch
 			rideAddress(sender),
 			rideInt(int64(tx.GetFee())),
 		), nil
+	default:
+		return nil, fmt.Errorf("unsupported library version %d", rideVersion)
 	}
+}
+
+func commitToGenerationToObject(scheme proto.Scheme, tx *proto.CommitToGenerationWithProofs) (rideType, error) {
+	endorserPublicKey := rideByteVector(common.Dup(tx.EndorserPublicKey.Bytes()))
+	generationPeriodStart := rideInt(tx.GenerationPeriodStart)
+	commitmentSignature := rideByteVector(common.Dup(tx.CommitmentSignature.Bytes()))
+	txID, err := tx.GetID(scheme)
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "commitToGenerationToObject")
+	}
+	senderPK := tx.GetSenderPK()
+	sender, err := proto.NewAddressFromPublicKey(scheme, senderPK)
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "commitToGenerationToObject")
+	}
+	body, err := proto.MarshalTxBody(scheme, tx)
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "commitToGenerationToObject")
+	}
+	fee, err := safecast.Convert[rideInt](tx.GetFee())
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "commitToGenerationToObject")
+	}
+	timestamp, err := safecast.Convert[rideInt](tx.GetTimestamp())
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "commitToGenerationToObject")
+	}
+	version := rideInt(tx.GetVersion())
+	return newRideCommitToGenerationTransaction(
+		endorserPublicKey,
+		generationPeriodStart,
+		commitmentSignature,
+		txID,
+		fee,
+		timestamp,
+		version,
+		rideAddress(sender),
+		common.Dup(senderPK.Bytes()),
+		body,
+		proofs(tx.Proofs),
+	), nil
 }
 
 func recipientToObject(recipient proto.Recipient) rideType {
@@ -1702,8 +1763,10 @@ func optionalAsset(o proto.OptionalAsset) rideType {
 	return rideUnit{}
 }
 
+const rideProofsCount = 8
+
 func signatureToProofs(sig *crypto.Signature) rideList {
-	r := make(rideList, 8)
+	r := make(rideList, rideProofsCount)
 	if sig != nil {
 		r[0] = rideByteVector(sig.Bytes())
 	} else {
@@ -1716,7 +1779,7 @@ func signatureToProofs(sig *crypto.Signature) rideList {
 }
 
 func proofs(proofs *proto.ProofsV1) rideList {
-	r := make(rideList, 8)
+	r := make(rideList, rideProofsCount)
 	proofsLen := len(proofs.Proofs)
 	for i := range r {
 		if i < proofsLen {
