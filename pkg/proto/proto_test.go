@@ -256,13 +256,13 @@ func TestProtocolMarshalling(t *testing.T) {
 			assert.ElementsMatch(t, decoded, bts)
 
 			p := reflect.New(tmt)
-			m, ok := p.Interface().(Message)
+			m, ok := reflect.TypeAssert[Message](p)
 			require.True(t, ok)
 			_, err = m.ReadFrom(buf)
 			require.NoError(t, err)
 			require.Equal(t, v.testMessage, m)
 
-			msg2, ok := reflect.New(tmt).Interface().(Message)
+			msg2, ok := reflect.TypeAssert[Message](reflect.New(tmt))
 			require.True(t, ok)
 			err = msg2.UnmarshalBinary(decoded)
 			require.NoError(t, err)
