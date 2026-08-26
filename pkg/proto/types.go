@@ -2387,7 +2387,7 @@ func NewDataEntryFromValueBytes(valueBytes []byte) (DataEntry, error) {
 	if !ok {
 		return nil, errors.New("invalid data entry type")
 	}
-	entry, ok := reflect.New(entryType).Interface().(DataEntry)
+	entry, ok := reflect.TypeAssert[DataEntry](reflect.New(entryType))
 	if !ok {
 		panic("This entry type does not implement DataEntry interface")
 	}
