@@ -263,7 +263,7 @@ func BytesToTransaction(tx []byte, scheme Scheme) (Transaction, error) {
 		if !ok {
 			return nil, errors.Errorf("invalid transaction type %v", tx[1])
 		}
-		transaction, ok := reflect.New(transactionType).Interface().(Transaction)
+		transaction, ok := reflect.TypeAssert[Transaction](reflect.New(transactionType))
 		if !ok {
 			panic("This transaction type does not implement marshal/unmarshal functions")
 		}
@@ -276,7 +276,7 @@ func BytesToTransaction(tx []byte, scheme Scheme) (Transaction, error) {
 		if !ok {
 			return nil, errors.Errorf("invalid transaction type %v", tx[0])
 		}
-		transaction, ok := reflect.New(transactionType).Interface().(Transaction)
+		transaction, ok := reflect.TypeAssert[Transaction](reflect.New(transactionType))
 		if !ok {
 			panic("This transaction type does not implement marshal/unmarshal functions")
 		}
