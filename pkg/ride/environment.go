@@ -1202,7 +1202,7 @@ func validateChangedWavesBalancesWithOldBalancesBeforeTx(
 		}
 		var (
 			wavesAfter               = changedBalance.balance // regular balance
-			wavesWithoutDepositAfter = wavesAfter             // TODO: need to take deposit into account
+			wavesWithoutDepositAfter = wavesAfter - changedBalance.deposit
 		)
 		var (
 			currentLeaseIn                       = changedBalance.leaseIn
@@ -1225,17 +1225,26 @@ func validateChangedWavesBalancesWithOldBalancesBeforeTx(
 				scalaLikeEffectiveBalance,
 				addr.String(),
 				leaseBalanceChangedAtTheLastLayer,
-				formStateChangesStringPartForErr(oldBalance.balance, oldBalance.leaseOut, oldBalance.leaseIn),
-				formStateChangesStringPartForErr(wavesAfter, currentLeaseOut, currentLeaseIn),
+				formStateChangesStringPartForErr(
+					oldBalance.balance, oldBalance.leaseOut, oldBalance.leaseIn, oldBalance.deposit,
+				),
+				formStateChangesStringPartForErr(
+					wavesAfter, currentLeaseOut, currentLeaseIn, changedBalance.deposit,
+				),
 			)
 		}
 	}
 	return nil
 }
 
-func formStateChangesStringPartForErr(wavesRegularBalance int64, leaseOut int64, leaseIn int64) string {
-	return fmt.Sprintf("(spendable=%d waves=%d leaseOut=%d leaseIn=%d)", // TODO: add deposit
-		wavesRegularBalance-leaseOut, wavesRegularBalance, leaseOut, leaseIn,
+func formStateChangesStringPartForErr(wavesRegularBalance, leaseOut, leaseIn, deposit int64) string {
+	if deposit == 0 {
+		return fmt.Sprintf("(spendable=%d waves=%d leaseOut=%d leaseIn=%d)",
+			wavesRegularBalance-leaseOut, wavesRegularBalance, leaseOut, leaseIn,
+		)
+	}
+	return fmt.Sprintf("(spendable=%d waves=%d leaseOut=%d leaseIn=%d deposit=%d)",
+		wavesRegularBalance-leaseOut-deposit, wavesRegularBalance, leaseOut, leaseIn, deposit,
 	)
 }
 

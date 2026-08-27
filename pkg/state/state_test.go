@@ -898,6 +898,40 @@ func TestGeneratingBalanceValuesForNewestFunctions(t *testing.T) {
 	})
 }
 
+func TestFullWavesBalanceFunctionsTakeDepositIntoAccount(t *testing.T) {
+	state, testObj := createMockStateManager(t, settings.MustMainNetSettings())
+	_, pk, err := crypto.GenerateKeyPair([]byte("full-waves-balance-deposit"))
+	require.NoError(t, err)
+	addr, err := proto.NewAddressFromPublicKey(state.settings.AddressSchemeCharacter, pk)
+	require.NoError(t, err)
+
+	testObj.addBlock(t, blockID0)
+	testObj.setWavesBalance(t, addr, balanceProfile{
+		Balance:  1_000,
+		LeaseIn:  200,
+		LeaseOut: 100,
+		Deposit:  300,
+	}, blockID0)
+	testObj.flush(t)
+
+	recipient := proto.NewRecipientFromAddress(addr)
+	committed, err := state.FullWavesBalance(recipient)
+	require.NoError(t, err)
+	newest, err := state.NewestFullWavesBalance(recipient)
+	require.NoError(t, err)
+
+	for _, balance := range []*proto.FullWavesBalance{committed, newest} {
+		require.Equal(t, uint64(1_000), balance.Regular)
+		require.Equal(t, uint64(600), balance.Available)
+		require.Equal(t, uint64(800), balance.Effective)
+		require.Equal(t, uint64(200), balance.LeaseIn)
+		require.Equal(t, uint64(100), balance.LeaseOut)
+	}
+	profile, err := state.WavesBalanceProfile(addr.ID())
+	require.NoError(t, err)
+	require.Equal(t, uint64(300), profile.Deposit)
+}
+
 type stateForEnv interface {
 	StateInfo
 	types.EnrichedSmartState
