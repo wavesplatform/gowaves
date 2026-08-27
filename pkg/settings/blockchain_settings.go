@@ -185,8 +185,8 @@ type BlockchainSettings struct {
 }
 
 func (s *BlockchainSettings) UnmarshalJSON(bytes []byte) error {
-	type shadowed *BlockchainSettings
-	if err := json.Unmarshal(bytes, shadowed(s)); err != nil {
+	type shadowed BlockchainSettings
+	if err := json.Unmarshal(bytes, (*shadowed)(s)); err != nil {
 		return err
 	}
 	return s.validate()
