@@ -122,7 +122,7 @@ func TestTxSnapshotMarshalToPBAndUnmarshalFromPBWithJSONRoundtrip(t *testing.T) 
 				uTxSnapshot := make([]proto.AtomicSnapshot, 0, len(txSnapshot))
 				for _, snapshot := range txSnapshot {
 					v := reflect.New(reflect.TypeOf(snapshot).Elem())
-					uSnapshot, ok := v.Interface().(proto.AtomicSnapshot)
+					uSnapshot, ok := reflect.TypeAssert[proto.AtomicSnapshot](v)
 					require.True(t, ok, "expected type %T, got %T", uSnapshot, v.Interface())
 					uTxSnapshot = append(uTxSnapshot, uSnapshot)
 				}
