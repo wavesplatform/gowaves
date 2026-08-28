@@ -6,6 +6,9 @@ import (
 	"crypto/rsa"
 	sh256 "crypto/sha256"
 	"crypto/x509"
+	"encoding/hex"
+	"log/slog"
+
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -786,6 +789,14 @@ func bn256Groth16Verify_15(env environment, args ...rideType) (rideType, error) 
 		return nil, errors.Errorf("bn256Groth16Verify_15: invalid inputs size %d", l)
 	}
 	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BN254)
+	defer slog.Debug("bn256Groth16Verify_15",
+		"txID", env.txID().String(),
+		"result", ok,
+		"error", err,
+		"key", hex.EncodeToString(key),
+		"proof", hex.EncodeToString(proof),
+		"inputs", hex.EncodeToString(inputs),
+	)
 	if err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_15")
 	}

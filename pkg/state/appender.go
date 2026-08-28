@@ -335,6 +335,8 @@ func (a *txAppender) saveTransactionIdByAddresses(addresses []proto.WavesAddress
 	return nil
 }
 
+const targetTxIDBase58 = "AEu8xoyfdDaBZbkhbD3icB5nkFMnkMYbgKMhN5cv5v9q"
+
 func (a *txAppender) commitTxApplication(
 	tx proto.Transaction,
 	params *appendTxParams,
@@ -345,6 +347,14 @@ func (a *txAppender) commitTxApplication(
 	txID, err := tx.GetID(a.settings.AddressSchemeCharacter)
 	if err != nil {
 		return txSnapshot{}, wrapErr(stateerr.TxCommitmentError, errors.Errorf("failed to get tx id: %v", err))
+	}
+	if txIDBase58 := base58.Encode(txID); txIDBase58 == targetTxIDBase58 {
+		slog.Debug("Target transaction ID result",
+			"txID", txIDBase58,
+			"invocationRes", invocationRes,
+			"applicationRes", applicationRes,
+		)
+		return txSnapshot{}, errors.New("debug stop: target transaction ID reached")
 	}
 	a.recentTxIds[string(txID)] = empty
 	// Update script runs.
