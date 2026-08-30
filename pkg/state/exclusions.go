@@ -45,7 +45,7 @@ func leasesToDisabledAliasesMainnet() []crypto.Digest {
 
 const (
 	firstAbnormalTxsMainnetHeight        = 5228053 // 7CGkoGMTqJ9hor87qXftUXWABxxoXqEPt4hWS43M34bs
-	lastAbnormalTxsMainnetHeight         = 5233108 // 5U9QQ2dwQ7iEAUQFPPm74K7ZT9wpzNMaUDPDvkFpWwsU
+	lastAbnormalTxsMainnetHeight         = 5358525 // 3FDiaD8GA1N7NwoTcRqsA8wLPhBxCEYxJZFJRzXT1gF2
 	nextHeightAfterLastAbnormalTxMainnet = lastAbnormalTxsMainnetHeight + 1
 )
 
@@ -717,6 +717,29 @@ func newAbnormalTxsMainnet() map[crypto.Digest]abnormalTxInfo {
 			},
 			affectedAddressesNoMiner: []proto.WavesAddress{
 				proto.MustAddressFromString("3PNR77UH13UYMCWsXakafUVugvfZmhtvrhT"),
+			},
+		},
+		crypto.MustDigestFromBase58("3FDiaD8GA1N7NwoTcRqsA8wLPhBxCEYxJZFJRzXT1gF2"): {
+			snapshot: txSnapshot{
+				regular: []proto.AtomicSnapshot{
+					&proto.TransactionStatusSnapshot{Status: proto.TransactionSucceeded},
+					&proto.WavesBalanceSnapshot{
+						Address: proto.MustAddressFromString("3PE37M8ESpiwDxTR4YfZoLR1XpPU8gRvA8b"),
+						Balance: 98800000,
+					},
+					&proto.WavesBalanceSnapshot{
+						Address: proto.MustAddressFromString("3P7jnEB8bhgmqq1wUzMH6K2izdhQAPVVMzG"),
+						Balance: 1000000,
+					},
+					&proto.WavesBalanceSnapshot{
+						Address: proto.MustAddressFromString("3PA1KvFfq9VuJjg45p2ytGgaNjrgnLSgf4r"),
+						Balance: 232111807974,
+					},
+				},
+			},
+			affectedAddressesNoMiner: []proto.WavesAddress{
+				proto.MustAddressFromString("3PE37M8ESpiwDxTR4YfZoLR1XpPU8gRvA8b"),
+				proto.MustAddressFromString("3P7jnEB8bhgmqq1wUzMH6K2izdhQAPVVMzG"),
 			},
 		},
 	}
