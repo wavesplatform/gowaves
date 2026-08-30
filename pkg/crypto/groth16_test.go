@@ -208,8 +208,9 @@ func BenchmarkGroth16Verify0inputsBLS(b *testing.B) {
 	inputs := deB64(b, "")
 	for b.Loop() {
 		result, err := Groth16Verify(vk, proof, inputs, ecc.BLS12_381)
-		require.True(b, result)
-		require.NoError(b, err)
+		if err != nil || !result {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -226,8 +227,9 @@ func BenchmarkGroth16Verify1inputsBLS(b *testing.B) {
 	inputs := deB64(b, "aZ8tqrOeEJKt4AMqiRF/WJhIKTDC0HeDTgiJVLZ8OEs=")
 	for b.Loop() {
 		result, err := Groth16Verify(vk, proof, inputs, ecc.BLS12_381)
-		require.True(b, result)
-		require.NoError(b, err)
+		if err != nil || !result {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -258,8 +260,9 @@ func BenchmarkGroth16Verify15inputsBLS(b *testing.B) {
 		"M2mI1oFKEZj7")
 	for b.Loop() {
 		result, err := Groth16Verify(vk, proof, inputs, ecc.BLS12_381)
-		require.True(b, result)
-		require.NoError(b, err)
+		if err != nil || !result {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -291,8 +294,9 @@ func BenchmarkGroth16Verify16inputsBLS(b *testing.B) {
 		"M2mI1oFKEZj7Xqf/yAmy/Le3GfJnMg5vNgE7QxmVsjuKUP28iN8rdi4=")
 	for b.Loop() {
 		result, err := Groth16Verify(vk, proof, inputs, ecc.BLS12_381)
-		require.True(b, result)
-		require.NoError(b, err)
+		if err != nil || !result {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -369,16 +373,16 @@ func TestGroth16VerifyFailBn256(t *testing.T) {
 		vkFail0[i] = 1
 	}
 	vkFail1 := make([]byte, 256+32)
-	for i := range vkFail0 {
-		vkFail0[i] = 1
+	for i := range vkFail1 {
+		vkFail1[i] = 1
 	}
 	vkFail15 := make([]byte, 256+32*15)
-	for i := range vkFail0 {
-		vkFail0[i] = 1
+	for i := range vkFail15 {
+		vkFail15[i] = 1
 	}
 	vkFail16 := make([]byte, 256+32*16)
-	for i := range vkFail0 {
-		vkFail0[i] = 1
+	for i := range vkFail16 {
+		vkFail16[i] = 1
 	}
 	for i, test := range []struct {
 		vk     string
@@ -398,7 +402,7 @@ func TestGroth16VerifyFailBn256(t *testing.T) {
 			proof: "CfEpVT6b8+4NAeDs3QwiSN7zqfxzAkQdIu8eBXzoAQIS+AgJcYppUx7COvtbWa7TDtaER1ydtoYWBcBtRMvrHQJ64u4XmLoo" +
 				"TwikzECPz+VRcYknrGEoyGeZanNFWEwgplf9bX3JvW1RshlAfN7iJESdqBCmUNsrObHNxhHFJRo=",
 			inputs: "c9BSUPtO0xjPxWVNkEMfXe7O4UZKpaH/nLIyQJj7iA4=",
-			error:  "invalid compressed coordinate: square root doesn't exist",
+			error:  "invalid point: subgroup check failed",
 		},
 		{
 			vk: base64.StdEncoding.EncodeToString(vkFail15),
@@ -411,7 +415,7 @@ func TestGroth16VerifyFailBn256(t *testing.T) {
 				"MCFqsrCK9bh33PW1gtNeHC78mIetQM5LWZHtw4KNwafTrQ+GCKPelJhiC2x7ygBtat5rtBsJAVF5wjssLPZx/7fqNqifXB7WyMV7" +
 				"J1M8LBQVXj5kLoS9bpmNHlERRSadC0DEUbY9xhIG2xo7R88R0sq04a299MFv8XJNd+IdueYiMiGF5broHD4UUhPxRBlBO3lOfDTP" +
 				"nRSUGS3Sr6GxwCjKO3MObz/6RNxCk9SnQ4NccD17hS/m",
-			error: "invalid compressed coordinate: square root doesn't exist",
+			error: "invalid point: subgroup check failed",
 		},
 		{
 			vk: base64.StdEncoding.EncodeToString(vkFail16),
@@ -424,7 +428,7 @@ func TestGroth16VerifyFailBn256(t *testing.T) {
 				"MCFqsrCK9bh33PW1gtNeHC78mIetQM5LWZHtw4KNwafTrQ+GCKPelJhiC2x7ygBtat5rtBsJAVF5wjssLPZx/7fqNqifXB7WyMV7" +
 				"J1M8LBQVXj5kLoS9bpmNHlERRSadC0DEUbY9xhIG2xo7R88R0sq04a299MFv8XJNd+IdueYiMiGF5broHD4UUhPxRBlBO3lOfDTP" +
 				"nRSUGS3Sr6GxwCjKO3MObz/6RNxCk9SnQ4NccD17hS/mEFt8d4ERZOfmuvD3A0RCPCnx3Fr6rHdm6j+cfn/NM6o=",
-			error: "invalid compressed coordinate: square root doesn't exist",
+			error: "invalid point: subgroup check failed",
 		},
 	} {
 		t.Run(nameTest(false, i), func(t *testing.T) {
@@ -737,6 +741,8 @@ func TestGroth16VerifyBN254Regression(t *testing.T) {
 				if test.error != "" {
 					assert.Error(t, err)
 					assert.EqualError(t, err, test.error)
+				} else {
+					assert.NoError(t, err)
 				}
 			}
 		})
