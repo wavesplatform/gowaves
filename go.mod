@@ -1,6 +1,6 @@
 module github.com/wavesplatform/gowaves
 
-go 1.25.7
+go 1.26.0
 
 require (
 	filippo.io/edwards25519 v1.2.0
@@ -27,7 +27,7 @@ require (
 	github.com/mattn/go-isatty v0.0.24
 	github.com/minio/minlz v1.2.0
 	github.com/mr-tron/base58 v1.3.0
-	github.com/nats-io/nats-server/v2 v2.14.5
+	github.com/nats-io/nats-server/v2 v2.14.6
 	github.com/nats-io/nats.go v1.53.1
 	github.com/neilotoole/slogt v1.1.0
 	github.com/ory/dockertest/v3 v3.12.0
