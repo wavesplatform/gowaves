@@ -43,7 +43,7 @@ jobs:
         # To fix those issues the first part of jq query copies content of `markdown` field into `text` field
         # if it's not present. In the second part if the `fixes` object has null array as `artifactChanges` the empty
         # valid `artifactChange` object inserted.
-        # After fix of mentioned gosec issues this step can be removed. 
+        # After fix of mentioned gosec issues this step can be removed.
         run: |
           set -e
           jq 'walk(if type=="object" and has("markdown") and (.text == null or .text == "") then .text = .markdown else . end) | (.runs[].results[]? .fixes[]? .artifactChanges) |= (if . == null then [{"artifactLocation": { "uri": "" }, "replacements": [{"deletedRegion": {"byteOffset": 0, "byteLength": 0 }}]}] else . end)' gosec.sarif > gosec_fixed.sarif
@@ -103,7 +103,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: 1.25.x
+          go-version: 1.26.x
           check-latest: true
           cache: true
       - name: Run go list
