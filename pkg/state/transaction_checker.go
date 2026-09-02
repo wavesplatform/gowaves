@@ -807,7 +807,7 @@ func (tc *transactionChecker) checkEnoughVolume(order proto.Order, newFee, newAm
 	return nil
 }
 
-func checkOrderWithFeatures(o proto.Order, metamaskActivated, deterministicFinalityActivated bool) error {
+func checkOrderWithFeatures(o proto.Order, metamaskActivated, ethOrderSigSizeChecked bool) error {
 	eo, isEthOrder := o.(*proto.EthereumOrderV4)
 	if !metamaskActivated { // check order before metamask activation
 		if o.GetVersion() >= proto.OrderVersionV4 {
@@ -821,8 +821,9 @@ func checkOrderWithFeatures(o proto.Order, metamaskActivated, deterministicFinal
 			return errors.New("ethereum order is not allowed before metamask feature activation")
 		}
 	}
-	// check ethereum order sig size since deterministic finality feature activation
-	if isEthOrder && deterministicFinalityActivated {
+	// check ethereum order sig size since the activation of the deterministic finality feature or the
+	// adjusted block reward distribution feature, whichever comes first
+	if isEthOrder && ethOrderSigSizeChecked {
 		if origEthSigBytes := eo.OrigEip712SignatureBytes(); len(origEthSigBytes) != proto.EthereumSignatureLength {
 			return errors.Errorf("invalid original EIP-712 signature length for ethereum order: got %d, want %d",
 				len(origEthSigBytes), proto.EthereumSignatureLength,
@@ -870,10 +871,17 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	if err != nil {
 		return nil, err
 	}
-	if errO1 := checkOrderWithFeatures(o1, metamaskActivated, deterministicFinalityActivated); errO1 != nil {
+	adjustedRewardDistributionActivated, err := tc.stor.features.newestIsActivated(
+		int16(settings.AdjustedBlockRewardDistribution),
+	)
+	if err != nil {
+		return nil, err
+	}
+	ethOrderSigSizeChecked := deterministicFinalityActivated || adjustedRewardDistributionActivated
+	if errO1 := checkOrderWithFeatures(o1, metamaskActivated, ethOrderSigSizeChecked); errO1 != nil {
 		return nil, errors.Wrap(errO1, "order1 features checks failed")
 	}
-	if errO2 := checkOrderWithFeatures(o2, metamaskActivated, deterministicFinalityActivated); errO2 != nil {
+	if errO2 := checkOrderWithFeatures(o2, metamaskActivated, ethOrderSigSizeChecked); errO2 != nil {
 		return nil, errors.Wrap(errO2, "order2 features checks failed")
 	}
 

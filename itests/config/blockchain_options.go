@@ -25,8 +25,8 @@ func WithRewardSettingFromFile(path ...string) BlockchainOption {
 			return errors.Wrap(err, "failed to modify reward settings")
 		}
 		cfg.RewardAddresses = ras
-		cfg.Settings.RewardAddresses = ras.Addresses()
-		cfg.Settings.RewardAddressesAfter21 = ras.AddressesAfter21()
+		cfg.Settings.DAOAddress = ras.DAORewardAddress
+		cfg.Settings.XTNBuybackAddress = ras.XTNBuybackAddress
 		cfg.desiredReward = rs.DesiredBlockReward
 		cfg.Settings.BlockRewardBoostPeriod = rs.BlockRewardBoostPeriod
 		return nil

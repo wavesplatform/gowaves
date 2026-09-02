@@ -1660,3 +1660,39 @@ func TestScriptActivation(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckEthereumOrderSignatureSizeGate(t *testing.T) {
+	const ethPrivateKeyHex = "0x9e07ada1b1d3b1e6b5e9bd7b3d0b8a3c1c7ffb7a1b2e2c3d4e5f60718293a4b5"
+	sk, err := crypto.ECDSAPrivateKeyFromHexString(ethPrivateKeyHex)
+	require.NoError(t, err)
+	ethSK := (*proto.EthereumPrivateKey)(sk)
+	ethPK := ethSK.EthereumPublicKey()
+
+	matcherPK, err := crypto.NewPublicKeyFromBase58("9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ")
+	require.NoError(t, err)
+
+	ethOrder := proto.NewUnsignedEthereumOrderV4(ethPK, matcherPK,
+		proto.NewOptionalAssetWaves(), proto.NewOptionalAssetWaves(), proto.Buy,
+		100, 1, 1, 123, 100000, proto.NewOptionalAssetWaves(),
+		proto.OrderPriceModeDefault, proto.Attachment{},
+	)
+	require.NoError(t, ethOrder.EthereumSign(proto.TestNetScheme, ethSK))
+	// A properly signed ethereum order carries a signature of the standard length.
+	require.Len(t, ethOrder.OrigEip712SignatureBytes(), proto.EthereumSignatureLength)
+
+	wavesOrder := proto.NewUnsignedOrderV4(matcherPK, matcherPK,
+		proto.NewOptionalAssetWaves(), proto.NewOptionalAssetWaves(), proto.Buy,
+		100, 1, 1, 123, 100000, proto.NewOptionalAssetWaves(),
+		proto.OrderPriceModeDefault, proto.Attachment{},
+	)
+
+	// The signature size check is enabled by the activation of feature 25 or feature 26, neither of them
+	// rejects an order of the standard signature size.
+	for _, sigSizeChecked := range []bool{false, true} {
+		assert.NoError(t, checkOrderWithFeatures(ethOrder, true, sigSizeChecked))
+		assert.NoError(t, checkOrderWithFeatures(wavesOrder, true, sigSizeChecked))
+	}
+	// An ethereum order is not allowed at all before the metamask feature activation.
+	assert.Error(t, checkOrderWithFeatures(ethOrder, false, true))
+	assert.NoError(t, checkOrderWithFeatures(wavesOrder, false, true))
+}

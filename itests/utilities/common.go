@@ -973,6 +973,11 @@ func GetRewardTermAfter20Cfg(suite *f.BaseSuite) uint64 {
 	return suite.Cfg.BlockchainSettings.BlockRewardTermAfter20
 }
 
+// GetBlockRewardIncrementCfg returns the amount the block reward changes by on a successful vote.
+func GetBlockRewardIncrementCfg(suite *f.BaseSuite) uint64 {
+	return suite.Cfg.BlockchainSettings.BlockRewardIncrement
+}
+
 // GetRewardsGo get response from /blockchain/rewards.
 func GetRewardsGo(suite *f.BaseSuite) *client.RewardInfo {
 	return suite.Clients.GoClient.HTTPClient.Rewards(suite.T())
