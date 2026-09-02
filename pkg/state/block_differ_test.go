@@ -256,7 +256,8 @@ func TestCreateBlockDiffWithReward(t *testing.T) {
 func TestBlockRewardDistributionWithTwoAddresses(t *testing.T) {
 	sets := settings.MustTestNetSettings()
 	// Add some addresses for reward distribution
-	sets.RewardAddresses = []proto.WavesAddress{testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr}
+	sets.DAOAddress = &testGlobal.senderInfo.addr
+	sets.XTNBuybackAddress = &testGlobal.recipientInfo.addr
 	sets.InitialBlockReward = 800000000
 	to := createBlockDifferWithSettings(t, sets)
 
@@ -306,7 +307,8 @@ func TestBlockRewardDistributionWithTwoAddresses(t *testing.T) {
 func TestBlockRewardDistributionWithOneAddress(t *testing.T) {
 	sets := settings.MustTestNetSettings()
 	// Add some addresses for reward distribution
-	sets.RewardAddresses = []proto.WavesAddress{testGlobal.senderInfo.addr}
+	sets.DAOAddress = &testGlobal.senderInfo.addr
+	sets.XTNBuybackAddress = nil
 	to := createBlockDifferWithSettings(t, sets)
 
 	// Activate NG and BlockReward

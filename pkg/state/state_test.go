@@ -855,6 +855,9 @@ func TestGeneratingBalanceValuesInRide(t *testing.T) {
 		generateFeaturesList := func(targetFeature settings.Feature) []settings.Feature {
 			var feats []settings.Feature
 			for f := settings.SmallerMinimalGeneratingBalance; f <= targetFeature; f++ {
+				if !settings.FeaturesInfo[f].Implemented { // activation of an unimplemented feature stops the node
+					continue
+				}
 				feats = append(feats, f)
 			}
 			return feats
@@ -984,6 +987,9 @@ func TestIsStateUntouched(t *testing.T) {
 		generateFeaturesList := func(targetFeature settings.Feature) []settings.Feature {
 			var feats []settings.Feature
 			for f := settings.SmallerMinimalGeneratingBalance; f <= targetFeature; f++ {
+				if !settings.FeaturesInfo[f].Implemented { // activation of an unimplemented feature stops the node
+					continue
+				}
 				feats = append(feats, f)
 			}
 			return feats

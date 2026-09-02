@@ -1789,7 +1789,36 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 			return ubrErr
 		}
 	}
+	// The reset of the block reward must be done after the update of the block reward above, this way it
+	// overrides the reward change produced by the voting at the same height.
+	if rbrErr := resetBlockRewardOnAdjustedDistributionActivation(
+		s.stor.features, s.stor.monetaryPolicy, blockchainHeight+1, nextBlock,
+	); rbrErr != nil {
+		return rbrErr
+	}
 	return nil
+}
+
+// resetBlockRewardOnAdjustedDistributionActivation sets the block reward to the initial value of
+// feature 26 "Adjusted Block Reward Distribution" at its activation height. The reward stays votable
+// after that, the voting continues from the new value.
+// A pre-activated feature 26 has the activation height of 1 and no block reward is paid for the genesis
+// block, so the reset never happens on such a blockchain and the initial block reward from the settings
+// is used instead. The Scala node behaves the same way.
+func resetBlockRewardOnAdjustedDistributionActivation(
+	feat featuresState, mp *monetaryPolicy, height proto.Height, blockID proto.BlockID,
+) error {
+	if !feat.newestIsActivatedAtHeight(int16(settings.AdjustedBlockRewardDistribution), height) {
+		return nil
+	}
+	activationHeight, err := feat.newestActivationHeight(int16(settings.AdjustedBlockRewardDistribution))
+	if err != nil {
+		return errors.Wrap(err, "failed to get activation height of feature 26")
+	}
+	if activationHeight != height { // one time action, only at the activation height
+		return nil
+	}
+	return mp.saveNewRewardChange(adjustedFullReward, height, blockID)
 }
 
 func (s *stateManager) finishVoting(height uint64, blockID proto.BlockID) error {
@@ -3209,7 +3238,8 @@ func (s *stateManager) getInitialTotalWavesAmount() uint64 {
 
 // TotalWavesAmount returns total amount of Waves in the system at the given height.
 // It returns the initial Waves amount of 100 000 000 before activation of feature #14 "BlockReward".
-// It takes into account the reward multiplier introduced with the feature #23 "BoostBlockReward".
+// It takes into account the reward multiplier introduced with the feature #23 "BoostBlockReward",
+// which is not applied after the activation of the feature #26 "AdjustedBlockRewardDistribution".
 func (s *stateManager) TotalWavesAmount(height proto.Height) (uint64, error) {
 	initialTotalAmount := s.getInitialTotalWavesAmount()
 	blockRewardActivated := s.stor.features.isActivatedAtHeight(int16(settings.BlockReward), height)
@@ -3248,6 +3278,18 @@ func rewardBoostFeatureInfo(
 		return 0, 0, err
 	}
 	rewardBoostLastHeight := rewardBoostActivationHeight + bs.BlockRewardBoostPeriod - 1
+	// Feature 26 supersedes feature 23, no block is boosted starting from the activation height of
+	// feature 26.
+	if feat.isActivatedAtHeight(int16(settings.AdjustedBlockRewardDistribution), h) {
+		adjustedActivationHeight, ahErr := feat.activationHeight(int16(settings.AdjustedBlockRewardDistribution))
+		if ahErr != nil {
+			return 0, 0, ahErr
+		}
+		if adjustedActivationHeight <= rewardBoostActivationHeight { // no block was boosted at all
+			return 0, 0, nil
+		}
+		rewardBoostLastHeight = min(rewardBoostLastHeight, adjustedActivationHeight-1)
+	}
 	return rewardBoostActivationHeight, rewardBoostLastHeight, nil
 }
 

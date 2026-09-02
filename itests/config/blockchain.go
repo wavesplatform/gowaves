@@ -40,27 +40,6 @@ func NewRewardAddresses(daoAddress, xtnAddress string) (RewardAddresses, error) 
 	return r, nil
 }
 
-// Addresses returns DAO and XTNBuyback addresses as a slice of Waves addresses.
-func (ra *RewardAddresses) Addresses() []proto.WavesAddress {
-	r := make([]proto.WavesAddress, 0, 2)
-	if ra.DAORewardAddress != nil {
-		r = append(r, *ra.DAORewardAddress)
-	}
-	if ra.XTNBuybackAddress != nil {
-		r = append(r, *ra.XTNBuybackAddress)
-	}
-	return r
-}
-
-// AddressesAfter21 returns DAO address as a slice of Waves addresses that doesn't contain XTNBuyback address to
-// represent the set of reward addresses after the activation of feature 21.
-func (ra *RewardAddresses) AddressesAfter21() []proto.WavesAddress {
-	if ra.DAORewardAddress != nil {
-		return []proto.WavesAddress{*ra.DAORewardAddress}
-	}
-	return []proto.WavesAddress{}
-}
-
 // BlockchainConfig is a struct that contains settings for blockchain.
 // This configuration is used both for building Scala and Go configuration files.
 // Also, it's used to produce a Docker container run configurations for both nodes.
