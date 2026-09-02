@@ -768,8 +768,6 @@ func TestBlockInfoByHeight(t *testing.T) {
 	}
 }
 
-func getPtr[T any](t T) *T { return &t }
-
 func TestTransferByID(t *testing.T) {
 	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
 	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
@@ -777,7 +775,7 @@ func TestTransferByID(t *testing.T) {
 	require.NoError(t, err)
 	assetID := txID
 	stubEthPK := new(proto.EthereumPublicKey)
-	ethTo := getPtr(proto.EthereumAddress(assetID[:proto.EthereumAddressSize]))
+	ethTo := new(proto.EthereumAddress(assetID[:proto.EthereumAddressSize]))
 
 	erc20HexData := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c00000000000000000000000000000000000000000000000000001cc92ad60000" //nolint:lll
 	erc20Data, err := hex.DecodeString(strings.TrimPrefix(erc20HexData, "0x"))
@@ -810,7 +808,7 @@ func TestTransferByID(t *testing.T) {
 			unit: false,
 		},
 		{
-			tx: getPtr(proto.NewEthereumTransaction(
+			tx: new(proto.NewEthereumTransaction(
 				&proto.EthereumLegacyTx{To: ethTo, Value: big.NewInt(100500)},
 				proto.NewEthereumTransferWavesTxKind(),
 				&txID,
@@ -820,7 +818,7 @@ func TestTransferByID(t *testing.T) {
 			unit: false,
 		},
 		{
-			tx: getPtr(proto.NewEthereumTransaction(
+			tx: new(proto.NewEthereumTransaction(
 				&proto.EthereumLegacyTx{
 					To:   ethTo,
 					Data: erc20Data,
@@ -837,7 +835,7 @@ func TestTransferByID(t *testing.T) {
 			unit: false,
 		},
 		{
-			tx: getPtr(proto.NewEthereumTransaction(
+			tx: new(proto.NewEthereumTransaction(
 				&proto.EthereumLegacyTx{
 					To:   ethTo,
 					Data: invokeData,
