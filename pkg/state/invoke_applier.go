@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -97,21 +98,25 @@ func (ia *invokeApplier) newPaymentFromAttachedPaymentAction(senderAddress proto
 
 func (ia *invokeApplier) newTxDiffFromPayment(pmt *payment, updateMinIntermediateBalance bool) (txDiff, error) {
 	diff := newTxDiff()
+	amount, err := safecast.Convert[int64](pmt.amount)
+	if err != nil {
+		return txDiff{}, fmt.Errorf("failed to convert payment amount to int64: %w", err)
+	}
 	senderKey := byteKey(pmt.sender.ID(), pmt.asset)
-	senderBalanceDiff := -int64(pmt.amount)
-	if err := diff.appendBalanceDiff(
+	senderBalanceDiff := -amount
+	if adErr := diff.appendBalanceDiff(
 		senderKey,
 		newBalanceDiff(senderBalanceDiff, 0, 0, 0, updateMinIntermediateBalance),
-	); err != nil {
-		return txDiff{}, err
+	); adErr != nil {
+		return txDiff{}, adErr
 	}
 	receiverKey := byteKey(pmt.receiver.ID(), pmt.asset)
-	receiverBalanceDiff := int64(pmt.amount)
-	if err := diff.appendBalanceDiff(
+	receiverBalanceDiff := amount
+	if adErr := diff.appendBalanceDiff(
 		receiverKey,
 		newBalanceDiff(receiverBalanceDiff, 0, 0, 0, updateMinIntermediateBalance),
-	); err != nil {
-		return txDiff{}, err
+	); adErr != nil {
+		return txDiff{}, adErr
 	}
 	return diff, nil
 }

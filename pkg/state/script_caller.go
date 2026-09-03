@@ -3,6 +3,7 @@ package state
 import (
 	"fmt"
 
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 
@@ -212,7 +213,11 @@ func (a *scriptCaller) callAssetScriptCommon(
 	}
 	// Increase complexity.
 	if params.rideV5Activated { // After activation of RideV5 add actual execution complexity
-		a.recentTxComplexity += uint64(r.Complexity())
+		complexity, cErr := safecast.Convert[uint64](r.Complexity())
+		if cErr != nil {
+			return nil, fmt.Errorf("failed to convert complexity to uint64: %w", cErr)
+		}
+		a.recentTxComplexity += complexity
 	} else {
 		// For asset script we use original estimation
 		est, scErr := a.stor.scriptsComplexity.newestScriptComplexityByAsset(proto.AssetIDFromDigest(assetID))
@@ -473,7 +478,11 @@ func (a *scriptCaller) invokeFunctionByEthereumTx(
 			return nil, proto.FunctionCall{}, errors.Errorf("invalid payment amount '%d'", p.Amount)
 		}
 		optAsset := proto.NewOptionalAsset(p.PresentAssetID, p.AssetID)
-		scriptPayment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: optAsset}
+		amount, cErr := safecast.Convert[uint64](p.Amount)
+		if cErr != nil {
+			return nil, proto.FunctionCall{}, fmt.Errorf("failed to convert payment amount to uint64: %w", cErr)
+		}
+		scriptPayment := proto.ScriptPayment{Amount: amount, Asset: optAsset}
 		scriptPayments = append(scriptPayments, scriptPayment)
 	}
 

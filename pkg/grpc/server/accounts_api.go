@@ -172,7 +172,11 @@ func (s *Server) sendWavesBalance(rcp proto.Recipient, srv g.AccountsApi_GetBala
 	if err != nil {
 		res.Balance = &g.BalanceResponse_Waves{Waves: &g.BalanceResponse_WavesBalances{}}
 	} else {
-		res.Balance = &g.BalanceResponse_Waves{Waves: balanceInfo.ToProtobuf()}
+		pbBalance, cErr := balanceInfo.ToProtobuf()
+		if cErr != nil {
+			return status.Error(codes.Internal, cErr.Error())
+		}
+		res.Balance = &g.BalanceResponse_Waves{Waves: pbBalance}
 	}
 	return srv.Send(&res)
 }

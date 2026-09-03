@@ -1345,9 +1345,11 @@ func (sg *snapshotGenerator) wavesBalanceSnapshotFromBalanceDiff(
 			// Don't check for overflow & negative leaseIn/leaseOut because overflowed addresses
 			// See `balances.generateLeaseBalanceSnapshotsForLeaseOverflows` for details
 			newLeaseBalance := proto.LeaseBalanceSnapshot{
-				Address:  wavesAddress,
-				LeaseIn:  uint64(fullBalance.LeaseIn + diffAmount.leaseIn.Value()),   //nolint:gosec // As described above.
-				LeaseOut: uint64(fullBalance.LeaseOut + diffAmount.leaseOut.Value()), //nolint:gosec // As described above.
+				Address: wavesAddress,
+				// #nosec G115: overflow of lease balances is intentional, as described above.
+				LeaseIn: uint64(fullBalance.LeaseIn + diffAmount.leaseIn.Value()),
+				// #nosec G115: overflow of lease balances is intentional, as described above.
+				LeaseOut: uint64(fullBalance.LeaseOut + diffAmount.leaseOut.Value()),
 			}
 			leaseBalances = append(leaseBalances, newLeaseBalance)
 		}

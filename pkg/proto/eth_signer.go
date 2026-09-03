@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/umbracle/fastrlp"
@@ -22,6 +23,8 @@ const (
 	ethereumPublicKeyUncompressedPrefix byte = 0x4         // prefix which means this is an uncompressed point
 	ethereumPublicKeyBytesUncompressed       = 1 + 32 + 32 // 0x4 prefix + x_coordinate bytes + y_coordinate bytes
 	ethereumPublicKeyBytesCompressed         = 1 + 32      // y_bit (0x02 if y is even, 0x03 if y is odd) + x_coordinate bytes
+
+	recoveryIDOffset = 27
 )
 
 // EthereumPrivateKey is an Ethereum ecdsa.PrivateKey.
@@ -507,7 +510,7 @@ func decodeSignature(sig []byte, legacyV bool) (r, s, v *big.Int, err error) {
 	s = new(big.Int).SetBytes(sig[32:64])
 	vByte := sig[64]
 	if legacyV {
-		vByte += 27 // Transform V from 0/1 to 27/28 according to the yellow paper
+		vByte += recoveryIDOffset // Transform V from 0/1 to 27/28 according to the yellow paper
 	}
 	v = new(big.Int).SetBytes([]byte{vByte})
 	return r, s, v, nil
@@ -518,10 +521,13 @@ func recoverEthereumPubKey(sighash EthereumHash, r, s, v *big.Int) (*EthereumPub
 		return nil, ErrInvalidSig
 	}
 	legacyV := v.Uint64()
-	if legacyV < 27 {
+	if legacyV < recoveryIDOffset {
 		return nil, ErrInvalidSig
 	}
-	vByte := byte(legacyV - 27)
+	vByte, err := safecast.Convert[byte](legacyV - recoveryIDOffset)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid recovery id")
+	}
 	sig, err := NewEthereumSignatureFromVRS(vByte, r, s)
 	if err != nil {
 		return nil, err

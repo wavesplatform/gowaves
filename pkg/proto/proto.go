@@ -1746,8 +1746,11 @@ func (m *GetBlockIDsMessage) MarshalBinary() ([]byte, error) {
 	binary.BigEndian.PutUint32(body[0:4], uint32(len(m.Blocks)))
 	for _, bl := range m.Blocks {
 		b := bl.Bytes()
-		idLen := len(b)
-		body = append(body, byte(idLen))
+		idLen, err := safecast.Convert[byte](len(b))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert block ID length to byte")
+		}
+		body = append(body, idLen) //nolint:makezero // length is written as header.
 		body = append(body, b...)
 	}
 
@@ -1817,8 +1820,11 @@ func (m *BlockIDsMessage) MarshalBinary() ([]byte, error) {
 	binary.BigEndian.PutUint32(body[0:4], uint32(len(m.Blocks)))
 	for _, bl := range m.Blocks {
 		b := bl.Bytes()
-		idLen := len(b)
-		body = append(body, byte(idLen))
+		idLen, err := safecast.Convert[byte](len(b))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert block ID length to byte")
+		}
+		body = append(body, idLen) //nolint:makezero // length is written as header
 		body = append(body, b...)
 	}
 

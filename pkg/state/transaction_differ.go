@@ -387,7 +387,10 @@ func (td *transactionDiffer) createDiffGenesis(transaction proto.Transaction, _ 
 	}
 	diff := newTxDiff()
 	key := wavesBalanceKey{address: tx.Recipient.ID()}
-	receiverBalanceDiff := int64(tx.Amount)
+	receiverBalanceDiff, cErr := safecast.Convert[int64](tx.Amount)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert amount to int64: %w", cErr)
+	}
 	if err := diff.appendBalanceDiff(
 		key.bytes(),
 		newBalanceDiff(receiverBalanceDiff, 0, 0, 0, false),
@@ -412,7 +415,15 @@ func (td *transactionDiffer) createDiffPayment(transaction proto.Transaction, in
 		return txBalanceChanges{}, err
 	}
 	senderKey := wavesBalanceKey{address: senderAddr.ID()}
-	senderBalanceDiff := -int64(tx.Amount) - int64(tx.Fee)
+	amount, cErr := safecast.Convert[int64](tx.Amount)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert amount to int64: %w", cErr)
+	}
+	fee, cErr := safecast.Convert[int64](tx.Fee)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
+	senderBalanceDiff := -amount - fee
 	if adErr := diff.appendBalanceDiff(
 		senderKey.bytes(),
 		newBalanceDiff(senderBalanceDiff, 0, 0, 0, updateMinIntermediateBalance),
@@ -421,7 +432,7 @@ func (td *transactionDiffer) createDiffPayment(transaction proto.Transaction, in
 	}
 	// Append receiver diff.
 	receiverKey := wavesBalanceKey{address: tx.Recipient.ID()}
-	receiverBalanceDiff := int64(tx.Amount)
+	receiverBalanceDiff := amount
 	if adErr := diff.appendBalanceDiff(
 		receiverKey.bytes(),
 		newBalanceDiff(receiverBalanceDiff, 0, 0, 0, updateMinIntermediateBalance),
@@ -494,7 +505,10 @@ func (td *transactionDiffer) payoutMinerWithSponsorshipHandling(
 	issuerAddrID := issuerAddr.ID()
 	issuerAssetKey := byteKey(issuerAddrID, feeAsset)
 
-	issuerAssetBalanceDiff := int64(fee)
+	issuerAssetBalanceDiff, cErr := safecast.Convert[int64](fee)
+	if cErr != nil {
+		return fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
 	issuerDiff := newBalanceDiff(issuerAssetBalanceDiff, 0, 0, 0, updateMinIntermediateBalance)
 	if dErr := ch.diff.appendBalanceDiff(issuerAssetKey, issuerDiff); dErr != nil {
 		return dErr
@@ -557,7 +571,11 @@ func (td *transactionDiffer) createDiffTransfer(tx *proto.Transfer, info *differ
 	senderAddrID := senderAddr.ID()
 
 	senderFeeKey := byteKey(senderAddrID, tx.FeeAsset)
-	senderFeeBalanceDiff := -int64(tx.Fee)
+	fee, cErr := safecast.Convert[int64](tx.Fee)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
+	senderFeeBalanceDiff := -fee
 	if adErr := diff.appendBalanceDiff(
 		senderFeeKey,
 		newBalanceDiff(senderFeeBalanceDiff, 0, 0, 0, updateMinIntermediateBalance),
@@ -565,7 +583,11 @@ func (td *transactionDiffer) createDiffTransfer(tx *proto.Transfer, info *differ
 		return txBalanceChanges{}, adErr
 	}
 	senderAmountKey := byteKey(senderAddrID, tx.AmountAsset)
-	senderAmountBalanceDiff := -int64(tx.Amount)
+	amount, cErr := safecast.Convert[int64](tx.Amount)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert amount to int64: %w", cErr)
+	}
+	senderAmountBalanceDiff := -amount
 	if adErr := diff.appendBalanceDiff(
 		senderAmountKey,
 		newBalanceDiff(senderAmountBalanceDiff, 0, 0, 0, updateMinIntermediateBalance),
@@ -578,7 +600,7 @@ func (td *transactionDiffer) createDiffTransfer(tx *proto.Transfer, info *differ
 		return txBalanceChanges{}, err
 	}
 	receiverKey := byteKey(recipientAddr.ID(), tx.AmountAsset)
-	receiverBalanceDiff := int64(tx.Amount)
+	receiverBalanceDiff := amount
 	if adErr := diff.appendBalanceDiff(
 		receiverKey,
 		newBalanceDiff(receiverBalanceDiff, 0, 0, 0, updateMinIntermediateBalance),
@@ -606,7 +628,11 @@ func (td *transactionDiffer) createDiffEthereumTransferWaves(tx *proto.EthereumT
 	wavesAsset := proto.NewOptionalAssetWaves()
 
 	senderFeeKey := byteKey(senderAddress.ID(), wavesAsset)
-	senderFeeBalanceDiff := -int64(tx.GetFee())
+	fee, cErr := safecast.Convert[int64](tx.GetFee())
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
+	senderFeeBalanceDiff := -fee
 	if adErr := diff.appendBalanceDiff(
 		senderFeeKey,
 		newBalanceDiff(senderFeeBalanceDiff, 0, 0, 0, updateMinIntermediateBalance),
@@ -646,10 +672,10 @@ func (td *transactionDiffer) createDiffEthereumTransferWaves(tx *proto.EthereumT
 	addrs := []proto.WavesAddress{senderAddress, recipientAddress}
 	changes := newTxBalanceChanges(addrs, diff)
 	var (
-		fee      = tx.GetFee()
-		feeAsset = tx.GetFeeAsset()
+		txFee      = tx.GetFee()
+		txFeeAsset = tx.GetFeeAsset()
 	)
-	spErr := td.payoutMinerWithSponsorshipHandling(&changes, false, senderAddress, fee, feeAsset, info)
+	spErr := td.payoutMinerWithSponsorshipHandling(&changes, false, senderAddress, txFee, txFeeAsset, info)
 	if spErr != nil {
 		return txBalanceChanges{}, spErr
 	}
@@ -687,7 +713,11 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 	// Fee
 	wavesAsset := proto.NewOptionalAssetWaves()
 	senderFeeKey := byteKey(senderAddress.ID(), wavesAsset)
-	senderFeeBalanceDiff := -int64(tx.GetFee())
+	fee, cErr := safecast.Convert[int64](tx.GetFee())
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
+	senderFeeBalanceDiff := -fee
 	if adErr := diff.appendBalanceDiff(
 		senderFeeKey,
 		newBalanceDiff(senderFeeBalanceDiff, 0, 0, 0, updateMinIntermediateBalance),
@@ -724,10 +754,10 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 	addrs := []proto.WavesAddress{senderAddress, etc20TransferRecipient}
 	changes := newTxBalanceChanges(addrs, diff)
 	var (
-		fee      = tx.GetFee()
-		feeAsset = tx.GetFeeAsset()
+		txFee      = tx.GetFee()
+		txFeeAsset = tx.GetFeeAsset()
 	)
-	spErr := td.payoutMinerWithSponsorshipHandling(&changes, false, senderAddress, fee, feeAsset, info)
+	spErr := td.payoutMinerWithSponsorshipHandling(&changes, false, senderAddress, txFee, txFeeAsset, info)
 	if spErr != nil {
 		return txBalanceChanges{}, spErr
 	}
@@ -782,7 +812,11 @@ func (td *transactionDiffer) createDiffIssue(tx *proto.Issue, id []byte, info *d
 	}
 	senderAddrID := senderAddr.ID()
 	senderFeeKey := wavesBalanceKey{address: senderAddrID}
-	senderFeeBalanceDiff := -int64(tx.Fee)
+	fee, cErr := safecast.Convert[int64](tx.Fee)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
+	senderFeeBalanceDiff := -fee
 	if adErr := diff.appendBalanceDiff(
 		senderFeeKey.bytes(),
 		newBalanceDiff(senderFeeBalanceDiff, 0, 0, 0, false),
@@ -790,7 +824,10 @@ func (td *transactionDiffer) createDiffIssue(tx *proto.Issue, id []byte, info *d
 		return txBalanceChanges{}, adErr
 	}
 	senderAssetKey := assetBalanceKey{address: senderAddrID, asset: proto.AssetIDFromDigest(assetID)}
-	senderAssetBalanceDiff := int64(tx.Quantity)
+	senderAssetBalanceDiff, cErr := safecast.Convert[int64](tx.Quantity)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert quantity to int64: %w", cErr)
+	}
 	if adErr := diff.appendBalanceDiff(
 		senderAssetKey.bytes(),
 		newBalanceDiff(senderAssetBalanceDiff, 0, 0, 0, false),
@@ -838,7 +875,11 @@ func (td *transactionDiffer) createDiffReissue(tx *proto.Reissue, info *differIn
 	}
 	senderAddrID := senderAddr.ID()
 	senderFeeKey := wavesBalanceKey{address: senderAddrID}
-	senderFeeBalanceDiff := -int64(tx.Fee)
+	fee, cErr := safecast.Convert[int64](tx.Fee)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
+	senderFeeBalanceDiff := -fee
 	if adErr := diff.appendBalanceDiff(
 		senderFeeKey.bytes(),
 		newBalanceDiff(senderFeeBalanceDiff, 0, 0, 0, false),
@@ -846,7 +887,10 @@ func (td *transactionDiffer) createDiffReissue(tx *proto.Reissue, info *differIn
 		return txBalanceChanges{}, adErr
 	}
 	senderAssetKey := assetBalanceKey{address: senderAddrID, asset: proto.AssetIDFromDigest(tx.AssetID)}
-	senderAssetBalanceDiff := int64(tx.Quantity)
+	senderAssetBalanceDiff, cErr := safecast.Convert[int64](tx.Quantity)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert quantity to int64: %w", cErr)
+	}
 	if adErr := diff.appendBalanceDiff(
 		senderAssetKey.bytes(),
 		newBalanceDiff(senderAssetBalanceDiff, 0, 0, 0, false),
@@ -886,7 +930,11 @@ func (td *transactionDiffer) createDiffBurn(tx *proto.Burn, info *differInfo) (t
 	}
 	senderAddrID := senderAddr.ID()
 	senderFeeKey := wavesBalanceKey{address: senderAddrID}
-	senderFeeBalanceDiff := -int64(tx.Fee)
+	fee, cErr := safecast.Convert[int64](tx.Fee)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
+	senderFeeBalanceDiff := -fee
 	if adErr := diff.appendBalanceDiff(
 		senderFeeKey.bytes(),
 		newBalanceDiff(senderFeeBalanceDiff, 0, 0, 0, false),
@@ -894,7 +942,11 @@ func (td *transactionDiffer) createDiffBurn(tx *proto.Burn, info *differInfo) (t
 		return txBalanceChanges{}, adErr
 	}
 	senderAssetKey := assetBalanceKey{address: senderAddrID, asset: proto.AssetIDFromDigest(tx.AssetID)}
-	senderAssetBalanceDiff := -int64(tx.Amount)
+	amount, cErr := safecast.Convert[int64](tx.Amount)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert amount to int64: %w", cErr)
+	}
+	senderAssetBalanceDiff := -amount
 	if adErr := diff.appendBalanceDiff(
 		senderAssetKey.bytes(),
 		newBalanceDiff(senderAssetBalanceDiff, 0, 0, 0, false),
@@ -1111,7 +1163,10 @@ func (td *transactionDiffer) createDiffExchange(transaction proto.Transaction, i
 	}
 	matcherAddrID := matcherAddr.ID()
 
-	senderFee := int64(tx.GetSellMatcherFee())
+	senderFee, cErr := safecast.Convert[int64](tx.GetSellMatcherFee())
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert sell matcher fee to int64: %w", cErr)
+	}
 	senderFeeKey := td.orderFeeKey(senderAddrID, sellOrder)
 	if adErr := diff.appendBalanceDiff(
 		senderFeeKey,
@@ -1142,7 +1197,10 @@ func (td *transactionDiffer) createDiffExchange(transaction proto.Transaction, i
 		return txBalanceChanges{}, adErr
 	}
 	matcherKey := wavesBalanceKey{matcherAddrID}
-	matcherFee := int64(tx.GetFee())
+	matcherFee, cErr := safecast.Convert[int64](tx.GetFee())
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
 	if adErr := diff.appendBalanceDiff(
 		matcherKey.bytes(),
 		newBalanceDiff(-matcherFee, 0, 0, 0, false),
@@ -1205,14 +1263,20 @@ func (td *transactionDiffer) createDiffForExchangeFeeValidation(transaction prot
 	matcherAddrID := matcherAddr.ID()
 
 	matcherKey := wavesBalanceKey{matcherAddrID}
-	matcherFee := int64(tx.GetFee())
+	matcherFee, cErr := safecast.Convert[int64](tx.GetFee())
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
 	if adErr := diff.appendBalanceDiff(
 		matcherKey.bytes(),
 		newBalanceDiff(-matcherFee, 0, 0, 0, true),
 	); adErr != nil {
 		return txBalanceChanges{}, adErr
 	}
-	senderFee := int64(tx.GetSellMatcherFee())
+	senderFee, cErr := safecast.Convert[int64](tx.GetSellMatcherFee())
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert sell matcher fee to int64: %w", cErr)
+	}
 	senderFeeKey := td.orderFeeKey(senderAddr.ID(), sellOrder)
 	if adErr := diff.appendBalanceDiff(
 		senderFeeKey,
@@ -1270,7 +1334,10 @@ func (td *transactionDiffer) createFeeDiffExchange(transaction proto.Transaction
 		return txBalanceChanges{}, err
 	}
 	matcherKey := wavesBalanceKey{matcherAddr.ID()}
-	matcherFee := int64(tx.GetFee())
+	matcherFee, cErr := safecast.Convert[int64](tx.GetFee())
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
 	if adErr := diff.appendBalanceDiff(
 		matcherKey.bytes(),
 		newBalanceDiff(-matcherFee, 0, 0, 0, true),
@@ -1297,13 +1364,21 @@ func (td *transactionDiffer) createDiffLease(tx *proto.Lease, info *differInfo) 
 		return txBalanceChanges{}, err
 	}
 	senderKey := wavesBalanceKey{address: senderAddr.ID()}
-	senderLeaseOutDiff := int64(tx.Amount)
+	amount, cErr := safecast.Convert[int64](tx.Amount)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert amount to int64: %w", cErr)
+	}
+	senderLeaseOutDiff := amount
 	if adErr := diff.appendBalanceDiff(
 		senderKey.bytes(),
 		newBalanceDiff(0, 0, senderLeaseOutDiff, 0, false)); adErr != nil {
 		return txBalanceChanges{}, adErr
 	}
-	senderFeeDiff := -int64(tx.Fee)
+	fee, cErr := safecast.Convert[int64](tx.Fee)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
+	senderFeeDiff := -fee
 	if adErr := diff.appendBalanceDiff(
 		senderKey.bytes(),
 		newBalanceDiff(senderFeeDiff, 0, 0, 0, false),
@@ -1316,7 +1391,7 @@ func (td *transactionDiffer) createDiffLease(tx *proto.Lease, info *differInfo) 
 		return txBalanceChanges{}, err
 	}
 	receiverKey := wavesBalanceKey{address: recipientAddr.ID()}
-	receiverLeaseInDiff := int64(tx.Amount)
+	receiverLeaseInDiff := amount
 	if adErr := diff.appendBalanceDiff(
 		receiverKey.bytes(),
 		newBalanceDiff(0, receiverLeaseInDiff, 0, 0, false),
@@ -1359,14 +1434,22 @@ func (td *transactionDiffer) createDiffLeaseCancel(tx *proto.LeaseCancel, info *
 		return txBalanceChanges{}, err
 	}
 	senderKey := wavesBalanceKey{address: senderAddr.ID()}
-	senderLeaseOutDiff := -int64(l.Amount)
+	amount, cErr := safecast.Convert[int64](l.Amount)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert amount to int64: %w", cErr)
+	}
+	senderLeaseOutDiff := -amount
 	if adErr := diff.appendBalanceDiff(
 		senderKey.bytes(),
 		newBalanceDiff(0, 0, senderLeaseOutDiff, 0, false),
 	); adErr != nil {
 		return txBalanceChanges{}, adErr
 	}
-	senderFeeDiff := -int64(tx.Fee)
+	fee, cErr := safecast.Convert[int64](tx.Fee)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
+	senderFeeDiff := -fee
 	if adErr := diff.appendBalanceDiff(
 		senderKey.bytes(),
 		newBalanceDiff(senderFeeDiff, 0, 0, 0, false),
@@ -1375,7 +1458,7 @@ func (td *transactionDiffer) createDiffLeaseCancel(tx *proto.LeaseCancel, info *
 	}
 	// Append receiver diff.
 	receiverKey := wavesBalanceKey{address: l.RecipientAddr.ID()}
-	receiverLeaseInDiff := -int64(l.Amount)
+	receiverLeaseInDiff := -amount
 	if adErr := diff.appendBalanceDiff(
 		receiverKey.bytes(),
 		newBalanceDiff(0, receiverLeaseInDiff, 0, 0, false),
@@ -1414,7 +1497,11 @@ func (td *transactionDiffer) createDiffCreateAlias(tx *proto.CreateAlias, info *
 	}
 	// Append sender diff.
 	senderFeeKey := wavesBalanceKey{address: senderAddr.ID()}
-	senderFeeBalanceDiff := -int64(tx.Fee)
+	fee, cErr := safecast.Convert[int64](tx.Fee)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
+	senderFeeBalanceDiff := -fee
 	if adErr := diff.appendBalanceDiff(
 		senderFeeKey.bytes(),
 		newBalanceDiff(senderFeeBalanceDiff, 0, 0, 0, false),
@@ -1462,7 +1549,11 @@ func (td *transactionDiffer) createDiffMassTransferWithProofs(transaction proto.
 
 	addresses[0] = senderAddr
 	senderFeeKey := wavesBalanceKey{address: senderAddrID}
-	senderFeeBalanceDiff := -int64(tx.Fee)
+	fee, cErr := safecast.Convert[int64](tx.Fee)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
+	senderFeeBalanceDiff := -fee
 	if adErr := diff.appendBalanceDiff(
 		senderFeeKey.bytes(),
 		newBalanceDiff(senderFeeBalanceDiff, 0, 0, 0, updateMinIntermediateBalance),
@@ -1473,7 +1564,11 @@ func (td *transactionDiffer) createDiffMassTransferWithProofs(transaction proto.
 	senderAmountKey := byteKey(senderAddrID, tx.Asset)
 	for i, entry := range tx.Transfers {
 		// Sender.
-		senderAmountBalanceDiff := -int64(entry.Amount)
+		amount, caErr := safecast.Convert[int64](entry.Amount)
+		if caErr != nil {
+			return txBalanceChanges{}, fmt.Errorf("failed to convert amount to int64: %w", caErr)
+		}
+		senderAmountBalanceDiff := -amount
 		if adErr := diff.appendBalanceDiff(
 			senderAmountKey,
 			newBalanceDiff(senderAmountBalanceDiff, 0, 0, 0, updateMinIntermediateBalance),
@@ -1486,7 +1581,7 @@ func (td *transactionDiffer) createDiffMassTransferWithProofs(transaction proto.
 			return txBalanceChanges{}, err
 		}
 		recipientKey := byteKey(recipientAddr.ID(), tx.Asset)
-		recipientBalanceDiff := int64(entry.Amount)
+		recipientBalanceDiff := amount
 		if adErr := diff.appendBalanceDiff(
 			recipientKey,
 			newBalanceDiff(recipientBalanceDiff, 0, 0, 0, updateMinIntermediateBalance),
@@ -1514,7 +1609,11 @@ func (td *transactionDiffer) createDiffDataWithProofs(transaction proto.Transact
 	}
 	// Append sender diff.
 	senderFeeKey := wavesBalanceKey{address: senderAddr.ID()}
-	senderFeeBalanceDiff := -int64(tx.Fee)
+	fee, cErr := safecast.Convert[int64](tx.Fee)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
+	senderFeeBalanceDiff := -fee
 	if adErr := diff.appendBalanceDiff(
 		senderFeeKey.bytes(),
 		newBalanceDiff(senderFeeBalanceDiff, 0, 0, 0, false),
@@ -1541,7 +1640,11 @@ func (td *transactionDiffer) createDiffSponsorshipWithProofs(transaction proto.T
 	}
 	// Append sender diff.
 	senderFeeKey := wavesBalanceKey{address: senderAddr.ID()}
-	senderFeeBalanceDiff := -int64(tx.Fee)
+	fee, cErr := safecast.Convert[int64](tx.Fee)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
+	senderFeeBalanceDiff := -fee
 	if adErr := diff.appendBalanceDiff(
 		senderFeeKey.bytes(),
 		newBalanceDiff(senderFeeBalanceDiff, 0, 0, 0, false),
@@ -1568,7 +1671,11 @@ func (td *transactionDiffer) createDiffSetScriptWithProofs(transaction proto.Tra
 	}
 	// Append sender diff.
 	senderFeeKey := wavesBalanceKey{address: senderAddr.ID()}
-	senderFeeBalanceDiff := -int64(tx.Fee)
+	fee, cErr := safecast.Convert[int64](tx.Fee)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
+	senderFeeBalanceDiff := -fee
 	if adErr := diff.appendBalanceDiff(
 		senderFeeKey.bytes(),
 		newBalanceDiff(senderFeeBalanceDiff, 0, 0, 0, false),
@@ -1595,7 +1702,11 @@ func (td *transactionDiffer) createDiffSetAssetScriptWithProofs(transaction prot
 	}
 	// Append sender diff.
 	senderFeeKey := wavesBalanceKey{address: senderAddr.ID()}
-	senderFeeBalanceDiff := -int64(tx.Fee)
+	fee, cErr := safecast.Convert[int64](tx.Fee)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
+	senderFeeBalanceDiff := -fee
 	if adErr := diff.appendBalanceDiff(
 		senderFeeKey.bytes(),
 		newBalanceDiff(senderFeeBalanceDiff, 0, 0, 0, false),
@@ -1622,9 +1733,14 @@ func updateDiffByPayment(
 		return nil
 	}
 
+	amount, cErr := safecast.Convert[int64](payment.Amount)
+	if cErr != nil {
+		return fmt.Errorf("failed to convert amount to int64: %w", cErr)
+	}
+
 	var (
 		senderPaymentKey  = byteKey(sender, payment.Asset)
-		senderBalanceDiff = -int64(payment.Amount)
+		senderBalanceDiff = -amount
 		senderDiff        = newBalanceDiff(senderBalanceDiff, 0, 0, 0, updateMinIntermediateBalance)
 	)
 	if err := diff.appendBalanceDiff(senderPaymentKey, senderDiff); err != nil {
@@ -1633,7 +1749,7 @@ func updateDiffByPayment(
 
 	var (
 		receiverKey         = byteKey(scriptAddrID, payment.Asset)
-		receiverBalanceDiff = int64(payment.Amount)
+		receiverBalanceDiff = amount
 		receiverDiff        = newBalanceDiff(receiverBalanceDiff, 0, 0, 0, updateMinIntermediateBalance)
 	)
 	if err := diff.appendBalanceDiff(receiverKey, receiverDiff); err != nil {
@@ -1661,7 +1777,11 @@ func (td *transactionDiffer) createDiffInvokeScriptWithProofs(transaction proto.
 	senderAddrID := senderAddr.ID()
 
 	senderFeeKey := byteKey(senderAddrID, tx.FeeAsset)
-	senderFeeBalanceDiff := -int64(tx.Fee)
+	fee, cErr := safecast.Convert[int64](tx.Fee)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
+	senderFeeBalanceDiff := -fee
 	if adErr := diff.appendBalanceDiff(
 		senderFeeKey,
 		newBalanceDiff(senderFeeBalanceDiff, 0, 0, 0, updateMinIntermediateBalance),
@@ -1705,7 +1825,11 @@ func (td *transactionDiffer) createDiffInvokeExpressionWithProofs(transaction pr
 	senderAddrID := senderAddr.ID()
 
 	senderFeeKey := byteKey(senderAddrID, tx.FeeAsset)
-	senderFeeBalanceDiff := -int64(tx.Fee)
+	fee, cErr := safecast.Convert[int64](tx.Fee)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
+	senderFeeBalanceDiff := -fee
 	if adErr := diff.appendBalanceDiff(
 		senderFeeKey,
 		newBalanceDiff(senderFeeBalanceDiff, 0, 0, 0, false),
@@ -1745,7 +1869,11 @@ func (td *transactionDiffer) createDiffEthereumInvokeScript(tx *proto.EthereumTr
 	senderAddrID := senderAddress.ID()
 	assetFee := proto.NewOptionalAssetWaves()
 	senderFeeKey := byteKey(senderAddrID, assetFee)
-	senderFeeBalanceDiff := -int64(tx.GetFee())
+	fee, cErr := safecast.Convert[int64](tx.GetFee())
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
+	senderFeeBalanceDiff := -fee
 	if adErr := diff.appendBalanceDiff(
 		senderFeeKey,
 		newBalanceDiff(senderFeeBalanceDiff, 0, 0, 0, updateMinIntermediateBalance),
@@ -1772,10 +1900,10 @@ func (td *transactionDiffer) createDiffEthereumInvokeScript(tx *proto.EthereumTr
 	addresses := []proto.WavesAddress{senderAddress, scriptAddr}
 	changes := newTxBalanceChanges(addresses, diff)
 	var (
-		fee      = tx.GetFee()
-		feeAsset = tx.GetFeeAsset()
+		txFee      = tx.GetFee()
+		txFeeAsset = tx.GetFeeAsset()
 	)
-	spErr := td.payoutMinerWithSponsorshipHandling(&changes, true, senderAddress, fee, feeAsset, info)
+	spErr := td.payoutMinerWithSponsorshipHandling(&changes, true, senderAddress, txFee, txFeeAsset, info)
 	if spErr != nil {
 		return txBalanceChanges{}, spErr
 	}
@@ -1795,7 +1923,11 @@ func (td *transactionDiffer) createFeeDiffInvokeExpressionWithProofs(transaction
 		return txBalanceChanges{}, err
 	}
 	senderFeeKey := byteKey(senderAddr.ID(), tx.FeeAsset)
-	senderFeeBalanceDiff := -int64(tx.Fee)
+	fee, cErr := safecast.Convert[int64](tx.Fee)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
+	senderFeeBalanceDiff := -fee
 	if adErr := diff.appendBalanceDiff(
 		senderFeeKey,
 		newBalanceDiff(senderFeeBalanceDiff, 0, 0, 0, true),
@@ -1806,10 +1938,10 @@ func (td *transactionDiffer) createFeeDiffInvokeExpressionWithProofs(transaction
 	addresses := []proto.WavesAddress{senderAddr}
 	changes := newTxBalanceChanges(addresses, diff)
 	var (
-		fee      = tx.GetFee()
-		feeAsset = tx.GetFeeAsset()
+		txFee      = tx.GetFee()
+		txFeeAsset = tx.GetFeeAsset()
 	)
-	spErr := td.payoutMinerWithSponsorshipHandling(&changes, true, senderAddr, fee, feeAsset, info)
+	spErr := td.payoutMinerWithSponsorshipHandling(&changes, true, senderAddr, txFee, txFeeAsset, info)
 	if spErr != nil {
 		return txBalanceChanges{}, spErr
 	}
@@ -1828,7 +1960,11 @@ func (td *transactionDiffer) createFeeDiffInvokeScriptWithProofs(transaction pro
 		return txBalanceChanges{}, err
 	}
 	senderFeeKey := byteKey(senderAddr.ID(), tx.FeeAsset)
-	senderFeeBalanceDiff := -int64(tx.Fee)
+	fee, cErr := safecast.Convert[int64](tx.Fee)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
+	senderFeeBalanceDiff := -fee
 	if adErr := diff.appendBalanceDiff(
 		senderFeeKey,
 		newBalanceDiff(senderFeeBalanceDiff, 0, 0, 0, true),
@@ -1865,7 +2001,11 @@ func (td *transactionDiffer) createFeeDiffEthereumInvokeScriptWithProofs(transac
 	}
 	wavesAsset := proto.NewOptionalAssetWaves()
 	senderFeeKey := byteKey(senderAddress.ID(), wavesAsset)
-	senderFeeBalanceDiff := -int64(tx.GetFee())
+	fee, cErr := safecast.Convert[int64](tx.GetFee())
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
+	senderFeeBalanceDiff := -fee
 	if adErr := diff.appendBalanceDiff(
 		senderFeeKey,
 		newBalanceDiff(senderFeeBalanceDiff, 0, 0, 0, true),
@@ -1883,10 +2023,10 @@ func (td *transactionDiffer) createFeeDiffEthereumInvokeScriptWithProofs(transac
 	addresses := []proto.WavesAddress{senderAddress, scriptAddress}
 	changes := newTxBalanceChanges(addresses, diff)
 	var (
-		fee      = tx.GetFee()
-		feeAsset = tx.GetFeeAsset()
+		txFee      = tx.GetFee()
+		txFeeAsset = tx.GetFeeAsset()
 	)
-	spErr := td.payoutMinerWithSponsorshipHandling(&changes, true, senderAddress, fee, feeAsset, info)
+	spErr := td.payoutMinerWithSponsorshipHandling(&changes, true, senderAddress, txFee, txFeeAsset, info)
 	if spErr != nil {
 		return txBalanceChanges{}, spErr
 	}
@@ -1905,7 +2045,11 @@ func (td *transactionDiffer) createDiffUpdateAssetInfoWithProofs(transaction pro
 		return txBalanceChanges{}, err
 	}
 	senderFeeKey := byteKey(senderAddr.ID(), tx.FeeAsset)
-	senderFeeBalanceDiff := -int64(tx.Fee)
+	fee, cErr := safecast.Convert[int64](tx.Fee)
+	if cErr != nil {
+		return txBalanceChanges{}, fmt.Errorf("failed to convert fee to int64: %w", cErr)
+	}
+	senderFeeBalanceDiff := -fee
 	if adErr := diff.appendBalanceDiff(
 		senderFeeKey,
 		newBalanceDiff(senderFeeBalanceDiff, 0, 0, 0, false),

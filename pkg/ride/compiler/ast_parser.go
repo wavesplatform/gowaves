@@ -14,6 +14,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 
@@ -336,7 +337,12 @@ func (p *astParser) ruleDirectiveHandler(node *node32, directiveCnt map[string]i
 			p.addError(curNode.token32, "Failed to parse version '%s': %v", dirValue, err)
 			break
 		}
-		lv, err := ast.NewLibraryVersion(byte(version))
+		versionByte, cErr := safecast.Convert[byte](version)
+		if cErr != nil {
+			p.addError(curNode.token32, "Invalid directive '%s': %v", stdlibVersionDirectiveName, cErr)
+			break
+		}
+		lv, err := ast.NewLibraryVersion(versionByte)
 		if err != nil {
 			p.addError(curNode.token32, "Invalid directive '%s': %v", stdlibVersionDirectiveName, err)
 			lv = ast.LibV1

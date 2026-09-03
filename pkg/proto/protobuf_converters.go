@@ -479,14 +479,16 @@ func (c *ProtobufConverter) byte(value int32, context ...string) byte {
 	if c.err != nil {
 		return 0
 	}
-	if value < 0 || value > 0xff {
+	res, err := safecast.Convert[byte](value)
+	if err != nil {
 		if len(context) > 0 {
-			c.err = errors.Errorf("invalid byte value, context: %s", context[0])
+			c.err = errors.Wrapf(err, "invalid byte value, context: %s", context[0])
 		} else {
-			c.err = errors.New("invalid byte value")
+			c.err = errors.Wrap(err, "invalid byte value")
 		}
+		return 0
 	}
-	return byte(value)
+	return res
 }
 
 func (c *ProtobufConverter) byteValidated(value int32, validators ...func(int32) error) byte {
@@ -500,7 +502,12 @@ func (c *ProtobufConverter) byteValidated(value int32, validators ...func(int32)
 			return 0
 		}
 	}
-	return byte(value)
+	res, err := safecast.Convert[byte](value)
+	if err != nil {
+		c.err = errors.Wrap(err, "invalid byte value")
+		return 0
+	}
+	return res
 }
 
 func (c *ProtobufConverter) digest(digest []byte) crypto.Digest {
@@ -1132,8 +1139,12 @@ func (c *ProtobufConverter) ErrorMessage(msg *g.InvokeScriptResult_ErrorMessage)
 	if msg == nil {
 		return ScriptErrorMessage{}, errors.New("empty invoke script result error message")
 	}
+	code, err := safecast.Convert[TxFailureReason](msg.Code)
+	if err != nil {
+		return ScriptErrorMessage{}, errors.Wrap(err, "invalid error message code")
+	}
 	return ScriptErrorMessage{
-		Code: TxFailureReason(msg.Code),
+		Code: code,
 		Text: msg.Text,
 	}, nil
 }
