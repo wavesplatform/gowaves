@@ -187,12 +187,12 @@ type txSnapshotJSON struct {
 	AccountData               NonNullableSlice[DataEntriesSnapshot]      `json:"accountData"`
 }
 
-func (s *txSnapshotJSON) MarshalJSON() ([]byte, error) {
+func (s txSnapshotJSON) MarshalJSON() ([]byte, error) {
 	if s.ApplicationStatus == unknownTransactionStatus {
 		return nil, errors.New("empty transaction status")
 	}
 	type shadowed txSnapshotJSON
-	return json.Marshal((*shadowed)(s))
+	return json.Marshal((shadowed)(s))
 }
 
 func (s *txSnapshotJSON) UnmarshalJSON(bytes []byte) error {

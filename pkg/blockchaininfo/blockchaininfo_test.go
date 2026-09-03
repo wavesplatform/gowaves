@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -64,12 +65,15 @@ func TestChangesGenerationNewEntries(t *testing.T) {
 
 	previousDataEntries := []proto.DataEntry{
 		&proto.BinaryDataEntry{Key: previousFirstKey,
+			// nosemgrep: generic.secrets.security.detected-telegram-bot-api-key.detected-telegram-bot-api-key
 			Value: []byte("base64:AAAAAAAQYVwAAAAAADDSCpJJsd11jrOMW7AS/AHIMIDQ" +
 				"XjqmFyhDuGt2RPNvmcCXAVTy/URmfMOj7GNweXnZpzidmxHfPBfcP5A=")}, // height 3199498.
 		&proto.BinaryDataEntry{Key: previousSecondKey,
+			// nosemgrep: generic.secrets.security.detected-telegram-bot-api-key.detected-telegram-bot-api-key
 			Value: []byte("base64:AAAAAAAQYywAAAAAADDSQBBubtiRmKwtaNFF1TrBhsfBu" +
 				"61fj3qiSrtyu1/kLLAlAVQp5GtuF7Hxji8CQ9SFOEZLLUv88nvIgg8=")}, // height 3199552.
 		&proto.BinaryDataEntry{Key: previousThirdKey,
+			// nosemgrep: generic.secrets.security.detected-telegram-bot-api-key.detected-telegram-bot-api-key
 			Value: []byte("base64:AAAAAAAQZEUAAAAAADDSZeUUyashoWjUKurzA/wVU5prm" +
 				"68CambvjIo1ESLoLuAaAVRaS4vOsPl9cxvg7aeRj7RFZQzdpmvV/+A=")}, // height 3199589.
 	}
@@ -133,12 +137,15 @@ func TestChangesGenerationContainsPrevious(t *testing.T) {
 
 	previousDataEntries := []proto.DataEntry{
 		&proto.BinaryDataEntry{Key: previousFirstKey,
+			// nosemgrep: generic.secrets.security.detected-telegram-bot-api-key.detected-telegram-bot-api-key
 			Value: []byte("base64:AAAAAAAQYVwAAAAAADDSCpJJsd11jrOMW7AS/AHIMIDQXj" +
 				"qmFyhDuGt2RPNvmcCXAVTy/URmfMOj7GNweXnZpzidmxHfPBfcP5A=")}, // height 3199498.
 		&proto.BinaryDataEntry{Key: previousSecondKey,
+			// nosemgrep: generic.secrets.security.detected-telegram-bot-api-key.detected-telegram-bot-api-key
 			Value: []byte("base64:AAAAAAAQYywAAAAAADDSQBBubtiRmKwtaNFF1TrBhsfBu61" +
 				"fj3qiSrtyu1/kLLAlAVQp5GtuF7Hxji8CQ9SFOEZLLUv88nvIgg8=")}, // height 3199552.
 		&proto.BinaryDataEntry{Key: previousThirdKey,
+			// nosemgrep: generic.secrets.security.detected-telegram-bot-api-key.detected-telegram-bot-api-key
 			Value: []byte("base64:AAAAAAAQZEUAAAAAADDSZeUUyashoWjUKurzA/wVU5prm68Ca" +
 				"mbvjIo1ESLoLuAaAVRaS4vOsPl9cxvg7aeRj7RFZQzdpmvV/+A=")}, // height 3199589.
 	}
@@ -150,16 +157,20 @@ func TestChangesGenerationContainsPrevious(t *testing.T) {
 
 	currentDataEntries := []proto.DataEntry{
 		&proto.BinaryDataEntry{Key: previousFirstKey,
+			// nosemgrep: generic.secrets.security.detected-telegram-bot-api-key.detected-telegram-bot-api-key
 			Value: []byte("base64:AAAAAAAQYVwAAAAAADDSCpJJsd11jrOMW7AS/A" +
 				"HIMIDQXjqmFyhDuGt2RPNvmcCXAVTy/URmfMOj7GNweXnZpzidmxHfPBfcP5A=")}, // height 3199498.
 		&proto.BinaryDataEntry{Key: previousSecondKey,
+			// nosemgrep: generic.secrets.security.detected-telegram-bot-api-key.detected-telegram-bot-api-key
 			Value: []byte("base64:AAAAAAAQYywAAAAAADDSQBBubtiRmKwtaNFF1T" +
 				"rBhsfBu61fj3qiSrtyu1/kLLAlAVQp5GtuF7Hxji8CQ9SFOEZLLUv88nvIgg8=")}, // height 3199552.
 		&proto.BinaryDataEntry{Key: previousThirdKey,
+			// nosemgrep: generic.secrets.security.detected-telegram-bot-api-key.detected-telegram-bot-api-key
 			Value: []byte("base64:AAAAAAAQZEUAAAAAADDSZeUUyashoWjUKurzA/wV" +
 				"U5prm68CambvjIo1ESLoLuAaAVRaS4vOsPl9cxvg7aeRj7RFZQzdpmvV/+A=")}, // height 3199589.
 
 		&proto.BinaryDataEntry{Key: currentFirstKey,
+			// nosemgrep: generic.secrets.security.detected-telegram-bot-api-key.detected-telegram-bot-api-key
 			Value: []byte("base64:AAAAAAAQZKkAAAAAADDSb6xEaq4RsFQruGNeGdoo" +
 				"PmtLBnlERR15qzc/mcKcQ461AVQp5GtuF7Hxji8CQ9SFOEZLLUv88nvIgg8=")}, // height 3199599.
 		&proto.BinaryDataEntry{Key: currentSecondKey,

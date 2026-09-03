@@ -133,7 +133,7 @@ func (es *EthereumSignature) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (es *EthereumSignature) MarshalJSON() ([]byte, error) {
+func (es EthereumSignature) MarshalJSON() ([]byte, error) {
 	sig := es.Bytes()
 	return HexBytes(sig).MarshalJSON()
 }

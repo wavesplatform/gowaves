@@ -412,11 +412,14 @@ func (s *Session) readMessagePayload(hdr Header, conn io.Reader) error {
 // keepaliveLoop is a long-running goroutine that periodically sends a Ping message to keep the connection alive.
 func (s *Session) keepaliveLoop() error {
 	defer s.drain()
+	timer := time.NewTimer(s.config.keepAliveInterval)
+	defer timer.Stop()
 	for {
+		timer.Reset(s.config.keepAliveInterval)
 		select {
 		case <-s.ctx.Done():
 			return s.ctx.Err()
-		case <-time.After(s.config.keepAliveInterval):
+		case <-timer.C:
 			if s.established.Load() {
 				// Get actual Ping message from Protocol.
 				p, pErr := s.config.protocol.Ping()
