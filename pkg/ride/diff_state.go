@@ -263,12 +263,20 @@ func (ds *diffState) loadWavesBalance(id proto.AddressID) (diffBalance, error) {
 	if err != nil {
 		return diffBalance{}, errors.Wrap(err, "failed to convert deposit to int64")
 	}
+	balance, err := safecast.Convert[int64](profile.Balance)
+	if err != nil {
+		return diffBalance{}, errors.Wrap(err, "failed to convert balance to int64")
+	}
+	generating, err := safecast.Convert[int64](profile.Generating)
+	if err != nil {
+		return diffBalance{}, errors.Wrap(err, "failed to convert generating balance to int64")
+	}
 	diff := diffBalance{
-		balance:         int64(profile.Balance),
+		balance:         balance,
 		leaseIn:         profile.LeaseIn,
 		leaseOut:        profile.LeaseOut,
 		deposit:         deposit,
-		stateGenerating: int64(profile.Generating),
+		stateGenerating: generating,
 		challenged:      profile.Challenged,
 	}
 	// Store new diff locally

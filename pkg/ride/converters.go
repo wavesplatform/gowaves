@@ -128,14 +128,22 @@ func bytesToByteVectorOrUnit(b []byte) rideType {
 }
 
 func blockInfoToObject(info *proto.BlockInfo, v ast.LibraryVersion) (rideType, error) {
+	timestamp, err := safecast.Convert[rideInt](info.Timestamp)
+	if err != nil {
+		return rideUnit{}, EvaluationFailure.Wrap(err, "blockInfoToObject")
+	}
+	height, err := safecast.Convert[rideInt](info.Height)
+	if err != nil {
+		return rideUnit{}, EvaluationFailure.Wrap(err, "blockInfoToObject")
+	}
 	switch v {
 	case ast.LibV1, ast.LibV2, ast.LibV3:
 		return newRideBlockInfoV3(
 			info.CopyGenerationSignature(),
 			info.CopyGeneratorPublicKey(),
 			rideInt(info.BaseTarget),
-			rideInt(info.Timestamp),
-			rideInt(info.Height),
+			timestamp,
+			height,
 			rideAddress(info.Generator),
 		), nil
 
@@ -145,8 +153,8 @@ func blockInfoToObject(info *proto.BlockInfo, v ast.LibraryVersion) (rideType, e
 			info.CopyGenerationSignature(),
 			info.CopyGeneratorPublicKey(),
 			rideInt(info.BaseTarget),
-			rideInt(info.Timestamp),
-			rideInt(info.Height),
+			timestamp,
+			height,
 			rideAddress(info.Generator),
 		), nil
 	case ast.LibV7, ast.LibV8, ast.LibV9:
@@ -159,8 +167,8 @@ func blockInfoToObject(info *proto.BlockInfo, v ast.LibraryVersion) (rideType, e
 			info.CopyGenerationSignature(),
 			info.CopyGeneratorPublicKey(),
 			rideInt(info.BaseTarget),
-			rideInt(info.Timestamp),
-			rideInt(info.Height),
+			timestamp,
+			height,
 			rideAddress(info.Generator),
 			rl,
 		), nil
@@ -886,6 +894,14 @@ func invokeScriptWithProofsToObject(ver ast.LibraryVersion, scheme byte, tx *pro
 		}
 		args[i] = a
 	}
+	timestamp, err := safecast.Convert[rideInt](tx.Timestamp)
+	if err != nil {
+		return rideUnit{}, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
+	}
+	fee, err := safecast.Convert[rideInt](tx.Fee)
+	if err != nil {
+		return rideUnit{}, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
+	}
 	switch ver {
 	case ast.LibV1, ast.LibV2, ast.LibV3:
 		var p rideType = rideUnit{}
@@ -902,8 +918,8 @@ func invokeScriptWithProofsToObject(ver ast.LibraryVersion, scheme byte, tx *pro
 			common.Dup(tx.SenderPK.Bytes()),
 			p,
 			args,
-			rideInt(tx.Timestamp),
-			rideInt(tx.Fee),
+			timestamp,
+			fee,
 			rideInt(tx.Version),
 			rideAddress(sender),
 		), nil
@@ -922,8 +938,8 @@ func invokeScriptWithProofsToObject(ver ast.LibraryVersion, scheme byte, tx *pro
 			common.Dup(tx.SenderPK.Bytes()),
 			pl,
 			args,
-			rideInt(tx.Timestamp),
-			rideInt(tx.Fee),
+			timestamp,
+			fee,
 			rideInt(tx.Version),
 			rideAddress(sender),
 		), nil
@@ -1044,6 +1060,14 @@ func ethereumTransactionToObject(
 		if err != nil {
 			return nil, errors.Wrap(err, "invokeScriptWithProofsToObject")
 		}
+		timestamp, tsErr := safecast.Convert[rideInt](tx.GetTimestamp())
+		if tsErr != nil {
+			return nil, EvaluationFailure.Wrap(tsErr, "ethereumTransactionToObject")
+		}
+		fee, feeErr := safecast.Convert[rideInt](tx.GetFee())
+		if feeErr != nil {
+			return nil, EvaluationFailure.Wrap(feeErr, "ethereumTransactionToObject")
+		}
 		switch ver {
 		case ast.LibV1, ast.LibV2, ast.LibV3:
 			var payment rideType = rideUnit{}
@@ -1060,8 +1084,8 @@ func ethereumTransactionToObject(
 				callerPK,
 				payment,
 				args,
-				rideInt(tx.GetTimestamp()),
-				rideInt(tx.GetFee()),
+				timestamp,
+				fee,
 				rideInt(tx.GetVersion()),
 				rideAddress(sender),
 			), nil
@@ -1080,8 +1104,8 @@ func ethereumTransactionToObject(
 				callerPK,
 				payments,
 				args,
-				rideInt(tx.GetTimestamp()),
-				rideInt(tx.GetFee()),
+				timestamp,
+				fee,
 				rideInt(tx.GetVersion()),
 				rideAddress(sender),
 			), nil
@@ -1225,6 +1249,10 @@ func invocationToObject(rideVersion ast.LibraryVersion, scheme byte, tx proto.Tr
 		return nil, err
 	}
 	callerPK := rideByteVector(common.Dup(senderPK.Bytes()))
+	rideFee, err := safecast.Convert[rideInt](fee)
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "invocationToObject")
+	}
 	switch rideVersion {
 	case ast.LibV1, ast.LibV2, ast.LibV3:
 		return newRideInvocationV3(
@@ -1233,7 +1261,7 @@ func invocationToObject(rideVersion ast.LibraryVersion, scheme byte, tx proto.Tr
 			optionalAsset(feeAsset),
 			id.Bytes(),
 			rideAddress(sender),
-			rideInt(int64(tx.GetFee())),
+			rideFee,
 		), nil
 	case ast.LibV4:
 		return newRideInvocationV4(
@@ -1242,7 +1270,7 @@ func invocationToObject(rideVersion ast.LibraryVersion, scheme byte, tx proto.Tr
 			optionalAsset(feeAsset),
 			id.Bytes(),
 			rideAddress(sender),
-			rideInt(fee),
+			rideFee,
 		), nil
 	case ast.LibV5, ast.LibV6, ast.LibV7, ast.LibV8, ast.LibV9:
 		return newRideInvocationV5(
@@ -1253,7 +1281,7 @@ func invocationToObject(rideVersion ast.LibraryVersion, scheme byte, tx proto.Tr
 			callerPK,
 			id.Bytes(),
 			rideAddress(sender),
-			rideInt(fee),
+			rideFee,
 		), nil
 	default:
 		return nil, errors.Errorf("unsupported library version %d", rideVersion)
@@ -1274,6 +1302,10 @@ func ethereumInvocationToObject(
 	}
 	callerPK := rideByteVector(callerEthereumPK.SerializeXYCoordinates()) // 64 bytes
 	wavesAsset := proto.NewOptionalAssetWaves()
+	fee, err := safecast.Convert[rideInt](tx.GetFee())
+	if err != nil {
+		return rideInvocationV5{}, EvaluationFailure.Wrap(err, "ethereumInvocationToObject")
+	}
 	switch rideVersion {
 	case ast.LibV1, ast.LibV2, ast.LibV3:
 		var pf rideType = rideUnit{}
@@ -1286,7 +1318,7 @@ func ethereumInvocationToObject(
 			optionalAsset(wavesAsset),
 			tx.ID.Bytes(),
 			rideAddress(sender),
-			rideInt(int64(tx.GetFee())),
+			fee,
 		), nil
 	case ast.LibV4:
 		payments := make(rideList, len(scriptPayments))
@@ -1299,7 +1331,7 @@ func ethereumInvocationToObject(
 			optionalAsset(wavesAsset),
 			tx.ID.Bytes(),
 			rideAddress(sender),
-			rideInt(int64(tx.GetFee())),
+			fee,
 		), nil
 	case ast.LibV5, ast.LibV6, ast.LibV7, ast.LibV8, ast.LibV9:
 		payments := make(rideList, len(scriptPayments))
@@ -1314,7 +1346,7 @@ func ethereumInvocationToObject(
 			callerPK,
 			tx.ID.Bytes(),
 			rideAddress(sender),
-			rideInt(int64(tx.GetFee())),
+			fee,
 		), nil
 	default:
 		return nil, fmt.Errorf("unsupported library version %d", rideVersion)

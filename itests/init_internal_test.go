@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/ory/dockertest/v3"
@@ -33,6 +35,7 @@ const (
 const (
 	withRaceDetectorSuffixArgumentName  = "WITH_RACE_SUFFIX"
 	withRaceDetectorSuffixArgumentValue = "-with-race"
+	versionArgumentName                 = "VERSION"
 )
 
 func TestMain(m *testing.M) {
@@ -80,6 +83,9 @@ func testsSetup() error {
 		buildArgs = append(buildArgs, dc.BuildArg{
 			Name: withRaceDetectorSuffixArgumentName, Value: withRaceDetectorSuffixArgumentValue,
 		})
+	}
+	if version := nodeVersion(); version != "" {
+		buildArgs = append(buildArgs, dc.BuildArg{Name: versionArgumentName, Value: version})
 	}
 	dir, file := filepath.Split(filepath.Join(pwd, dockerfilePath))
 
@@ -129,6 +135,18 @@ func testsSetup() error {
 		}
 	}
 	return nil
+}
+
+// nodeVersion returns the version of the node built into the image. It is calculated on the host in the same way
+// as in Makefile, because the build context passed to Docker contains no Git metadata. Empty result means that
+// the version can't be detected, in that case the default value from Dockerfile is used.
+func nodeVersion() string {
+	out, err := exec.Command("git", "describe", "--tags", "--always", "--dirty").Output()
+	if err != nil {
+		slog.Warn("Failed to detect node version", logging.Error(err))
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
 
 func createLogFile(path string) (*os.File, func(), error) {

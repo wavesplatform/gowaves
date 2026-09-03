@@ -15,6 +15,7 @@ import (
 	"unicode/utf16"
 
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 
@@ -4214,15 +4215,39 @@ type FullWavesBalance struct {
 	LeaseOut   uint64
 }
 
-func (b *FullWavesBalance) ToProtobuf() *pb.BalanceResponse_WavesBalances {
-	return &pb.BalanceResponse_WavesBalances{
-		Regular:    int64(b.Regular),
-		Generating: int64(b.Generating),
-		Available:  int64(b.Available),
-		Effective:  int64(b.Effective),
-		LeaseIn:    int64(b.LeaseIn),
-		LeaseOut:   int64(b.LeaseOut),
+func (b *FullWavesBalance) ToProtobuf() (*pb.BalanceResponse_WavesBalances, error) {
+	regular, err := safecast.Convert[int64](b.Regular)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to convert regular balance to int64")
 	}
+	generating, err := safecast.Convert[int64](b.Generating)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to convert generating balance to int64")
+	}
+	available, err := safecast.Convert[int64](b.Available)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to convert available balance to int64")
+	}
+	effective, err := safecast.Convert[int64](b.Effective)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to convert effective balance to int64")
+	}
+	leaseIn, err := safecast.Convert[int64](b.LeaseIn)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to convert leaseIn to int64")
+	}
+	leaseOut, err := safecast.Convert[int64](b.LeaseOut)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to convert leaseOut to int64")
+	}
+	return &pb.BalanceResponse_WavesBalances{
+		Regular:    regular,
+		Generating: generating,
+		Available:  available,
+		Effective:  effective,
+		LeaseIn:    leaseIn,
+		LeaseOut:   leaseOut,
+	}, nil
 }
 
 type TransactionStatus byte

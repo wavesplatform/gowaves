@@ -1623,7 +1623,10 @@ func (tx *ExchangeWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal buy order to bytes")
 	}
-	o1l := uint32(len(o1b))
+	o1l, err := safecast.Convert[uint32](len(o1b))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to convert buy order length to uint32")
+	}
 	switch tx.Order2.GetVersion() {
 	case OrderVersionV1:
 		o2b, err = tx.marshalAsOrderV1(tx.Order2)

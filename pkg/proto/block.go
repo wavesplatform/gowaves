@@ -7,6 +7,7 @@ import (
 	stderrs "errors"
 	"io"
 
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/jinzhu/copier"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
@@ -594,7 +595,11 @@ func (b *BlockHeader) MarshalHeaderToBinary() ([]byte, error) {
 			res = append(res, rvb...)
 		}
 	} else {
-		res = append(res, byte(b.TransactionCount))
+		txCount, err := safecast.Convert[byte](b.TransactionCount)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert transactions count to byte")
+		}
+		res = append(res, txCount) //nolint:makezero // header is written and filled before.
 	}
 	res = append(res, b.GeneratorPublicKey[:]...)
 	res = append(res, b.BlockSignature[:]...)
@@ -910,7 +915,11 @@ func (b *Block) WriteToWithoutSignature(w io.Writer, scheme Scheme) (int64, erro
 	if b.Version >= NgBlockVersion {
 		s.Uint32(uint32(b.TransactionCount))
 	} else {
-		s.Byte(byte(b.TransactionCount))
+		txCount, err := safecast.Convert[byte](b.TransactionCount)
+		if err != nil {
+			return 0, errors.Wrap(err, "failed to convert transactions count to byte")
+		}
+		s.Byte(txCount)
 	}
 	if _, err := b.Transactions.WriteToBinary(s, scheme); err != nil {
 		return 0, err
