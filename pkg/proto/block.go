@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	stderrs "errors"
+	"fmt"
 	"io"
 
 	"github.com/ccoveille/go-safecast/v2"
@@ -591,7 +592,11 @@ func (b *BlockHeader) MarshalHeaderToBinary() ([]byte, error) {
 		res = append(res, fb...)
 		if b.Version >= RewardBlockVersion {
 			rvb := make([]byte, 8)
-			binary.BigEndian.PutUint64(rvb, uint64(b.RewardVote))
+			rv, rvErr := safecast.Convert[uint64](b.RewardVote)
+			if rvErr != nil {
+				return nil, fmt.Errorf("failed to convert RewardVote to uint64: %w", rvErr)
+			}
+			binary.BigEndian.PutUint64(rvb, rv)
 			res = append(res, rvb...)
 		}
 	} else {
@@ -913,7 +918,11 @@ func (b *Block) WriteToWithoutSignature(w io.Writer, scheme Scheme) (int64, erro
 	// transactions
 	s.Uint32(b.TransactionBlockLength)
 	if b.Version >= NgBlockVersion {
-		s.Uint32(uint32(b.TransactionCount))
+		cnt, cntErr := safecast.Convert[uint32](b.TransactionCount)
+		if cntErr != nil {
+			return 0, fmt.Errorf("failed to convert transactions count to uint32: %w", cntErr)
+		}
+		s.Uint32(cnt)
 	} else {
 		txCount, err := safecast.Convert[byte](b.TransactionCount)
 		if err != nil {

@@ -136,12 +136,16 @@ func blockInfoToObject(info *proto.BlockInfo, v ast.LibraryVersion) (rideType, e
 	if err != nil {
 		return rideUnit{}, EvaluationFailure.Wrap(err, "blockInfoToObject")
 	}
+	bt, err := safecast.Convert[rideInt](info.BaseTarget)
+	if err != nil {
+		return rideUnit{}, EvaluationFailure.Wrap(err, "blockInfoToObject")
+	}
 	switch v {
 	case ast.LibV1, ast.LibV2, ast.LibV3:
 		return newRideBlockInfoV3(
 			info.CopyGenerationSignature(),
 			info.CopyGeneratorPublicKey(),
-			rideInt(info.BaseTarget),
+			bt,
 			timestamp,
 			height,
 			rideAddress(info.Generator),
@@ -152,7 +156,7 @@ func blockInfoToObject(info *proto.BlockInfo, v ast.LibraryVersion) (rideType, e
 			bytesToByteVectorOrUnit(info.CopyVRF()),
 			info.CopyGenerationSignature(),
 			info.CopyGeneratorPublicKey(),
-			rideInt(info.BaseTarget),
+			bt,
 			timestamp,
 			height,
 			rideAddress(info.Generator),
@@ -166,7 +170,7 @@ func blockInfoToObject(info *proto.BlockInfo, v ast.LibraryVersion) (rideType, e
 			bytesToByteVectorOrUnit(info.CopyVRF()),
 			info.CopyGenerationSignature(),
 			info.CopyGeneratorPublicKey(),
-			rideInt(info.BaseTarget),
+			bt,
 			timestamp,
 			height,
 			rideAddress(info.Generator),
