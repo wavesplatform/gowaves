@@ -33,7 +33,7 @@ const (
 
 	ScalaImageRepository = "wavesplatform/wavesnode"
 	goImageRepository    = "go-node"
-	DefaultImageTag      = "latest"
+	DefaultImageTag      = "1.6.4"
 )
 
 const (
@@ -248,7 +248,7 @@ func (c *GoConfigurator) DockerRunOptions() *dockertest.RunOptions {
 	opt := &dockertest.RunOptions{
 		Repository: goImageRepository,
 		Name:       c.suite + "-" + goContainerName,
-		Tag:        DefaultImageTag,
+		Tag:        "latest",
 		User:       "gowaves",
 		Hostname:   "go-node",
 		Platform:   Platform(),

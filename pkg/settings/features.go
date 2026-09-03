@@ -18,19 +18,24 @@ const (
 	Ride4DApps // RIDE V3
 	OrderV3
 	ReducedNFTFee
-	BlockReward             // 14
-	BlockV5                 // 15
-	RideV5                  // 16
-	RideV6                  // 17
-	ConsensusImprovements   // 18
-	BlockRewardDistribution // 19
-	CappedRewards           // 20
-	XTNBuyBackCessation     // 21
-	LightNode               // 22
-	BoostBlockReward        // 23
-	ecrecoverFix            // 24, intentionally package private
-	DeterministicFinality   // 25 Deterministic Finality and RideV9
-	InvokeExpression        // 26
+	BlockReward                     // 14
+	BlockV5                         // 15
+	RideV5                          // 16
+	RideV6                          // 17
+	ConsensusImprovements           // 18
+	BlockRewardDistribution         // 19
+	CappedRewards                   // 20
+	XTNBuyBackCessation             // 21
+	LightNode                       // 22
+	BoostBlockReward                // 23
+	ecrecoverFix                    // 24, intentionally package private
+	DeterministicFinality           // 25 Deterministic Finality and RideV9
+	AdjustedBlockRewardDistribution // 26
+
+	continuationTransaction // 27, reserved by the Scala node, not exposed, intentionally package private
+	leaseExpiration         // 28, reserved by the Scala node, not exposed, intentionally package private
+
+	InvokeExpression // 29
 )
 
 type FeatureInfo struct {
@@ -64,6 +69,9 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	BoostBlockReward:                {true, "Boost Block Reward"},
 	ecrecoverFix:                    {true, "Fixed ecrecover function"},
 	DeterministicFinality:           {true, "Deterministic Finality and Ride V9"},
+	AdjustedBlockRewardDistribution: {true, "Adjusted Block Reward Distribution"},
+	continuationTransaction:         {false, "Continuation Transaction"},
+	leaseExpiration:                 {false, "Lease Expiration"},
 	InvokeExpression:                {false, "InvokeExpression"},
 }
 

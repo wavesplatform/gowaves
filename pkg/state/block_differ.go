@@ -240,7 +240,7 @@ func (d *blockDiffer) createMinerAndRewardDiff(
 		}
 		d.appendBlockInfoToTxDiff(minerDiff, blockHeader)
 	}
-	err = d.addBlockReward(minerDiff, minerAddr.ID(), blockHeader, blockHeight)
+	err = d.addBlockReward(minerDiff, minerAddr, blockHeader, blockHeight)
 	if err != nil {
 		return txDiff{}, err
 	}
@@ -290,7 +290,7 @@ func (d *blockDiffer) createPenaltiesDiff(
 // All changes are applied to the passed txDiff.
 func (d *blockDiffer) addBlockReward(
 	diff txDiff,
-	addr proto.AddressID,
+	addr proto.WavesAddress,
 	block *proto.BlockHeader,
 	blockHeight proto.Height,
 ) error {

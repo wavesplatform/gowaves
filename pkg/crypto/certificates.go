@@ -3,6 +3,7 @@ package crypto
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -143,10 +144,18 @@ func hasExtension(cert *x509.Certificate) bool {
 func CertificatePublicKeyToBytes(cert *x509.Certificate) ([]byte, error) {
 	switch pk := cert.PublicKey.(type) {
 	case *ecdsa.PublicKey:
-		res := make([]byte, P256RawPubKeySize)
-		pk.X.FillBytes(res[:32])
-		pk.Y.FillBytes(res[32:])
-		return res, nil
+		if pk.Curve != elliptic.P256() {
+			return nil, fmt.Errorf("unsupported curve %q, expected NIST P-256", pk.Curve.Params().Name)
+		}
+		// Bytes returns the uncompressed SEC 1, Version 2.0, Section 2.3.3 encoding: 0x04 || X || Y.
+		b, err := pk.Bytes()
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode public key: %w", err)
+		}
+		if len(b) != P256RawPubKeySize+1 {
+			return nil, fmt.Errorf("unexpected public key encoding size %d", len(b))
+		}
+		return b[1:], nil // Drop the uncompressed point format identifier.
 	default:
 		return nil, fmt.Errorf("unsupported public key type %T", pk)
 	}

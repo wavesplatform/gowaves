@@ -141,14 +141,16 @@ type StateInfo interface {
 
 	// RewardAtHeight returns reward for the block at the given height.
 	// Return zero without error if the feature #14 "BlockReward" is not activated.
-	// It takes into account the reward multiplier introduced with the feature #23 "BoostBlockReward".
+	// It takes into account the reward multiplier introduced with the feature #23 "BoostBlockReward",
+	// which is not applied after the activation of the feature #26 "AdjustedBlockRewardDistribution".
 	RewardAtHeight(height proto.Height) (uint64, error)
 
 	RewardVotes(height proto.Height) (proto.RewardVotes, error)
 
 	// TotalWavesAmount returns total amount of Waves in the system at the given height.
 	// It returns the initial Waves amount of 100 000 000 before activation of feature #14 "BlockReward".
-	// It takes into account the reward multiplier introduced with the feature #23 "BoostBlockReward".
+	// It takes into account the reward multiplier introduced with the feature #23 "BoostBlockReward",
+	// which is not applied after the activation of the feature #26 "AdjustedBlockRewardDistribution".
 	TotalWavesAmount(height proto.Height) (uint64, error)
 	// BlockRewards calculates block rewards for the block at given height with given generator address.
 	BlockRewards(generator proto.WavesAddress, height proto.Height) (proto.Rewards, error)

@@ -4,6 +4,7 @@ import (
 	"embed"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"math"
 	"strings"
 
@@ -28,10 +29,9 @@ const (
 	lightNodeBlockFieldsAbsenceIntervalDefault = 1000
 )
 
-const (
-	lenWithDAOAddress                = 1
-	lenWithDAOAndXTNBuybackAddresses = 2
-)
+// defaultMinXTNBuyBackPeriod is the default value of the 'min_xtn_buy_back_period' setting. The default
+// disables the cessation of XTN buy-back, the period has to be configured explicitly to enable it.
+const defaultMinXTNBuyBackPeriod = math.MaxUint64
 
 var (
 	//go:embed embedded
@@ -91,15 +91,15 @@ type FunctionalitySettings struct {
 	MaxBaseTarget uint64 `json:"max_base_target"`
 
 	// Block Reward
-	BlockRewardTerm         uint64               `json:"block_reward_term"`
-	BlockRewardTermAfter20  uint64               `json:"block_reward_term_after_20"`
-	InitialBlockReward      uint64               `json:"initial_block_reward"`
-	BlockRewardIncrement    uint64               `json:"block_reward_increment"`
-	BlockRewardVotingPeriod uint64               `json:"block_reward_voting_period"`
-	RewardAddresses         []proto.WavesAddress `json:"reward_addresses"`
-	RewardAddressesAfter21  []proto.WavesAddress `json:"reward_addresses_after_21"`
-	MinXTNBuyBackPeriod     uint64               `json:"min_xtn_buy_back_period"`
-	BlockRewardBoostPeriod  uint64               `json:"block_reward_boost_period"`
+	BlockRewardTerm         uint64              `json:"block_reward_term"`
+	BlockRewardTermAfter20  uint64              `json:"block_reward_term_after_20"`
+	InitialBlockReward      uint64              `json:"initial_block_reward"`
+	BlockRewardIncrement    uint64              `json:"block_reward_increment"`
+	BlockRewardVotingPeriod uint64              `json:"block_reward_voting_period"`
+	DAOAddress              *proto.WavesAddress `json:"dao_address,omitempty"`
+	XTNBuybackAddress       *proto.WavesAddress `json:"xtn_buyback_address,omitempty"`
+	MinXTNBuyBackPeriod     uint64              `json:"min_xtn_buy_back_period"`
+	BlockRewardBoostPeriod  uint64              `json:"block_reward_boost_period"`
 
 	MinUpdateAssetInfoInterval uint64 `json:"min_update_asset_info_interval"`
 
@@ -142,28 +142,6 @@ func (f *FunctionalitySettings) BlockRewardVotingThreshold() uint64 {
 	return f.BlockRewardVotingPeriod/2 + 1
 }
 
-func (f *FunctionalitySettings) CurrentRewardAddresses(isXTNBuyBackCessationActivated bool) []proto.WavesAddress {
-	if isXTNBuyBackCessationActivated {
-		return f.RewardAddressesAfter21
-	}
-	return f.RewardAddresses
-}
-
-func (f *FunctionalitySettings) DAOAddress(isXTNBuyBackCessationActivated bool) (proto.WavesAddress, bool) {
-	addresses := f.CurrentRewardAddresses(isXTNBuyBackCessationActivated)
-	if len(addresses) >= lenWithDAOAddress {
-		return addresses[0], true
-	}
-	return proto.WavesAddress{}, false
-}
-
-func (f *FunctionalitySettings) XTNBuybackAddress(isXTNBuyBackCessationActivated bool) (proto.WavesAddress, bool) {
-	if !isXTNBuyBackCessationActivated && len(f.RewardAddresses) >= lenWithDAOAndXTNBuybackAddresses {
-		return f.RewardAddresses[1], true
-	}
-	return proto.WavesAddress{}, false
-}
-
 func (f *FunctionalitySettings) RangeForGeneratingBalanceByHeight(height proto.Height) (uint64, uint64) {
 	// Depth for generating balance calculation (in number of blocks).
 	const (
@@ -192,7 +170,55 @@ func (s *BlockchainSettings) UnmarshalJSON(bytes []byte) error {
 	if err := json.Unmarshal(bytes, (*shadowed)(s)); err != nil {
 		return err
 	}
+	if err := s.migrateDeprecatedRewardAddresses(bytes); err != nil {
+		return err
+	}
 	return s.validate()
+}
+
+// deprecatedRewardAddresses represents the removed 'reward_addresses' and 'reward_addresses_after_21'
+// settings. Both were positional lists of the DAO and XTN buy-back addresses and are superseded by the
+// explicit 'dao_address' and 'xtn_buyback_address' settings.
+type deprecatedRewardAddresses struct {
+	RewardAddresses        []proto.WavesAddress `json:"reward_addresses"`
+	RewardAddressesAfter21 []proto.WavesAddress `json:"reward_addresses_after_21"`
+}
+
+// migrateDeprecatedRewardAddresses converts the deprecated reward address lists into the explicit DAO
+// and XTN buy-back addresses. Only the unambiguous conversion is performed: 'reward_addresses_after_21'
+// contains the DAO address by definition, so the other entry of 'reward_addresses', if any, is the XTN
+// buy-back address. Any other combination is rejected, because guessing the role of an address could
+// silently send the block reward to a wrong destination.
+func (s *BlockchainSettings) migrateDeprecatedRewardAddresses(data []byte) error {
+	const lenWithDAOAndXTNBuybackAddresses = 2
+	var d deprecatedRewardAddresses
+	if err := json.Unmarshal(data, &d); err != nil {
+		return errors.Wrap(err, "failed to read deprecated reward addresses")
+	}
+	if len(d.RewardAddresses) == 0 && len(d.RewardAddressesAfter21) == 0 {
+		return nil
+	}
+	if s.DAOAddress != nil || s.XTNBuybackAddress != nil {
+		return errors.New("deprecated 'reward_addresses' or 'reward_addresses_after_21' settings " +
+			"cannot be combined with 'dao_address' or 'xtn_buyback_address' settings")
+	}
+	if len(d.RewardAddressesAfter21) != 1 || len(d.RewardAddresses) > lenWithDAOAndXTNBuybackAddresses {
+		return errors.New("failed to convert deprecated 'reward_addresses' and " +
+			"'reward_addresses_after_21' settings, use explicit 'dao_address' and " +
+			"'xtn_buyback_address' settings instead")
+	}
+	dao := d.RewardAddressesAfter21[0]
+	s.DAOAddress = &dao
+	for _, a := range d.RewardAddresses {
+		if a == dao {
+			continue
+		}
+		xtn := a
+		s.XTNBuybackAddress = &xtn
+	}
+	slog.Warn("Settings 'reward_addresses' and 'reward_addresses_after_21' are deprecated, " +
+		"use 'dao_address' and 'xtn_buyback_address' instead")
+	return nil
 }
 
 // validate BlockchainSettings according to the scala node rules
@@ -245,6 +271,7 @@ func MustDefaultCustomSettings() *BlockchainSettings {
 			MinUpdateAssetInfoInterval:          100000,
 			BlockRewardTerm:                     100000,
 			BlockRewardTermAfter20:              50000,
+			MinXTNBuyBackPeriod:                 defaultMinXTNBuyBackPeriod,
 			LightNodeBlockFieldsAbsenceInterval: lightNodeBlockFieldsAbsenceIntervalDefault,
 			MaxEndorsements:                     8,
 		},
@@ -290,6 +317,7 @@ func ReadBlockchainSettings(r io.Reader) (*BlockchainSettings, error) {
 		FunctionalitySettings: FunctionalitySettings{
 			MinBlockTime:                        minBlockTimeDefault,
 			DelayDelta:                          delayDeltaDefault,
+			MinXTNBuyBackPeriod:                 defaultMinXTNBuyBackPeriod,
 			LightNodeBlockFieldsAbsenceInterval: lightNodeBlockFieldsAbsenceIntervalDefault,
 		},
 	}

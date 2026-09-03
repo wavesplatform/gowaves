@@ -1382,13 +1382,29 @@ func bls12Groth16Verify(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify: unexpected argument type '%s'", args[2].instanceOf())
 	}
-	if len(inputs) > maxInputsSize {
+	inputsLength := len(inputs)
+	if inputsLength > maxInputsSize {
 		return nil, errors.Errorf(
-			"bls12Groth16Verify: invalid inputs size %d bytes, must be not greater than 512 bytes", len(inputs))
+			"bls12Groth16Verify: invalid inputs size %d bytes, must be not greater than 512 bytes", inputsLength)
+	}
+	const inputSize = 32
+	if inputsLength%inputSize != 0 {
+		return nil, errors.Errorf(
+			"bls12Groth16Verify: invalid inputs size %d bytes, must be a multiple of 32 bytes", inputsLength)
+	}
+	const proofSize = 192
+	if len(proof) != proofSize {
+		return nil, errors.Errorf("bls12Groth16Verify: invalid proof size %d bytes, must be 192 bytes", len(proof))
+	}
+	const keyMultiplier = 48
+	const keyOverhead = 8
+	if kl, ekl := len(key), keyMultiplier*(keyOverhead+inputsLength/inputSize); kl != ekl {
+		return nil, errors.Errorf("bls12Groth16Verify: invalid key size %d bytes, must be %d bytes for %d inputs",
+			kl, ekl, inputsLength/inputSize)
 	}
 	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BLS12_381)
 	if err != nil {
-		return nil, errors.Wrap(err, "bls12Groth16Verify")
+		return rideBoolean(false), nil //nolint:nilerr // Suppress verification errors, return False instead.
 	}
 	return rideBoolean(ok), nil
 }
@@ -1409,13 +1425,28 @@ func bn256Groth16Verify(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify: unexpected argument type '%s'", args[2].instanceOf())
 	}
-	if len(inputs) > maxInputsSize {
+	inputsLength := len(inputs)
+	if inputsLength > maxInputsSize {
 		return nil, errors.Errorf(
-			"bn256Groth16Verify: invalid inputs size %d bytes, must be not greater than 512 bytes", len(inputs))
+			"bn256Groth16Verify: invalid inputs size %d bytes, must be not greater than 512 bytes", inputsLength)
+	}
+	const inputSize = 32
+	if inputsLength%inputSize != 0 {
+		return nil, errors.Errorf(
+			"bn256Groth16Verify: invalid inputs size %d bytes, must be a multiple of 32 bytes", inputsLength)
+	}
+	const proofSize = 128
+	if len(proof) != proofSize {
+		return nil, errors.Errorf("bn256Groth16Verify: invalid proof size %d bytes, must be 128 bytes", len(proof))
+	}
+	const keyOverhead = 256
+	if kl, ekl := len(key), inputsLength+keyOverhead; kl != ekl {
+		return nil, errors.Errorf("bn256Groth16Verify: invalid key size %d bytes, must be %d bytes for %d inputs",
+			kl, ekl, inputsLength/inputSize)
 	}
 	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BN254)
 	if err != nil {
-		return nil, errors.Wrap(err, "bn256Groth16Verify")
+		return rideBoolean(false), nil //nolint:nilerr // Suppress verification errors, return False instead.
 	}
 	return rideBoolean(ok), nil
 }
