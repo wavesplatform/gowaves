@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"iter"
 
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -32,6 +33,7 @@ type diffBalance struct {
 	balance         int64
 	leaseIn         int64
 	leaseOut        int64
+	deposit         int64
 	stateGenerating int64
 	challenged      bool
 }
@@ -68,7 +70,7 @@ func (db *diffBalance) spendableBalance() (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return b, nil
+	return common.SubInt(b, db.deposit)
 }
 
 func (db *diffBalance) checkedRegularBalance() (uint64, error) {
@@ -79,7 +81,7 @@ func (db *diffBalance) checkedRegularBalance() (uint64, error) {
 }
 
 func (db *diffBalance) checkedSpendableBalance() (uint64, error) {
-	b, err := common.SubInt(db.balance, db.leaseOut)
+	b, err := db.spendableBalance()
 	if err != nil {
 		return 0, err
 	}
@@ -101,7 +103,7 @@ func (db *diffBalance) effectiveBalance() (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return v2, nil
+	return common.SubInt(v2, db.deposit)
 }
 
 func (db *diffBalance) toFullWavesBalance(lightNodeActivated bool) (*proto.FullWavesBalance, error) {
@@ -257,11 +259,24 @@ func (ds *diffState) loadWavesBalance(id proto.AddressID) (diffBalance, error) {
 	if err != nil {
 		return diffBalance{}, errors.Wrap(err, "failed to get full Waves balance from state")
 	}
+	deposit, err := safecast.Convert[int64](profile.Deposit)
+	if err != nil {
+		return diffBalance{}, errors.Wrap(err, "failed to convert deposit to int64")
+	}
+	balance, err := safecast.Convert[int64](profile.Balance)
+	if err != nil {
+		return diffBalance{}, errors.Wrap(err, "failed to convert balance to int64")
+	}
+	generating, err := safecast.Convert[int64](profile.Generating)
+	if err != nil {
+		return diffBalance{}, errors.Wrap(err, "failed to convert generating balance to int64")
+	}
 	diff := diffBalance{
-		balance:         int64(profile.Balance),
+		balance:         balance,
 		leaseIn:         profile.LeaseIn,
 		leaseOut:        profile.LeaseOut,
-		stateGenerating: int64(profile.Generating),
+		deposit:         deposit,
+		stateGenerating: generating,
 		challenged:      profile.Challenged,
 	}
 	// Store new diff locally

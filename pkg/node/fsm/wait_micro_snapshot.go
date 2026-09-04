@@ -157,13 +157,10 @@ func (a *WaitMicroSnapshotState) checkAndAppendMicroBlock(
 	if !ok {
 		return nil, errors.Errorf("microblock '%s' has invalid signature", micro.TotalBlockID.String())
 	}
-	newTrs := top.Transactions.Join(micro.Transactions)
-	newBlock, err := proto.CreateBlock(newTrs, top.Timestamp, top.Parent, top.GeneratorPublicKey, top.NxtConsensus,
-		top.Version, top.Features, top.RewardVote, a.baseInfo.scheme, micro.StateHash)
+	newBlock, err := proto.AppendMicroBlock(top, micro, a.baseInfo.scheme)
 	if err != nil {
 		return nil, err
 	}
-
 	newBlock.BlockSignature = micro.TotalResBlockSigField
 	ok, err = newBlock.VerifySignature(a.baseInfo.scheme)
 	if err != nil {
@@ -228,6 +225,7 @@ func initWaitMicroSnapshotStateInFSM(state *StateData, fsm *stateless.StateMachi
 			return nil
 		}).
 		Ignore(BlockEvent).
+		Ignore(BlockEndorsementEvent).
 		Ignore(MinedBlockEvent).
 		Ignore(BlockIDsEvent).
 		Ignore(MicroBlockEvent).

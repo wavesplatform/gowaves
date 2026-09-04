@@ -91,7 +91,7 @@ func TestHeadersValidation(t *testing.T) {
 
 	err = applyBlocks(t, blocks, st, scheme)
 	assert.NoError(t, err, "failed to apply correct blocks")
-	err = st.RollbackToHeight(1)
+	err = st.RollbackToHeight(1, false)
 	assert.NoError(t, err, "failed to rollback state")
 
 	randN := rand.Int() % len(blocks)
@@ -100,7 +100,7 @@ func TestHeadersValidation(t *testing.T) {
 	err = applyBlocks(t, blocks, st, scheme)
 	assert.Error(t, err, "did not fail with timestamp from future")
 	blocks[randN] = prev
-	err = st.RollbackToHeight(1)
+	err = st.RollbackToHeight(1, false)
 	assert.NoError(t, err, "failed to rollback state")
 
 	randN = (rand.Int() % (len(blocks) - 1)) + 1
@@ -110,7 +110,7 @@ func TestHeadersValidation(t *testing.T) {
 	err = applyBlocks(t, blocks, st, scheme)
 	assert.Error(t, err, "did not fail with incorrect block delay")
 	blocks[randN] = prev
-	err = st.RollbackToHeight(1)
+	err = st.RollbackToHeight(1, false)
 	assert.NoError(t, err, "failed to rollback state")
 
 	randN = rand.Int() % len(blocks)
@@ -121,7 +121,7 @@ func TestHeadersValidation(t *testing.T) {
 	err = applyBlocks(t, blocks, st, scheme)
 	assert.Error(t, err, "did not fail with invalid generator signature")
 	blocks[randN] = prev
-	err = st.RollbackToHeight(1)
+	err = st.RollbackToHeight(1, false)
 	assert.NoError(t, err, "failed to rollback state")
 
 	randN = rand.Int() % len(blocks)
@@ -130,7 +130,7 @@ func TestHeadersValidation(t *testing.T) {
 	err = applyBlocks(t, blocks, st, scheme)
 	assert.Error(t, err, "did not fail with incorrect base target")
 	blocks[randN] = prev
-	err = st.RollbackToHeight(1)
+	err = st.RollbackToHeight(1, false)
 	assert.NoError(t, err, "failed to rollback state")
 
 	randN = rand.Int() % len(blocks)
@@ -139,6 +139,6 @@ func TestHeadersValidation(t *testing.T) {
 	err = applyBlocks(t, blocks, st, scheme)
 	assert.Error(t, err, "did not fail with wrong block version")
 	blocks[randN] = prev
-	err = st.RollbackToHeight(1)
+	err = st.RollbackToHeight(1, false)
 	assert.NoError(t, err, "failed to rollback state")
 }

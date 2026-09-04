@@ -337,7 +337,7 @@ func TestTransferZeroAmount(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = txAppend.handleDefaultTransaction(&tx, appendTxParams, false)
-	require.EqualError(t, err, "the amount of ethereum transfer waves is 0, which is forbidden")
+	require.EqualError(t, err, "the amount of Ethereum transfer waves is 0, which is forbidden")
 }
 
 func TestTransferTestNetTestnet(t *testing.T) {
@@ -355,7 +355,7 @@ func TestTransferTestNetTestnet(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = txAppend.handleDefaultTransaction(&tx, appendTxParams, false)
-	require.EqualError(t, err, "the amount of ethereum transfer waves is 0, which is forbidden")
+	require.EqualError(t, err, "the amount of Ethereum transfer waves is 0, which is forbidden")
 }
 
 func TestTransferCheckFee(t *testing.T) {
@@ -373,7 +373,7 @@ func TestTransferCheckFee(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = txAppend.handleDefaultTransaction(&tx, appendTxParams, false)
-	require.EqualError(t, err, "the amount of ethereum transfer waves is 0, which is forbidden")
+	require.EqualError(t, err, "the amount of Ethereum transfer waves is 0, which is forbidden")
 }
 
 func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {

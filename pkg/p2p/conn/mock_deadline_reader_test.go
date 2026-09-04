@@ -70,7 +70,7 @@ type MockDeadlineReader_Read_Call struct {
 
 // Read is a helper method to define mock.On call
 //   - p []byte
-func (_e *MockDeadlineReader_Expecter) Read(p interface{}) *MockDeadlineReader_Read_Call {
+func (_e *MockDeadlineReader_Expecter) Read(p any) *MockDeadlineReader_Read_Call {
 	return &MockDeadlineReader_Read_Call{Call: _e.mock.On("Read", p)}
 }
 
@@ -121,7 +121,7 @@ type MockDeadlineReader_SetReadDeadline_Call struct {
 
 // SetReadDeadline is a helper method to define mock.On call
 //   - t time.Time
-func (_e *MockDeadlineReader_Expecter) SetReadDeadline(t interface{}) *MockDeadlineReader_SetReadDeadline_Call {
+func (_e *MockDeadlineReader_Expecter) SetReadDeadline(t any) *MockDeadlineReader_SetReadDeadline_Call {
 	return &MockDeadlineReader_SetReadDeadline_Call{Call: _e.mock.On("SetReadDeadline", t)}
 }
 

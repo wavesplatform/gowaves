@@ -583,6 +583,40 @@ func TestBlockID_ReadFrom_Initialized(t *testing.T) {
 	}
 }
 
+func TestBlockID_Equals(t *testing.T) {
+	sig1 := crypto.Signature{}
+	sig1[0] = 1
+	sig2 := crypto.Signature{}
+	sig2[0] = 2
+
+	dig1 := crypto.Digest{}
+	dig1[0] = 1
+	dig2 := crypto.Digest{}
+	dig2[0] = 2
+
+	for _, tc := range []struct {
+		desc string
+		a, b BlockID
+		exp  bool
+	}{
+		{"equal signatures", NewBlockIDFromSignature(sig1), NewBlockIDFromSignature(sig1), true},
+		{"different signatures", NewBlockIDFromSignature(sig1), NewBlockIDFromSignature(sig2), false},
+		{"equal digests", NewBlockIDFromDigest(dig1), NewBlockIDFromDigest(dig1), true},
+		{"different digests", NewBlockIDFromDigest(dig1), NewBlockIDFromDigest(dig2), false},
+		{"signature vs digest", NewBlockIDFromSignature(sig1), NewBlockIDFromDigest(dig1), false},
+		{"digest vs signature", NewBlockIDFromDigest(dig1), NewBlockIDFromSignature(sig1), false},
+		{"uninitialized vs uninitialized", BlockID{}, BlockID{}, false},
+		{"uninitialized vs signature", BlockID{}, NewBlockIDFromSignature(sig1), false},
+		{"signature vs uninitialized", NewBlockIDFromSignature(sig1), BlockID{}, false},
+		{"uninitialized vs digest", BlockID{}, NewBlockIDFromDigest(dig1), false},
+		{"digest vs uninitialized", NewBlockIDFromDigest(dig1), BlockID{}, false},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			assert.Equal(t, tc.exp, tc.a.Equals(tc.b))
+		})
+	}
+}
+
 // slowReader is a reader that reads only 2 bytes at a time.
 type slowReader struct {
 	r io.Reader

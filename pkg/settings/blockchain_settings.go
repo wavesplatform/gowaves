@@ -104,6 +104,9 @@ type FunctionalitySettings struct {
 	MinUpdateAssetInfoInterval uint64 `json:"min_update_asset_info_interval"`
 
 	LightNodeBlockFieldsAbsenceInterval uint64 `json:"light_node_block_fields_absence_interval"`
+
+	GenerationPeriod uint64 `json:"generation_period"`
+	MaxEndorsements  int    `json:"max_endorsements"`
 }
 
 func (f *FunctionalitySettings) VotesForFeatureElection(height uint64) uint64 {
@@ -270,6 +273,7 @@ func MustDefaultCustomSettings() *BlockchainSettings {
 			BlockRewardTermAfter20:              50000,
 			MinXTNBuyBackPeriod:                 defaultMinXTNBuyBackPeriod,
 			LightNodeBlockFieldsAbsenceInterval: lightNodeBlockFieldsAbsenceIntervalDefault,
+			MaxEndorsements:                     8,
 		},
 	}
 }
@@ -288,21 +292,20 @@ func mustLoadEmbeddedSettings(blockchain BlockchainType) *BlockchainSettings {
 			panic(err)
 		}
 		return s
-
 	case TestNet:
 		s, err := loadEmbeddedSettings(testnetFile)
 		if err != nil {
 			panic(err)
 		}
 		return s
-
 	case StageNet:
 		s, err := loadEmbeddedSettings(stagenetFile)
 		if err != nil {
 			panic(err)
 		}
 		return s
-
+	case Custom:
+		panic("custom settings should be loaded from parameters")
 	default:
 		panic("no embedded settings")
 	}

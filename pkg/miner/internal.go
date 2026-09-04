@@ -19,7 +19,7 @@ func mineKeyBlock(
 	scheme proto.Scheme,
 ) (*proto.Block, error) {
 	b, err := proto.CreateBlock(proto.Transactions(nil), ts, parent, pair.Public,
-		nxt, version, FeaturesToInt16(validatedFeatured), reward, scheme, nil)
+		nxt, version, FeaturesToInt16(validatedFeatured), reward, scheme, nil, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create new key block")
 	}

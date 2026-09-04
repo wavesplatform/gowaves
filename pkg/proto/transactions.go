@@ -46,24 +46,46 @@ const (
 	createAliasLen = crypto.PublicKeySize + 2 + 8 + 8 + aliasFixedSize
 
 	// Max allowed versions of transactions.
-	MaxUncheckedTransactionVersion       = 127
-	MaxGenesisTransactionVersion         = 2
-	MaxPaymentTransactionVersion         = 2
-	MaxTransferTransactionVersion        = 3
-	MaxIssueTransactionVersion           = 3
-	MaxReissueTransactionVersion         = 3
-	MaxBurnTransactionVersion            = 3
-	MaxExchangeTransactionVersion        = 3
-	MaxLeaseTransactionVersion           = 3
-	MaxLeaseCancelTransactionVersion     = 3
-	MaxCreateAliasTransactionVersion     = 3
-	MaxMassTransferTransactionVersion    = 2
-	MaxDataTransactionVersion            = 2
-	MaxSetScriptTransactionVersion       = 2
-	MaxSponsorshipTransactionVersion     = 2
-	MaxSetAssetScriptTransactionVersion  = 2
-	MaxInvokeScriptTransactionVersion    = 2
-	MaxUpdateAssetInfoTransactionVersion = 1
+	MaxUncheckedTransactionVersion          = 127
+	MaxGenesisTransactionVersion            = 2
+	MaxPaymentTransactionVersion            = 2
+	MaxTransferTransactionVersion           = 3
+	MaxIssueTransactionVersion              = 3
+	MaxReissueTransactionVersion            = 3
+	MaxBurnTransactionVersion               = 3
+	MaxExchangeTransactionVersion           = 3
+	MaxLeaseTransactionVersion              = 3
+	MaxLeaseCancelTransactionVersion        = 3
+	MaxCreateAliasTransactionVersion        = 3
+	MaxMassTransferTransactionVersion       = 2
+	MaxDataTransactionVersion               = 2
+	MaxSetScriptTransactionVersion          = 2
+	MaxSponsorshipTransactionVersion        = 2
+	MaxSetAssetScriptTransactionVersion     = 2
+	MaxInvokeScriptTransactionVersion       = 2
+	MaxUpdateAssetInfoTransactionVersion    = 1
+	MaxCommitToGenerationTransactionVersion = 1
+
+	GenesisTransactionProtobufVersion            = 2
+	PaymentTransactionProtobufVersion            = 2
+	TransferTransactionProtobufVersion           = 3
+	IssueTransactionProtobufVersion              = 3
+	ReissueTransactionProtobufVersion            = 3
+	BurnTransactionProtobufVersion               = 3
+	ExchangeTransactionProtobufVersion           = 3
+	LeaseTransactionProtobufVersion              = 3
+	LeaseCancelTransactionProtobufVersion        = 3
+	CreateAliasTransactionProtobufVersion        = 3
+	MassTransferTransactionProtobufVersion       = 2
+	DataTransactionProtobufVersion               = 2
+	SetScriptTransactionProtobufVersion          = 2
+	SponsorshipTransactionProtobufVersion        = 2
+	SetAssetScriptTransactionProtobufVersion     = 2
+	InvokeScriptTransactionProtobufVersion       = 2
+	InvokeExpressionTransactionProtobufVersion   = 1
+	UpdateAssetInfoTransactionProtobufVersion    = 1
+	EthereumMetamaskTransactionProtobufVersion   = 1
+	CommitToGenerationTransactionProtobufVersion = 1
 
 	MinFee              = 100_000
 	MinFeeScriptedAsset = 400_000
@@ -110,25 +132,26 @@ var (
 	// ProtobufTransactionsVersions map shows whether transaction can be marshaled as protobuf data or not.
 	// Value of ProtobufTransactionsVersions is minimum required transaction version to protobuf marshaling.
 	ProtobufTransactionsVersions = map[TransactionType]byte{
-		GenesisTransaction:          2,
-		PaymentTransaction:          2,
-		TransferTransaction:         3,
-		IssueTransaction:            3,
-		ReissueTransaction:          3,
-		BurnTransaction:             3,
-		ExchangeTransaction:         3,
-		LeaseTransaction:            3,
-		LeaseCancelTransaction:      3,
-		CreateAliasTransaction:      3,
-		MassTransferTransaction:     2,
-		DataTransaction:             2,
-		SetScriptTransaction:        2,
-		SponsorshipTransaction:      2,
-		SetAssetScriptTransaction:   2,
-		InvokeScriptTransaction:     2,
-		InvokeExpressionTransaction: 1,
-		UpdateAssetInfoTransaction:  1,
-		EthereumMetamaskTransaction: 1,
+		GenesisTransaction:            GenesisTransactionProtobufVersion,
+		PaymentTransaction:            PaymentTransactionProtobufVersion,
+		TransferTransaction:           TransferTransactionProtobufVersion,
+		IssueTransaction:              IssueTransactionProtobufVersion,
+		ReissueTransaction:            ReissueTransactionProtobufVersion,
+		BurnTransaction:               BurnTransactionProtobufVersion,
+		ExchangeTransaction:           ExchangeTransactionProtobufVersion,
+		LeaseTransaction:              LeaseTransactionProtobufVersion,
+		LeaseCancelTransaction:        LeaseCancelTransactionProtobufVersion,
+		CreateAliasTransaction:        CreateAliasTransactionProtobufVersion,
+		MassTransferTransaction:       MassTransferTransactionProtobufVersion,
+		DataTransaction:               DataTransactionProtobufVersion,
+		SetScriptTransaction:          SetScriptTransactionProtobufVersion,
+		SponsorshipTransaction:        SponsorshipTransactionProtobufVersion,
+		SetAssetScriptTransaction:     SetAssetScriptTransactionProtobufVersion,
+		InvokeScriptTransaction:       InvokeScriptTransactionProtobufVersion,
+		InvokeExpressionTransaction:   InvokeExpressionTransactionProtobufVersion,
+		UpdateAssetInfoTransaction:    UpdateAssetInfoTransactionProtobufVersion,
+		EthereumMetamaskTransaction:   EthereumMetamaskTransactionProtobufVersion,
+		CommitToGenerationTransaction: CommitToGenerationTransactionProtobufVersion,
 	}
 )
 
@@ -149,7 +172,11 @@ func (a TransactionTypeInfo) String() string {
 	switch a.Type {
 	case TransferTransaction:
 		sb.WriteString("TransferTransaction")
-	default:
+	case GenesisTransaction, PaymentTransaction, IssueTransaction, ReissueTransaction, BurnTransaction,
+		ExchangeTransaction, LeaseTransaction, LeaseCancelTransaction, CreateAliasTransaction,
+		MassTransferTransaction, DataTransaction, SetScriptTransaction, SponsorshipTransaction,
+		SetAssetScriptTransaction, InvokeScriptTransaction, UpdateAssetInfoTransaction, EthereumMetamaskTransaction,
+		CommitToGenerationTransaction, InvokeExpressionTransaction:
 		sb.WriteString(strconv.Itoa(int(a.Type)))
 	}
 	sb.WriteString(" ")
@@ -382,6 +409,10 @@ func GuessTransactionType(t *TransactionTypeVersion) (Transaction, error) {
 		out = &UpdateAssetInfoWithProofs{}
 	case EthereumMetamaskTransaction: // 18
 		out = &EthereumTransaction{}
+	case CommitToGenerationTransaction: // 19
+		out = &CommitToGenerationWithProofs{}
+	case InvokeExpressionTransaction: // 20, Not used yet.
+		out = nil
 	}
 	if out == nil {
 		return nil, errors.Errorf("unknown transaction type %d version %d", t.Type, t.Version)
@@ -1818,4 +1849,8 @@ func (ca *CreateAlias) id() (*crypto.Digest, error) {
 
 func validJVMLong(x uint64) bool {
 	return x <= math.MaxInt64
+}
+
+func validJVMInt(x uint32) bool {
+	return x <= math.MaxInt32
 }

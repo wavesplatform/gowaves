@@ -69,6 +69,7 @@ func initHaltStateInFSM(_ *StateData, fsm *stateless.StateMachine, info BaseInfo
 		}).
 		Ignore(ScoreEvent).
 		Ignore(BlockEvent).
+		Ignore(BlockEndorsementEvent).
 		Ignore(MinedBlockEvent).
 		Ignore(BlockIDsEvent).
 		Ignore(TaskEvent).

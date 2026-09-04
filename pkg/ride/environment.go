@@ -587,7 +587,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 			return false, err
 		}
 		localEnv.SetThisFromAssetInfo(assetInfo)
-	default:
+	case ast.LibV4, ast.LibV5, ast.LibV6, ast.LibV7, ast.LibV8, ast.LibV9:
 		assetInfo, err := ws.NewestFullAssetInfo(asset.ID)
 		if err != nil {
 			return false, err
@@ -1202,7 +1202,7 @@ func validateChangedWavesBalancesWithOldBalancesBeforeTx(
 		}
 		var (
 			wavesAfter               = changedBalance.balance // regular balance
-			wavesWithoutDepositAfter = wavesAfter             // TODO: need to take deposit into account
+			wavesWithoutDepositAfter = wavesAfter - changedBalance.deposit
 		)
 		var (
 			currentLeaseIn                       = changedBalance.leaseIn
@@ -1225,17 +1225,26 @@ func validateChangedWavesBalancesWithOldBalancesBeforeTx(
 				scalaLikeEffectiveBalance,
 				addr.String(),
 				leaseBalanceChangedAtTheLastLayer,
-				formStateChangesStringPartForErr(oldBalance.balance, oldBalance.leaseOut, oldBalance.leaseIn),
-				formStateChangesStringPartForErr(wavesAfter, currentLeaseOut, currentLeaseIn),
+				formStateChangesStringPartForErr(
+					oldBalance.balance, oldBalance.leaseOut, oldBalance.leaseIn, oldBalance.deposit,
+				),
+				formStateChangesStringPartForErr(
+					wavesAfter, currentLeaseOut, currentLeaseIn, changedBalance.deposit,
+				),
 			)
 		}
 	}
 	return nil
 }
 
-func formStateChangesStringPartForErr(wavesRegularBalance int64, leaseOut int64, leaseIn int64) string {
-	return fmt.Sprintf("(spendable=%d waves=%d leaseOut=%d leaseIn=%d)", // TODO: add deposit
-		wavesRegularBalance-leaseOut, wavesRegularBalance, leaseOut, leaseIn,
+func formStateChangesStringPartForErr(wavesRegularBalance, leaseOut, leaseIn, deposit int64) string {
+	if deposit == 0 {
+		return fmt.Sprintf("(spendable=%d waves=%d leaseOut=%d leaseIn=%d)",
+			wavesRegularBalance-leaseOut, wavesRegularBalance, leaseOut, leaseIn,
+		)
+	}
+	return fmt.Sprintf("(spendable=%d waves=%d leaseOut=%d leaseIn=%d deposit=%d)",
+		wavesRegularBalance-leaseOut-deposit, wavesRegularBalance, leaseOut, leaseIn, deposit,
 	)
 }
 
@@ -1449,7 +1458,10 @@ func (e *EvaluationEnvironment) SetLastBlockFromBlockInfo(info *proto.BlockInfo)
 	if err != nil {
 		return err
 	}
-	block := blockInfoToObject(info, v)
+	block, err := blockInfoToObject(info, v)
+	if err != nil {
+		return err
+	}
 	e.setLastBlock(block)
 	return nil
 }

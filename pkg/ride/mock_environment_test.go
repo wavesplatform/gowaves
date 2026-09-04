@@ -196,7 +196,7 @@ type MockEnvironment_checkMessageLength_Call struct {
 
 // checkMessageLength is a helper method to define mock.On call
 //   - n int
-func (_e *MockEnvironment_Expecter) checkMessageLength(n interface{}) *MockEnvironment_checkMessageLength_Call {
+func (_e *MockEnvironment_Expecter) checkMessageLength(n any) *MockEnvironment_checkMessageLength_Call {
 	return &MockEnvironment_checkMessageLength_Call{Call: _e.mock.On("checkMessageLength", n)}
 }
 
@@ -821,7 +821,7 @@ type MockEnvironment_setComplexityCalculator_Call struct {
 
 // setComplexityCalculator is a helper method to define mock.On call
 //   - cc complexityCalculator
-func (_e *MockEnvironment_Expecter) setComplexityCalculator(cc interface{}) *MockEnvironment_setComplexityCalculator_Call {
+func (_e *MockEnvironment_Expecter) setComplexityCalculator(cc any) *MockEnvironment_setComplexityCalculator_Call {
 	return &MockEnvironment_setComplexityCalculator_Call{Call: _e.mock.On("setComplexityCalculator", cc)}
 }
 
@@ -861,7 +861,7 @@ type MockEnvironment_setInvocation_Call struct {
 
 // setInvocation is a helper method to define mock.On call
 //   - inv rideType
-func (_e *MockEnvironment_Expecter) setInvocation(inv interface{}) *MockEnvironment_setInvocation_Call {
+func (_e *MockEnvironment_Expecter) setInvocation(inv any) *MockEnvironment_setInvocation_Call {
 	return &MockEnvironment_setInvocation_Call{Call: _e.mock.On("setInvocation", inv)}
 }
 
@@ -901,7 +901,7 @@ type MockEnvironment_setLibVersion_Call struct {
 
 // setLibVersion is a helper method to define mock.On call
 //   - v ast.LibraryVersion
-func (_e *MockEnvironment_Expecter) setLibVersion(v interface{}) *MockEnvironment_setLibVersion_Call {
+func (_e *MockEnvironment_Expecter) setLibVersion(v any) *MockEnvironment_setLibVersion_Call {
 	return &MockEnvironment_setLibVersion_Call{Call: _e.mock.On("setLibVersion", v)}
 }
 
@@ -941,7 +941,7 @@ type MockEnvironment_setNewDAppAddress_Call struct {
 
 // setNewDAppAddress is a helper method to define mock.On call
 //   - address proto.WavesAddress
-func (_e *MockEnvironment_Expecter) setNewDAppAddress(address interface{}) *MockEnvironment_setNewDAppAddress_Call {
+func (_e *MockEnvironment_Expecter) setNewDAppAddress(address any) *MockEnvironment_setNewDAppAddress_Call {
 	return &MockEnvironment_setNewDAppAddress_Call{Call: _e.mock.On("setNewDAppAddress", address)}
 }
 
@@ -1039,7 +1039,7 @@ type MockEnvironment_takeString_Call struct {
 // takeString is a helper method to define mock.On call
 //   - s string
 //   - n int
-func (_e *MockEnvironment_Expecter) takeString(s interface{}, n interface{}) *MockEnvironment_takeString_Call {
+func (_e *MockEnvironment_Expecter) takeString(s any, n any) *MockEnvironment_takeString_Call {
 	return &MockEnvironment_takeString_Call{Call: _e.mock.On("takeString", s, n)}
 }
 

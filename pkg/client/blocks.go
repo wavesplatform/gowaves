@@ -310,3 +310,44 @@ func (a *Blocks) Address(ctx context.Context, addr proto.WavesAddress, from, to 
 
 	return out, response, nil
 }
+
+func (a *Blocks) HeightFinalized(ctx context.Context) (uint64, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, "/blocks/height/finalized")
+	if err != nil {
+		return 0, nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url.String(), nil)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	var out struct {
+		Height uint64 `json:"height"`
+	}
+
+	resp, err := doHTTP(ctx, a.options, req, &out)
+	if err != nil {
+		return 0, resp, err
+	}
+
+	return out.Height, resp, nil
+}
+
+func (a *Blocks) BlockFinalized(ctx context.Context) (*proto.BlockHeader, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, "/blocks/headers/finalized")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url.String(), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	var out proto.BlockHeader
+	resp, err := doHTTP(ctx, a.options, req, &out)
+	if err != nil {
+		return nil, resp, err
+	}
+	return &out, resp, nil
+}
