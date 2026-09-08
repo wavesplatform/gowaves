@@ -44,6 +44,10 @@ func eventArgsTypes(event stateless.Trigger) []reflect.Type {
 		return []reflect.Type{
 			reflect.TypeFor[*Async](), reflect.TypeFor[peer.Peer](), reflect.TypeFor[*proto.Block](),
 		}
+	case BlockEndorsementEvent:
+		return []reflect.Type{
+			reflect.TypeFor[*Async](), reflect.TypeFor[*proto.BlockEndorsement](),
+		}
 	case MinedBlockEvent:
 		return []reflect.Type{
 			reflect.TypeFor[*Async](), reflect.TypeFor[*proto.Block](), reflect.TypeFor[proto.MiningLimits](),
@@ -92,12 +96,9 @@ func syncWithNewPeer(state State, baseInfo BaseInfo, p peer.Peer) (State, Async,
 		lastSignatures,
 		baseInfo.enableLightMode,
 	)
-	c := conf{
-		peerSyncWith: p,
-		timeout:      defaultSyncTimeout,
-	}
 	baseInfo.logger.Debug("Starting synchronization with peer", "state", state.String(), "peer", p.ID())
 	baseInfo.syncPeer.SetPeer(p)
+	c := conf{timeout: defaultSyncTimeout}
 	return &SyncState{
 		baseInfo: baseInfo,
 		conf:     c.Now(baseInfo.tm),

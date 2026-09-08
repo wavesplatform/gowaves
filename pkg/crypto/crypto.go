@@ -84,6 +84,10 @@ func (d *Digest) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+func (d *Digest) IsZero() bool {
+	return d == nil || *d == Digest{}
+}
+
 func NewDigestFromBase58(s string) (Digest, error) {
 	return array32FromBase58(s, "Digest")
 }

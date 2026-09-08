@@ -3,6 +3,9 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,11 +13,16 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
+	"github.com/wavesplatform/gowaves/pkg/node/peers"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
@@ -74,6 +82,12 @@ func TestNodeApi_WavesRegularBalanceByAddress(t *testing.T) {
 		return req
 	}
 
+	cfg := &settings.BlockchainSettings{
+		FunctionalitySettings: settings.FunctionalitySettings{
+			GenerationPeriod: 0,
+		},
+	}
+
 	t.Run("success", func(t *testing.T) {
 		const (
 			addrStr = "3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7"
@@ -91,7 +105,7 @@ func TestNodeApi_WavesRegularBalanceByAddress(t *testing.T) {
 		a, err := NewApp("", nil, services.Services{
 			State:  st,
 			Scheme: proto.TestNetScheme,
-		})
+		}, cfg)
 		require.NoError(t, err)
 
 		aErr := NewNodeAPI(a, nil).WavesRegularBalanceByAddress(resp, req)
@@ -116,7 +130,7 @@ func TestNodeApi_WavesRegularBalanceByAddress(t *testing.T) {
 			a, err := NewApp("", nil, services.Services{
 				State:  state.NewMockState(t),
 				Scheme: proto.TestNetScheme,
-			})
+			}, cfg)
 			require.NoError(t, err)
 
 			aErr := NewNodeAPI(a, nil).WavesRegularBalanceByAddress(resp, req)
@@ -134,5 +148,271 @@ func TestNodeApi_WavesRegularBalanceByAddress(t *testing.T) {
 			const mainnetAddr = "3PQ9hZ36dyXGcqabcrHXsjP9PaQMqy69yeE"
 			doTest(t, mainnetAddr)
 		})
+	})
+}
+
+func TestNodeApi_TransactionSignCommitToGeneration(t *testing.T) {
+	st := state.NewMockState(t)
+	st.EXPECT().IsActivated(int16(settings.DeterministicFinality)).Return(true, nil).Maybe()
+	st.EXPECT().ActivationHeight(int16(settings.DeterministicFinality)).Return(proto.Height(1), nil).Maybe()
+	st.EXPECT().Height().Return(proto.Height(252), nil).Maybe()
+
+	w := newTestWallet(t)
+
+	cfg := &settings.BlockchainSettings{
+		FunctionalitySettings: settings.FunctionalitySettings{GenerationPeriod: 100},
+	}
+
+	app, err := NewApp("", nil, services.Services{
+		State:  st,
+		Scheme: proto.MainNetScheme,
+		Wallet: w,
+	}, cfg)
+	require.NoError(t, err)
+
+	api := NewNodeAPI(app, st)
+
+	// Request generation of commitment transaction for the specific period start.
+	for i, test := range []struct {
+		periodStart   uint32 // Zero means no period start provided in the request.
+		expectedStart uint32
+	}{
+		{periodStart: 202, expectedStart: 202},
+		{periodStart: 200, expectedStart: 200},
+		{periodStart: 252, expectedStart: 252},
+		{periodStart: 0, expectedStart: 302},
+	} {
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			body := fmt.Sprintf(
+				`{"generationPeriodStart":%d,"type":19,"sender":"3JbGqxNqwBfwnCbzLbo4HwjA9NR1wDjrRTr","version":1}`,
+				test.periodStart,
+			)
+			if test.periodStart == 0 {
+				body = `{"type":19,"sender":"3JbGqxNqwBfwnCbzLbo4HwjA9NR1wDjrRTr","version":1}`
+			}
+			req := httptest.NewRequest(http.MethodPost, "/transactions/sign", strings.NewReader(body))
+			resp := httptest.NewRecorder()
+
+			aErr := api.transactionSign(resp, req)
+			require.NoError(t, aErr)
+			assert.Equal(t, http.StatusOK, resp.Code)
+
+			// NOTE: Because of the mock wallet used in the test, we don't sign the transaction and no ID is generated.
+			var signed proto.CommitToGenerationWithProofs
+			require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &signed))
+
+			assert.Equal(t, proto.CommitToGenerationTransaction, signed.Type)
+			assert.EqualValues(t, 1, signed.Version)
+			assert.Equal(t, w.blsPk, signed.EndorserPublicKey)
+			assert.Equal(t, test.expectedStart, signed.GenerationPeriodStart)
+		})
+	}
+}
+
+type testWallet struct {
+	pk    crypto.PublicKey
+	blsPk bls.PublicKey
+	blsSk bls.SecretKey
+}
+
+func newTestWallet(t *testing.T) *testWallet {
+	t.Helper()
+
+	_, pk, err := crypto.GenerateKeyPair([]byte("commit-wallet"))
+	require.NoError(t, err)
+
+	blsSk, err := bls.GenerateSecretKey([]byte("commit-wallet"))
+	require.NoError(t, err)
+
+	blsPk, err := blsSk.PublicKey()
+	require.NoError(t, err)
+
+	return &testWallet{
+		pk:    pk,
+		blsPk: blsPk,
+		blsSk: blsSk,
+	}
+}
+
+func (w *testWallet) SignTransactionWith(_ crypto.PublicKey, _ proto.Transaction) error {
+	return nil
+}
+
+func (w *testWallet) FindPublicKeyByAddress(_ proto.WavesAddress, _ proto.Scheme) (crypto.PublicKey, error) {
+	return w.pk, nil
+}
+
+func (w *testWallet) BLSPairByWavesPK(_ crypto.PublicKey) (bls.SecretKey, bls.PublicKey, error) {
+	return w.blsSk, w.blsPk, nil
+}
+
+func (w *testWallet) Load(_ []byte) error {
+	return nil
+}
+
+func (w *testWallet) AccountSeeds() [][]byte {
+	return nil
+}
+
+func (w *testWallet) BLSSecretKeys() ([]bls.SecretKey, error) {
+	return []bls.SecretKey{w.blsSk}, nil
+}
+
+type failingReader struct{}
+
+func (failingReader) Read([]byte) (int, error) {
+	return 0, fmt.Errorf("read error")
+}
+
+func TestNodeApi_PeersBlackList(t *testing.T) {
+	t.Run("success ip:port", func(t *testing.T) {
+		cfg := &settings.BlockchainSettings{
+			FunctionalitySettings: settings.FunctionalitySettings{
+				GenerationPeriod: 0,
+			},
+		}
+
+		peerManager := peers.NewMockPeerManager(t)
+
+		const blacklistedIP = "5.3.6.7"
+		const blacklistedPort = 6868
+
+		peerManager.EXPECT().AddToBlackListByIP(
+			mock.MatchedBy(func(addr proto.TCPAddr) bool {
+				return addr.String() == blacklistedIP+":0"
+			}),
+			mock.MatchedBy(func(t any) bool { return true }),
+			mock.MatchedBy(func(reason string) bool { return reason != "" }),
+		).Return().Times(1)
+
+		app, err := NewApp("", nil, services.Services{
+			Peers:  peerManager,
+			Scheme: proto.TestNetScheme,
+		}, cfg)
+		require.NoError(t, err)
+
+		api := NewNodeAPI(app, nil)
+
+		// Test with body containing IP:port (no leading slash)
+		bodyStr := fmt.Sprintf("%s:%d", blacklistedIP, blacklistedPort)
+		req := httptest.NewRequest(http.MethodPost, "/peers/blacklist", strings.NewReader(bodyStr))
+		resp := httptest.NewRecorder()
+
+		err = api.PeersBlackList(resp, req)
+		require.NoError(t, err)
+		respBody, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusText(http.StatusOK), string(respBody))
+	})
+
+	t.Run("success ip", func(t *testing.T) {
+		cfg := &settings.BlockchainSettings{
+			FunctionalitySettings: settings.FunctionalitySettings{
+				GenerationPeriod: 0,
+			},
+		}
+
+		peerManager := peers.NewMockPeerManager(t)
+
+		const blacklistedIP = "4.3.9.1"
+
+		peerManager.EXPECT().AddToBlackListByIP(
+			mock.MatchedBy(func(addr proto.TCPAddr) bool {
+				return addr.String() == blacklistedIP+":0"
+			}),
+			mock.MatchedBy(func(t any) bool { return true }),
+			mock.MatchedBy(func(reason string) bool { return reason != "" }),
+		).Return().Times(1)
+
+		app, err := NewApp("", nil, services.Services{
+			Peers:  peerManager,
+			Scheme: proto.TestNetScheme,
+		}, cfg)
+		require.NoError(t, err)
+
+		api := NewNodeAPI(app, nil)
+
+		// Test with body containing IP (no leading slash)
+		req := httptest.NewRequest(http.MethodPost, "/peers/blacklist", strings.NewReader(blacklistedIP))
+		resp := httptest.NewRecorder()
+
+		err = api.PeersBlackList(resp, req)
+		require.NoError(t, err)
+		respBody, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusText(http.StatusOK), string(respBody))
+	})
+
+	t.Run("success ip:port with leading slash", func(t *testing.T) {
+		cfg := &settings.BlockchainSettings{
+			FunctionalitySettings: settings.FunctionalitySettings{
+				GenerationPeriod: 0,
+			},
+		}
+
+		peerManager := peers.NewMockPeerManager(t)
+
+		const blacklistedIP = "10.0.0.1"
+		const blacklistedPort = 6868
+		blacklistedAddr := proto.NewTCPAddr(net.ParseIP(blacklistedIP), 0)
+
+		// Handler strips leading slash, so the app receives without it
+		peerManager.EXPECT().AddToBlackListByIP(
+			mock.MatchedBy(func(addr proto.TCPAddr) bool {
+				return addr.String() == blacklistedAddr.String()
+			}),
+			mock.MatchedBy(func(t any) bool { return true }),
+			mock.MatchedBy(func(reason string) bool { return reason != "" }),
+		).Return().Times(1)
+
+		app, err := NewApp("", nil, services.Services{
+			Peers:  peerManager,
+			Scheme: proto.TestNetScheme,
+		}, cfg)
+		require.NoError(t, err)
+
+		api := NewNodeAPI(app, nil)
+
+		// Test with body containing leading slash (format from peer list responses)
+		bodyStr := fmt.Sprintf("/%s:%d", blacklistedIP, blacklistedPort)
+		req := httptest.NewRequest(http.MethodPost, "/peers/blacklist", strings.NewReader(bodyStr))
+		resp := httptest.NewRecorder()
+
+		err = api.PeersBlackList(resp, req)
+		require.NoError(t, err)
+		respBody, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusText(http.StatusOK), string(respBody))
+	})
+
+	t.Run("error reading body", func(t *testing.T) {
+		cfg := &settings.BlockchainSettings{
+			FunctionalitySettings: settings.FunctionalitySettings{
+				GenerationPeriod: 0,
+			},
+		}
+
+		peerManager := peers.NewMockPeerManager(t)
+
+		app, err := NewApp("", nil, services.Services{
+			Peers:  peerManager,
+			Scheme: proto.TestNetScheme,
+		}, cfg)
+		require.NoError(t, err)
+
+		api := NewNodeAPI(app, nil)
+
+		// Create a request and replace the body with a failing reader
+		req := httptest.NewRequest(http.MethodPost, "/peers/blacklist", strings.NewReader("5.3.6.7:6868"))
+
+		// Create a custom body that fails on first read by using LimitedReader
+		// that exhausts immediately and then fails
+		defer req.Body.Close() // close the original body to avoid resource leak
+		req.Body = io.NopCloser(failingReader{})
+		resp := httptest.NewRecorder()
+
+		err = api.PeersBlackList(resp, req)
+		assert.Error(t, err)
+		assert.True(t, strings.Contains(err.Error(), "failed to read request body"))
 	})
 }

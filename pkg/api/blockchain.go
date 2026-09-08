@@ -67,12 +67,10 @@ func (a *NodeApi) rewardAtHeight(height proto.Height) (rewardInfoResponse, error
 
 	var daoAddress *proto.WavesAddress
 	var xtnBuybackAddress *proto.WavesAddress
-	if blockRewardDistributionActivated && len(set.CurrentRewardAddresses(xtnBuyBackCessation)) > 0 {
-		if dao, ok := set.DAOAddress(xtnBuyBackCessation); ok {
-			daoAddress = &dao
-		}
-		if xtn, ok := set.XTNBuybackAddress(xtnBuyBackCessation); ok {
-			xtnBuybackAddress = &xtn
+	if blockRewardDistributionActivated {
+		daoAddress = set.DAOAddress
+		if !xtnBuyBackCessation {
+			xtnBuybackAddress = set.XTNBuybackAddress
 		}
 	}
 

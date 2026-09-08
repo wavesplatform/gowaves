@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/pkg/errors"
@@ -145,8 +146,14 @@ func (d *blockDiffer) createFailedTransactionDiff(tx proto.Transaction, block *p
 		if err != nil {
 			return txBalanceChanges{}, err
 		}
-	default:
+	case proto.GenesisTransaction, proto.PaymentTransaction, proto.IssueTransaction, proto.TransferTransaction,
+		proto.ReissueTransaction, proto.BurnTransaction, proto.LeaseTransaction, proto.LeaseCancelTransaction,
+		proto.CreateAliasTransaction, proto.MassTransferTransaction, proto.DataTransaction, proto.SetScriptTransaction,
+		proto.SponsorshipTransaction, proto.SetAssetScriptTransaction, proto.UpdateAssetInfoTransaction,
+		proto.CommitToGenerationTransaction:
 		return txBalanceChanges{}, errors.New("only Exchange and Invoke transactions may fail")
+	default:
+		return txBalanceChanges{}, fmt.Errorf("unexpected transaction type %T", tx)
 	}
 	d.appendBlockInfoToTxDiff(txChanges.diff, block)
 	return txChanges, nil
@@ -233,11 +240,49 @@ func (d *blockDiffer) createMinerAndRewardDiff(
 		}
 		d.appendBlockInfoToTxDiff(minerDiff, blockHeader)
 	}
-	err = d.addBlockReward(minerDiff, minerAddr.ID(), blockHeader, blockHeight)
+	err = d.addBlockReward(minerDiff, minerAddr, blockHeader, blockHeight)
 	if err != nil {
 		return txDiff{}, err
 	}
 	return minerDiff, nil
+}
+
+// createPenaltiesDiff creates txDiff for the generators penalties for the previous block.
+// This function MUST NOT modify the state.
+func (d *blockDiffer) createPenaltiesDiff(
+	blockHeader *proto.BlockHeader, blockHeight proto.Height, hasParent bool,
+) (txDiff, error) {
+	if !hasParent {
+		return txDiff{}, nil
+	}
+	activated := d.stor.features.newestIsActivatedAtHeight(int16(settings.DeterministicFinality), blockHeight)
+	if !activated {
+		return txDiff{}, nil
+	}
+	var diff txDiff
+
+	parentHeight := blockHeight - 1
+	generators, err := d.stor.generators.generators(parentHeight)
+	if err != nil {
+		if errors.Is(err, ErrNoGeneratorsSet) {
+			return txDiff{}, nil
+		}
+		return txDiff{}, err
+	}
+	for _, gr := range generators.Generators {
+		if gr.BanHeight == parentHeight {
+			if diff == nil {
+				diff = newTxDiff()
+			}
+			wavesKey := wavesBalanceKey{gr.AddressID}
+			bd := balanceDiff{balance: internal.NewIntChange(int64(-Deposit))}
+			d.appendBlockInfoToBalanceDiff(&bd, blockHeader)
+			if apErr := diff.appendBalanceDiff(wavesKey.bytes(), bd); apErr != nil {
+				return txDiff{}, apErr
+			}
+		}
+	}
+	return diff, nil
 }
 
 // addBlockReward adds block reward to the miner's balance.
@@ -245,7 +290,7 @@ func (d *blockDiffer) createMinerAndRewardDiff(
 // All changes are applied to the passed txDiff.
 func (d *blockDiffer) addBlockReward(
 	diff txDiff,
-	addr proto.AddressID,
+	addr proto.WavesAddress,
 	block *proto.BlockHeader,
 	blockHeight proto.Height,
 ) error {

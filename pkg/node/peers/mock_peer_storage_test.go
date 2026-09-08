@@ -63,7 +63,7 @@ type MockPeerStorage_AddOrUpdateKnown_Call struct {
 // AddOrUpdateKnown is a helper method to define mock.On call
 //   - known []storage.KnownPeer
 //   - now time.Time
-func (_e *MockPeerStorage_Expecter) AddOrUpdateKnown(known interface{}, now interface{}) *MockPeerStorage_AddOrUpdateKnown_Call {
+func (_e *MockPeerStorage_Expecter) AddOrUpdateKnown(known any, now any) *MockPeerStorage_AddOrUpdateKnown_Call {
 	return &MockPeerStorage_AddOrUpdateKnown_Call{Call: _e.mock.On("AddOrUpdateKnown", known, now)}
 }
 
@@ -119,7 +119,7 @@ type MockPeerStorage_AddSuspended_Call struct {
 
 // AddSuspended is a helper method to define mock.On call
 //   - suspended []storage.SuspendedPeer
-func (_e *MockPeerStorage_Expecter) AddSuspended(suspended interface{}) *MockPeerStorage_AddSuspended_Call {
+func (_e *MockPeerStorage_Expecter) AddSuspended(suspended any) *MockPeerStorage_AddSuspended_Call {
 	return &MockPeerStorage_AddSuspended_Call{Call: _e.mock.On("AddSuspended", suspended)}
 }
 
@@ -170,7 +170,7 @@ type MockPeerStorage_AddToBlackList_Call struct {
 
 // AddToBlackList is a helper method to define mock.On call
 //   - blackListed []storage.BlackListedPeer
-func (_e *MockPeerStorage_Expecter) AddToBlackList(blackListed interface{}) *MockPeerStorage_AddToBlackList_Call {
+func (_e *MockPeerStorage_Expecter) AddToBlackList(blackListed any) *MockPeerStorage_AddToBlackList_Call {
 	return &MockPeerStorage_AddToBlackList_Call{Call: _e.mock.On("AddToBlackList", blackListed)}
 }
 
@@ -223,7 +223,7 @@ type MockPeerStorage_BlackList_Call struct {
 
 // BlackList is a helper method to define mock.On call
 //   - now time.Time
-func (_e *MockPeerStorage_Expecter) BlackList(now interface{}) *MockPeerStorage_BlackList_Call {
+func (_e *MockPeerStorage_Expecter) BlackList(now any) *MockPeerStorage_BlackList_Call {
 	return &MockPeerStorage_BlackList_Call{Call: _e.mock.On("BlackList", now)}
 }
 
@@ -274,7 +274,7 @@ type MockPeerStorage_DeleteBlackListedByIP_Call struct {
 
 // DeleteBlackListedByIP is a helper method to define mock.On call
 //   - blackListed []storage.BlackListedPeer
-func (_e *MockPeerStorage_Expecter) DeleteBlackListedByIP(blackListed interface{}) *MockPeerStorage_DeleteBlackListedByIP_Call {
+func (_e *MockPeerStorage_Expecter) DeleteBlackListedByIP(blackListed any) *MockPeerStorage_DeleteBlackListedByIP_Call {
 	return &MockPeerStorage_DeleteBlackListedByIP_Call{Call: _e.mock.On("DeleteBlackListedByIP", blackListed)}
 }
 
@@ -325,7 +325,7 @@ type MockPeerStorage_DeleteKnown_Call struct {
 
 // DeleteKnown is a helper method to define mock.On call
 //   - known []storage.KnownPeer
-func (_e *MockPeerStorage_Expecter) DeleteKnown(known interface{}) *MockPeerStorage_DeleteKnown_Call {
+func (_e *MockPeerStorage_Expecter) DeleteKnown(known any) *MockPeerStorage_DeleteKnown_Call {
 	return &MockPeerStorage_DeleteKnown_Call{Call: _e.mock.On("DeleteKnown", known)}
 }
 
@@ -376,7 +376,7 @@ type MockPeerStorage_DeleteSuspendedByIP_Call struct {
 
 // DeleteSuspendedByIP is a helper method to define mock.On call
 //   - suspended []storage.SuspendedPeer
-func (_e *MockPeerStorage_Expecter) DeleteSuspendedByIP(suspended interface{}) *MockPeerStorage_DeleteSuspendedByIP_Call {
+func (_e *MockPeerStorage_Expecter) DeleteSuspendedByIP(suspended any) *MockPeerStorage_DeleteSuspendedByIP_Call {
 	return &MockPeerStorage_DeleteSuspendedByIP_Call{Call: _e.mock.On("DeleteSuspendedByIP", suspended)}
 }
 
@@ -604,7 +604,7 @@ type MockPeerStorage_IsBlackListedIP_Call struct {
 // IsBlackListedIP is a helper method to define mock.On call
 //   - ip storage.IP
 //   - now time.Time
-func (_e *MockPeerStorage_Expecter) IsBlackListedIP(ip interface{}, now interface{}) *MockPeerStorage_IsBlackListedIP_Call {
+func (_e *MockPeerStorage_Expecter) IsBlackListedIP(ip any, now any) *MockPeerStorage_IsBlackListedIP_Call {
 	return &MockPeerStorage_IsBlackListedIP_Call{Call: _e.mock.On("IsBlackListedIP", ip, now)}
 }
 
@@ -663,7 +663,7 @@ type MockPeerStorage_IsBlackListedIPs_Call struct {
 // IsBlackListedIPs is a helper method to define mock.On call
 //   - ips []storage.IP
 //   - now time.Time
-func (_e *MockPeerStorage_Expecter) IsBlackListedIPs(ips interface{}, now interface{}) *MockPeerStorage_IsBlackListedIPs_Call {
+func (_e *MockPeerStorage_Expecter) IsBlackListedIPs(ips any, now any) *MockPeerStorage_IsBlackListedIPs_Call {
 	return &MockPeerStorage_IsBlackListedIPs_Call{Call: _e.mock.On("IsBlackListedIPs", ips, now)}
 }
 
@@ -720,7 +720,7 @@ type MockPeerStorage_IsSuspendedIP_Call struct {
 // IsSuspendedIP is a helper method to define mock.On call
 //   - ip storage.IP
 //   - now time.Time
-func (_e *MockPeerStorage_Expecter) IsSuspendedIP(ip interface{}, now interface{}) *MockPeerStorage_IsSuspendedIP_Call {
+func (_e *MockPeerStorage_Expecter) IsSuspendedIP(ip any, now any) *MockPeerStorage_IsSuspendedIP_Call {
 	return &MockPeerStorage_IsSuspendedIP_Call{Call: _e.mock.On("IsSuspendedIP", ip, now)}
 }
 
@@ -779,7 +779,7 @@ type MockPeerStorage_IsSuspendedIPs_Call struct {
 // IsSuspendedIPs is a helper method to define mock.On call
 //   - ips []storage.IP
 //   - now time.Time
-func (_e *MockPeerStorage_Expecter) IsSuspendedIPs(ips interface{}, now interface{}) *MockPeerStorage_IsSuspendedIPs_Call {
+func (_e *MockPeerStorage_Expecter) IsSuspendedIPs(ips any, now any) *MockPeerStorage_IsSuspendedIPs_Call {
 	return &MockPeerStorage_IsSuspendedIPs_Call{Call: _e.mock.On("IsSuspendedIPs", ips, now)}
 }
 
@@ -837,7 +837,7 @@ type MockPeerStorage_Known_Call struct {
 
 // Known is a helper method to define mock.On call
 //   - limit int
-func (_e *MockPeerStorage_Expecter) Known(limit interface{}) *MockPeerStorage_Known_Call {
+func (_e *MockPeerStorage_Expecter) Known(limit any) *MockPeerStorage_Known_Call {
 	return &MockPeerStorage_Known_Call{Call: _e.mock.On("Known", limit)}
 }
 
@@ -888,7 +888,7 @@ type MockPeerStorage_RefreshBlackList_Call struct {
 
 // RefreshBlackList is a helper method to define mock.On call
 //   - now time.Time
-func (_e *MockPeerStorage_Expecter) RefreshBlackList(now interface{}) *MockPeerStorage_RefreshBlackList_Call {
+func (_e *MockPeerStorage_Expecter) RefreshBlackList(now any) *MockPeerStorage_RefreshBlackList_Call {
 	return &MockPeerStorage_RefreshBlackList_Call{Call: _e.mock.On("RefreshBlackList", now)}
 }
 
@@ -939,7 +939,7 @@ type MockPeerStorage_RefreshSuspended_Call struct {
 
 // RefreshSuspended is a helper method to define mock.On call
 //   - now time.Time
-func (_e *MockPeerStorage_Expecter) RefreshSuspended(now interface{}) *MockPeerStorage_RefreshSuspended_Call {
+func (_e *MockPeerStorage_Expecter) RefreshSuspended(now any) *MockPeerStorage_RefreshSuspended_Call {
 	return &MockPeerStorage_RefreshSuspended_Call{Call: _e.mock.On("RefreshSuspended", now)}
 }
 
@@ -992,7 +992,7 @@ type MockPeerStorage_Suspended_Call struct {
 
 // Suspended is a helper method to define mock.On call
 //   - now time.Time
-func (_e *MockPeerStorage_Expecter) Suspended(now interface{}) *MockPeerStorage_Suspended_Call {
+func (_e *MockPeerStorage_Expecter) Suspended(now any) *MockPeerStorage_Suspended_Call {
 	return &MockPeerStorage_Suspended_Call{Call: _e.mock.On("Suspended", now)}
 }
 

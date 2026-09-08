@@ -3,6 +3,7 @@ package state
 import (
 	"fmt"
 
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 
@@ -165,7 +166,11 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 	return nil
 }
 
-func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, setTx func(*ride.EvaluationEnvironment) error, assetID crypto.Digest, params *appendTxParams) (ride.Result, error) {
+func (a *scriptCaller) callAssetScriptCommon(
+	env *ride.EvaluationEnvironment,
+	setTx func(*ride.EvaluationEnvironment) error,
+	assetID crypto.Digest, params *appendTxParams,
+) (ride.Result, error) {
 	tree, err := a.stor.scriptsStorage.newestScriptByAsset(proto.AssetIDFromDigest(assetID))
 	if err != nil {
 		return nil, err
@@ -182,20 +187,22 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, se
 
 	switch tree.LibVersion {
 	case ast.LibV1, ast.LibV2, ast.LibV3:
-		assetInfo, err := a.state.NewestAssetInfo(assetID)
-		if err != nil {
-			return nil, err
+		ai, aiErr := a.state.NewestAssetInfo(assetID)
+		if aiErr != nil {
+			return nil, aiErr
 		}
-		env.SetThisFromAssetInfo(assetInfo)
+		env.SetThisFromAssetInfo(ai)
+	case ast.LibV4, ast.LibV5, ast.LibV6, ast.LibV7, ast.LibV8, ast.LibV9:
+		ai, aiErr := a.state.NewestFullAssetInfo(assetID)
+		if aiErr != nil {
+			return nil, aiErr
+		}
+		env.SetThisFromFullAssetInfo(ai)
 	default:
-		assetInfo, err := a.state.NewestFullAssetInfo(assetID)
-		if err != nil {
-			return nil, err
-		}
-		env.SetThisFromFullAssetInfo(assetInfo)
+		return nil, fmt.Errorf("unsupported lib version %d", tree.LibVersion)
 	}
-	if err := env.SetLastBlockFromBlockInfo(params.blockInfo); err != nil {
-		return nil, err
+	if biErr := env.SetLastBlockFromBlockInfo(params.blockInfo); biErr != nil {
+		return nil, biErr
 	}
 	r, err := ride.CallVerifier(env, tree)
 	if err != nil {
@@ -206,14 +213,16 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, se
 	}
 	// Increase complexity.
 	if params.rideV5Activated { // After activation of RideV5 add actual execution complexity
-		a.recentTxComplexity += uint64(r.Complexity())
+		complexity, cErr := safecast.Convert[uint64](r.Complexity())
+		if cErr != nil {
+			return nil, fmt.Errorf("failed to convert complexity to uint64: %w", cErr)
+		}
+		a.recentTxComplexity += complexity
 	} else {
 		// For asset script we use original estimation
-		est, err := a.stor.scriptsComplexity.newestScriptComplexityByAsset(
-			proto.AssetIDFromDigest(assetID),
-		)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
+		est, scErr := a.stor.scriptsComplexity.newestScriptComplexityByAsset(proto.AssetIDFromDigest(assetID))
+		if scErr != nil {
+			return nil, errors.Wrapf(scErr, "failed to call script on asset '%s'", assetID.String())
 		}
 		a.recentTxComplexity += uint64(est.Verifier)
 	}
@@ -469,7 +478,11 @@ func (a *scriptCaller) invokeFunctionByEthereumTx(
 			return nil, proto.FunctionCall{}, errors.Errorf("invalid payment amount '%d'", p.Amount)
 		}
 		optAsset := proto.NewOptionalAsset(p.PresentAssetID, p.AssetID)
-		scriptPayment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: optAsset}
+		amount, cErr := safecast.Convert[uint64](p.Amount)
+		if cErr != nil {
+			return nil, proto.FunctionCall{}, fmt.Errorf("failed to convert payment amount to uint64: %w", cErr)
+		}
+		scriptPayment := proto.ScriptPayment{Amount: amount, Asset: optAsset}
 		scriptPayments = append(scriptPayments, scriptPayment)
 	}
 

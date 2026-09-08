@@ -121,6 +121,8 @@ func handleTypes(node *node32, s string, dropRuntimeTypes bool) Type {
 		default:
 			t = SimpleType{stringType}
 		}
+	case ruleUnknown, ruleMainRule, ruleTypes, ruleEOF, rule_:
+		// Do nothing.
 	}
 	curNode = curNode.next
 	if curNode == nil {
@@ -586,6 +588,25 @@ func loadNonConfigTypes(res map[ast.LibraryVersion]map[string]Type) {
 	}}
 	res[ast.LibV7]["Transaction"] = res[ast.LibV6]["Transaction"]
 	res[ast.LibV8]["Transaction"] = res[ast.LibV7]["Transaction"]
+	res[ast.LibV9]["Transaction"] = UnionType{Types: []Type{
+		SimpleType{"ReissueTransaction"},
+		SimpleType{"BurnTransaction"},
+		SimpleType{"MassTransferTransaction"},
+		SimpleType{"ExchangeTransaction"},
+		SimpleType{"TransferTransaction"},
+		SimpleType{"SetAssetScriptTransaction"},
+		SimpleType{"InvokeScriptTransaction"},
+		SimpleType{"UpdateAssetInfoTransaction"},
+		SimpleType{"InvokeExpressionTransaction"},
+		SimpleType{"IssueTransaction"},
+		SimpleType{"LeaseTransaction"},
+		SimpleType{"LeaseCancelTransaction"},
+		SimpleType{"CreateAliasTransaction"},
+		SimpleType{"SetScriptTransaction"},
+		SimpleType{"SponsorFeeTransaction"},
+		SimpleType{"DataTransaction"},
+		SimpleType{"CommitToGenerationTransaction"},
+	}}
 }
 
 func mustLoadDefaultTypes() map[ast.LibraryVersion]map[string]Type {

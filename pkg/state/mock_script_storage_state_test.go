@@ -71,7 +71,7 @@ type MockScriptStorageState_accountHasScript_Call struct {
 
 // accountHasScript is a helper method to define mock.On call
 //   - addr proto.WavesAddress
-func (_e *MockScriptStorageState_Expecter) accountHasScript(addr interface{}) *MockScriptStorageState_accountHasScript_Call {
+func (_e *MockScriptStorageState_Expecter) accountHasScript(addr any) *MockScriptStorageState_accountHasScript_Call {
 	return &MockScriptStorageState_accountHasScript_Call{Call: _e.mock.On("accountHasScript", addr)}
 }
 
@@ -131,7 +131,7 @@ type MockScriptStorageState_accountHasVerifier_Call struct {
 
 // accountHasVerifier is a helper method to define mock.On call
 //   - addr proto.WavesAddress
-func (_e *MockScriptStorageState_Expecter) accountHasVerifier(addr interface{}) *MockScriptStorageState_accountHasVerifier_Call {
+func (_e *MockScriptStorageState_Expecter) accountHasVerifier(addr any) *MockScriptStorageState_accountHasVerifier_Call {
 	return &MockScriptStorageState_accountHasVerifier_Call{Call: _e.mock.On("accountHasVerifier", addr)}
 }
 
@@ -191,7 +191,7 @@ type MockScriptStorageState_accountIsDApp_Call struct {
 
 // accountIsDApp is a helper method to define mock.On call
 //   - addr proto.WavesAddress
-func (_e *MockScriptStorageState_Expecter) accountIsDApp(addr interface{}) *MockScriptStorageState_accountIsDApp_Call {
+func (_e *MockScriptStorageState_Expecter) accountIsDApp(addr any) *MockScriptStorageState_accountIsDApp_Call {
 	return &MockScriptStorageState_accountIsDApp_Call{Call: _e.mock.On("accountIsDApp", addr)}
 }
 
@@ -286,7 +286,7 @@ type MockScriptStorageState_commitUncertain_Call struct {
 
 // commitUncertain is a helper method to define mock.On call
 //   - blockID proto.BlockID
-func (_e *MockScriptStorageState_Expecter) commitUncertain(blockID interface{}) *MockScriptStorageState_commitUncertain_Call {
+func (_e *MockScriptStorageState_Expecter) commitUncertain(blockID any) *MockScriptStorageState_commitUncertain_Call {
 	return &MockScriptStorageState_commitUncertain_Call{Call: _e.mock.On("commitUncertain", blockID)}
 }
 
@@ -471,7 +471,7 @@ type MockScriptStorageState_isSmartAsset_Call struct {
 
 // isSmartAsset is a helper method to define mock.On call
 //   - assetID proto.AssetID
-func (_e *MockScriptStorageState_Expecter) isSmartAsset(assetID interface{}) *MockScriptStorageState_isSmartAsset_Call {
+func (_e *MockScriptStorageState_Expecter) isSmartAsset(assetID any) *MockScriptStorageState_isSmartAsset_Call {
 	return &MockScriptStorageState_isSmartAsset_Call{Call: _e.mock.On("isSmartAsset", assetID)}
 }
 
@@ -531,7 +531,7 @@ type MockScriptStorageState_newestAccountHasScript_Call struct {
 
 // newestAccountHasScript is a helper method to define mock.On call
 //   - addr proto.WavesAddress
-func (_e *MockScriptStorageState_Expecter) newestAccountHasScript(addr interface{}) *MockScriptStorageState_newestAccountHasScript_Call {
+func (_e *MockScriptStorageState_Expecter) newestAccountHasScript(addr any) *MockScriptStorageState_newestAccountHasScript_Call {
 	return &MockScriptStorageState_newestAccountHasScript_Call{Call: _e.mock.On("newestAccountHasScript", addr)}
 }
 
@@ -591,7 +591,7 @@ type MockScriptStorageState_newestAccountHasVerifier_Call struct {
 
 // newestAccountHasVerifier is a helper method to define mock.On call
 //   - addr proto.WavesAddress
-func (_e *MockScriptStorageState_Expecter) newestAccountHasVerifier(addr interface{}) *MockScriptStorageState_newestAccountHasVerifier_Call {
+func (_e *MockScriptStorageState_Expecter) newestAccountHasVerifier(addr any) *MockScriptStorageState_newestAccountHasVerifier_Call {
 	return &MockScriptStorageState_newestAccountHasVerifier_Call{Call: _e.mock.On("newestAccountHasVerifier", addr)}
 }
 
@@ -651,7 +651,7 @@ type MockScriptStorageState_newestAccountIsDApp_Call struct {
 
 // newestAccountIsDApp is a helper method to define mock.On call
 //   - addr proto.WavesAddress
-func (_e *MockScriptStorageState_Expecter) newestAccountIsDApp(addr interface{}) *MockScriptStorageState_newestAccountIsDApp_Call {
+func (_e *MockScriptStorageState_Expecter) newestAccountIsDApp(addr any) *MockScriptStorageState_newestAccountIsDApp_Call {
 	return &MockScriptStorageState_newestAccountIsDApp_Call{Call: _e.mock.On("newestAccountIsDApp", addr)}
 }
 
@@ -711,7 +711,7 @@ type MockScriptStorageState_newestIsSmartAsset_Call struct {
 
 // newestIsSmartAsset is a helper method to define mock.On call
 //   - assetID proto.AssetID
-func (_e *MockScriptStorageState_Expecter) newestIsSmartAsset(assetID interface{}) *MockScriptStorageState_newestIsSmartAsset_Call {
+func (_e *MockScriptStorageState_Expecter) newestIsSmartAsset(assetID any) *MockScriptStorageState_newestIsSmartAsset_Call {
 	return &MockScriptStorageState_newestIsSmartAsset_Call{Call: _e.mock.On("newestIsSmartAsset", assetID)}
 }
 
@@ -771,7 +771,7 @@ type MockScriptStorageState_newestScriptBasicInfoByAddressID_Call struct {
 
 // newestScriptBasicInfoByAddressID is a helper method to define mock.On call
 //   - addressID proto.AddressID
-func (_e *MockScriptStorageState_Expecter) newestScriptBasicInfoByAddressID(addressID interface{}) *MockScriptStorageState_newestScriptBasicInfoByAddressID_Call {
+func (_e *MockScriptStorageState_Expecter) newestScriptBasicInfoByAddressID(addressID any) *MockScriptStorageState_newestScriptBasicInfoByAddressID_Call {
 	return &MockScriptStorageState_newestScriptBasicInfoByAddressID_Call{Call: _e.mock.On("newestScriptBasicInfoByAddressID", addressID)}
 }
 
@@ -833,7 +833,7 @@ type MockScriptStorageState_newestScriptByAddr_Call struct {
 
 // newestScriptByAddr is a helper method to define mock.On call
 //   - addr proto.WavesAddress
-func (_e *MockScriptStorageState_Expecter) newestScriptByAddr(addr interface{}) *MockScriptStorageState_newestScriptByAddr_Call {
+func (_e *MockScriptStorageState_Expecter) newestScriptByAddr(addr any) *MockScriptStorageState_newestScriptByAddr_Call {
 	return &MockScriptStorageState_newestScriptByAddr_Call{Call: _e.mock.On("newestScriptByAddr", addr)}
 }
 
@@ -895,7 +895,7 @@ type MockScriptStorageState_newestScriptByAsset_Call struct {
 
 // newestScriptByAsset is a helper method to define mock.On call
 //   - assetID proto.AssetID
-func (_e *MockScriptStorageState_Expecter) newestScriptByAsset(assetID interface{}) *MockScriptStorageState_newestScriptByAsset_Call {
+func (_e *MockScriptStorageState_Expecter) newestScriptByAsset(assetID any) *MockScriptStorageState_newestScriptByAsset_Call {
 	return &MockScriptStorageState_newestScriptByAsset_Call{Call: _e.mock.On("newestScriptByAsset", assetID)}
 }
 
@@ -957,7 +957,7 @@ type MockScriptStorageState_newestScriptBytesByAddr_Call struct {
 
 // newestScriptBytesByAddr is a helper method to define mock.On call
 //   - addr proto.WavesAddress
-func (_e *MockScriptStorageState_Expecter) newestScriptBytesByAddr(addr interface{}) *MockScriptStorageState_newestScriptBytesByAddr_Call {
+func (_e *MockScriptStorageState_Expecter) newestScriptBytesByAddr(addr any) *MockScriptStorageState_newestScriptBytesByAddr_Call {
 	return &MockScriptStorageState_newestScriptBytesByAddr_Call{Call: _e.mock.On("newestScriptBytesByAddr", addr)}
 }
 
@@ -1019,7 +1019,7 @@ type MockScriptStorageState_newestScriptBytesByAsset_Call struct {
 
 // newestScriptBytesByAsset is a helper method to define mock.On call
 //   - assetID proto.AssetID
-func (_e *MockScriptStorageState_Expecter) newestScriptBytesByAsset(assetID interface{}) *MockScriptStorageState_newestScriptBytesByAsset_Call {
+func (_e *MockScriptStorageState_Expecter) newestScriptBytesByAsset(assetID any) *MockScriptStorageState_newestScriptBytesByAsset_Call {
 	return &MockScriptStorageState_newestScriptBytesByAsset_Call{Call: _e.mock.On("newestScriptBytesByAsset", assetID)}
 }
 
@@ -1156,7 +1156,7 @@ type MockScriptStorageState_scriptBasicInfoByAddressID_Call struct {
 
 // scriptBasicInfoByAddressID is a helper method to define mock.On call
 //   - addressID proto.AddressID
-func (_e *MockScriptStorageState_Expecter) scriptBasicInfoByAddressID(addressID interface{}) *MockScriptStorageState_scriptBasicInfoByAddressID_Call {
+func (_e *MockScriptStorageState_Expecter) scriptBasicInfoByAddressID(addressID any) *MockScriptStorageState_scriptBasicInfoByAddressID_Call {
 	return &MockScriptStorageState_scriptBasicInfoByAddressID_Call{Call: _e.mock.On("scriptBasicInfoByAddressID", addressID)}
 }
 
@@ -1218,7 +1218,7 @@ type MockScriptStorageState_scriptByAddr_Call struct {
 
 // scriptByAddr is a helper method to define mock.On call
 //   - addr proto.WavesAddress
-func (_e *MockScriptStorageState_Expecter) scriptByAddr(addr interface{}) *MockScriptStorageState_scriptByAddr_Call {
+func (_e *MockScriptStorageState_Expecter) scriptByAddr(addr any) *MockScriptStorageState_scriptByAddr_Call {
 	return &MockScriptStorageState_scriptByAddr_Call{Call: _e.mock.On("scriptByAddr", addr)}
 }
 
@@ -1280,7 +1280,7 @@ type MockScriptStorageState_scriptByAsset_Call struct {
 
 // scriptByAsset is a helper method to define mock.On call
 //   - assetID proto.AssetID
-func (_e *MockScriptStorageState_Expecter) scriptByAsset(assetID interface{}) *MockScriptStorageState_scriptByAsset_Call {
+func (_e *MockScriptStorageState_Expecter) scriptByAsset(assetID any) *MockScriptStorageState_scriptByAsset_Call {
 	return &MockScriptStorageState_scriptByAsset_Call{Call: _e.mock.On("scriptByAsset", assetID)}
 }
 
@@ -1342,7 +1342,7 @@ type MockScriptStorageState_scriptBytesByAddr_Call struct {
 
 // scriptBytesByAddr is a helper method to define mock.On call
 //   - addr proto.WavesAddress
-func (_e *MockScriptStorageState_Expecter) scriptBytesByAddr(addr interface{}) *MockScriptStorageState_scriptBytesByAddr_Call {
+func (_e *MockScriptStorageState_Expecter) scriptBytesByAddr(addr any) *MockScriptStorageState_scriptBytesByAddr_Call {
 	return &MockScriptStorageState_scriptBytesByAddr_Call{Call: _e.mock.On("scriptBytesByAddr", addr)}
 }
 
@@ -1404,7 +1404,7 @@ type MockScriptStorageState_scriptBytesByAsset_Call struct {
 
 // scriptBytesByAsset is a helper method to define mock.On call
 //   - assetID proto.AssetID
-func (_e *MockScriptStorageState_Expecter) scriptBytesByAsset(assetID interface{}) *MockScriptStorageState_scriptBytesByAsset_Call {
+func (_e *MockScriptStorageState_Expecter) scriptBytesByAsset(assetID any) *MockScriptStorageState_scriptBytesByAsset_Call {
 	return &MockScriptStorageState_scriptBytesByAsset_Call{Call: _e.mock.On("scriptBytesByAsset", assetID)}
 }
 
@@ -1458,7 +1458,7 @@ type MockScriptStorageState_setAccountScript_Call struct {
 //   - script proto.Script
 //   - pk crypto.PublicKey
 //   - blockID proto.BlockID
-func (_e *MockScriptStorageState_Expecter) setAccountScript(addr interface{}, script interface{}, pk interface{}, blockID interface{}) *MockScriptStorageState_setAccountScript_Call {
+func (_e *MockScriptStorageState_Expecter) setAccountScript(addr any, script any, pk any, blockID any) *MockScriptStorageState_setAccountScript_Call {
 	return &MockScriptStorageState_setAccountScript_Call{Call: _e.mock.On("setAccountScript", addr, script, pk, blockID)}
 }
 
@@ -1526,7 +1526,7 @@ type MockScriptStorageState_setAssetScript_Call struct {
 //   - assetID crypto.Digest
 //   - script proto.Script
 //   - blockID proto.BlockID
-func (_e *MockScriptStorageState_Expecter) setAssetScript(assetID interface{}, script interface{}, blockID interface{}) *MockScriptStorageState_setAssetScript_Call {
+func (_e *MockScriptStorageState_Expecter) setAssetScript(assetID any, script any, blockID any) *MockScriptStorageState_setAssetScript_Call {
 	return &MockScriptStorageState_setAssetScript_Call{Call: _e.mock.On("setAssetScript", assetID, script, blockID)}
 }
 
@@ -1589,7 +1589,7 @@ type MockScriptStorageState_setAssetScriptUncertain_Call struct {
 //   - fullAssetID crypto.Digest
 //   - script proto.Script
 //   - pk crypto.PublicKey
-func (_e *MockScriptStorageState_Expecter) setAssetScriptUncertain(fullAssetID interface{}, script interface{}, pk interface{}) *MockScriptStorageState_setAssetScriptUncertain_Call {
+func (_e *MockScriptStorageState_Expecter) setAssetScriptUncertain(fullAssetID any, script any, pk any) *MockScriptStorageState_setAssetScriptUncertain_Call {
 	return &MockScriptStorageState_setAssetScriptUncertain_Call{Call: _e.mock.On("setAssetScriptUncertain", fullAssetID, script, pk)}
 }
 

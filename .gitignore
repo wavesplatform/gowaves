@@ -23,6 +23,7 @@ vendor/
 build/
 out/
 .run/
+graphify-out/
 
 *.lock
 *.txt

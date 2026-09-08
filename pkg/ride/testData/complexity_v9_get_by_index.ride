@@ -1,0 +1,42 @@
+{-# STDLIB_VERSION 9 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+# Functions under test (by-index variants, STDLIB_VERSION 9):
+#
+#   Option variants — getInteger / getBoolean / getBinary / getString (List, Int)
+#     Scala doc complexity = 2 each
+#     Go key: "getInteger", "getBoolean", "getBinary", "getString"
+#
+#   Throwing variants — getIntegerValue / getBooleanValue / getBinaryValue / getStringValue (List, Int)
+#     Scala doc complexity = 2 each
+#     Go key: "@extrUser(getInteger)", "@extrUser(getBoolean)", "@extrUser(getBinary)", "@extrUser(getString)"
+#
+#   addressFromPublicKey(ByteVector)
+#     Scala doc complexity = 1
+#
+# Each of the 8 data-getter functions is called once: 8 * 2 = 16
+# Function addressFromPublicKey called once: 1
+# Each list creation is counted as 1 + 2: 4 * (1 + 2) = 12
+# IsDefined called 4 times: 4 * 1 = 4
+# Estimation comparisons: 4 equality checks (4) + 1 inequality check (1) = 5 (from `addr == this || addr != this`)
+# Evaluation comparisons: short-circuited `||`, so only 4 equality checks are executed
+# One size call: 1
+# Total Estimation Complexity: 16 + 1 + 12 + 4 + 5 + 1 = 39.
+# Total Evaluation Complexity: 16 + 1 + 8 + 4 + 4 + 1 = 34.
+
+let iData = [IntegerEntry("k", 1)] # EvC: 1 + 1 = 2, EsC: 1 + 2 = 3
+let bData = [BooleanEntry("k", true)] # EvC: 2, EsC: 3
+let nData = [BinaryEntry("k", base58'')] # EvC: 2, EsC: 3
+let sData = [StringEntry("k", "s")] # EvC: 2, EsC: 3
+let addr  = addressFromPublicKey(tx.senderPublicKey) # EvC: 1, EsC: 1
+
+isDefined(getInteger(iData, 0)) && # 1 + 2
+isDefined(getBoolean(bData, 0)) && # 1 + 2
+isDefined(getBinary(nData, 0)) && # 1 + 2
+isDefined(getString(sData, 0)) && # 1 + 2
+getIntegerValue(iData, 0) == 1 && # 1 + 2
+getBooleanValue(bData, 0) && # 2
+size(getBinaryValue(nData, 0)) == 0 && # 1 + 2 + 1
+getStringValue(sData, 0) == "s" && # 1 + 2
+(addr == this || addr != this) # EvC: 1 (only one branch is evaluated), EsC: 1 + 1

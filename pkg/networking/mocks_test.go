@@ -50,7 +50,7 @@ type MockHandler_OnClose_Call struct {
 
 // OnClose is a helper method to define mock.On call
 //   - endpointWriter EndpointWriter
-func (_e *MockHandler_Expecter) OnClose(endpointWriter interface{}) *MockHandler_OnClose_Call {
+func (_e *MockHandler_Expecter) OnClose(endpointWriter any) *MockHandler_OnClose_Call {
 	return &MockHandler_OnClose_Call{Call: _e.mock.On("OnClose", endpointWriter)}
 }
 
@@ -91,7 +91,7 @@ type MockHandler_OnFailure_Call struct {
 // OnFailure is a helper method to define mock.On call
 //   - endpointWriter EndpointWriter
 //   - err error
-func (_e *MockHandler_Expecter) OnFailure(endpointWriter interface{}, err interface{}) *MockHandler_OnFailure_Call {
+func (_e *MockHandler_Expecter) OnFailure(endpointWriter any, err any) *MockHandler_OnFailure_Call {
 	return &MockHandler_OnFailure_Call{Call: _e.mock.On("OnFailure", endpointWriter, err)}
 }
 
@@ -137,7 +137,7 @@ type MockHandler_OnHandshake_Call struct {
 // OnHandshake is a helper method to define mock.On call
 //   - endpointWriter EndpointWriter
 //   - handshake Handshake
-func (_e *MockHandler_Expecter) OnHandshake(endpointWriter interface{}, handshake interface{}) *MockHandler_OnHandshake_Call {
+func (_e *MockHandler_Expecter) OnHandshake(endpointWriter any, handshake any) *MockHandler_OnHandshake_Call {
 	return &MockHandler_OnHandshake_Call{Call: _e.mock.On("OnHandshake", endpointWriter, handshake)}
 }
 
@@ -183,7 +183,7 @@ type MockHandler_OnHandshakeFailed_Call struct {
 // OnHandshakeFailed is a helper method to define mock.On call
 //   - endpointWriter EndpointWriter
 //   - handshake Handshake
-func (_e *MockHandler_Expecter) OnHandshakeFailed(endpointWriter interface{}, handshake interface{}) *MockHandler_OnHandshakeFailed_Call {
+func (_e *MockHandler_Expecter) OnHandshakeFailed(endpointWriter any, handshake any) *MockHandler_OnHandshakeFailed_Call {
 	return &MockHandler_OnHandshakeFailed_Call{Call: _e.mock.On("OnHandshakeFailed", endpointWriter, handshake)}
 }
 
@@ -229,7 +229,7 @@ type MockHandler_OnReceive_Call struct {
 // OnReceive is a helper method to define mock.On call
 //   - endpointWriter EndpointWriter
 //   - reader io.Reader
-func (_e *MockHandler_Expecter) OnReceive(endpointWriter interface{}, reader interface{}) *MockHandler_OnReceive_Call {
+func (_e *MockHandler_Expecter) OnReceive(endpointWriter any, reader any) *MockHandler_OnReceive_Call {
 	return &MockHandler_OnReceive_Call{Call: _e.mock.On("OnReceive", endpointWriter, reader)}
 }
 
@@ -409,7 +409,7 @@ type MockHeader_ReadFrom_Call struct {
 
 // ReadFrom is a helper method to define mock.On call
 //   - r io.Reader
-func (_e *MockHeader_Expecter) ReadFrom(r interface{}) *MockHeader_ReadFrom_Call {
+func (_e *MockHeader_Expecter) ReadFrom(r any) *MockHeader_ReadFrom_Call {
 	return &MockHeader_ReadFrom_Call{Call: _e.mock.On("ReadFrom", r)}
 }
 
@@ -469,7 +469,7 @@ type MockHeader_WriteTo_Call struct {
 
 // WriteTo is a helper method to define mock.On call
 //   - w io.Writer
-func (_e *MockHeader_Expecter) WriteTo(w interface{}) *MockHeader_WriteTo_Call {
+func (_e *MockHeader_Expecter) WriteTo(w any) *MockHeader_WriteTo_Call {
 	return &MockHeader_WriteTo_Call{Call: _e.mock.On("WriteTo", w)}
 }
 
@@ -640,7 +640,7 @@ type MockProtocol_IsAcceptableHandshake_Call struct {
 // IsAcceptableHandshake is a helper method to define mock.On call
 //   - session *Session
 //   - handshake Handshake
-func (_e *MockProtocol_Expecter) IsAcceptableHandshake(session interface{}, handshake interface{}) *MockProtocol_IsAcceptableHandshake_Call {
+func (_e *MockProtocol_Expecter) IsAcceptableHandshake(session any, handshake any) *MockProtocol_IsAcceptableHandshake_Call {
 	return &MockProtocol_IsAcceptableHandshake_Call{Call: _e.mock.On("IsAcceptableHandshake", session, handshake)}
 }
 
@@ -697,7 +697,7 @@ type MockProtocol_IsAcceptableMessage_Call struct {
 // IsAcceptableMessage is a helper method to define mock.On call
 //   - session *Session
 //   - header Header
-func (_e *MockProtocol_Expecter) IsAcceptableMessage(session interface{}, header interface{}) *MockProtocol_IsAcceptableMessage_Call {
+func (_e *MockProtocol_Expecter) IsAcceptableMessage(session any, header any) *MockProtocol_IsAcceptableMessage_Call {
 	return &MockProtocol_IsAcceptableMessage_Call{Call: _e.mock.On("IsAcceptableMessage", session, header)}
 }
 

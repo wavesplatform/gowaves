@@ -2,8 +2,8 @@ package proto
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/big"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -243,7 +243,7 @@ func TestEthereumInvokeScriptTxKind_ValidateCallData(t *testing.T) {
 		},
 	}
 	for i, tc := range tests {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			kind := NewEthereumInvokeScriptTxKind(tc.callData)
 			err := kind.ValidateCallData(exampleDapp)
 			if tc.err == "" {

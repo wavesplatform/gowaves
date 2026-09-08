@@ -6,8 +6,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -441,4 +443,156 @@ func createTestObjects(t *testing.T, sets *settings.BlockchainSettings) (*moneta
 	storage := createStorageObjects(t, true)
 	mp := newMonetaryPolicy(storage.hs, sets)
 	return mp, storage
+}
+
+func TestRewardBoostFeatureInfoWithAdjustedDistribution(t *testing.T) {
+	const (
+		boostActivationHeight = uint64(100)
+		boostPeriod           = uint64(50) // the boost covers heights 100..149
+	)
+	makeFeatures := func(t *testing.T, adjustedActivationHeight uint64) featuresState {
+		mf := NewMockFeaturesState(t)
+		mf.EXPECT().isActivatedAtHeight(mock.Anything, mock.Anything).RunAndReturn(
+			func(featureID int16, height uint64) bool {
+				switch settings.Feature(featureID) { //nolint:exhaustive // only relevant features
+				case settings.BoostBlockReward:
+					return height >= boostActivationHeight
+				case settings.AdjustedBlockRewardDistribution:
+					return adjustedActivationHeight != 0 && height >= adjustedActivationHeight
+				default:
+					return false
+				}
+			}).Maybe()
+		mf.EXPECT().activationHeight(mock.Anything).RunAndReturn(func(featureID int16) (uint64, error) {
+			switch settings.Feature(featureID) { //nolint:exhaustive // only relevant features
+			case settings.BoostBlockReward:
+				return boostActivationHeight, nil
+			case settings.AdjustedBlockRewardDistribution:
+				if adjustedActivationHeight == 0 {
+					return 0, keyvalue.ErrNotFound
+				}
+				return adjustedActivationHeight, nil
+			default:
+				return 0, keyvalue.ErrNotFound
+			}
+		}).Maybe()
+		return mf
+	}
+	sets := settings.MustMainNetSettings()
+	sets.BlockRewardBoostPeriod = boostPeriod
+
+	for _, test := range []struct {
+		name                     string
+		height                   proto.Height
+		adjustedActivationHeight uint64
+		expectedFirst            proto.Height
+		expectedLast             proto.Height
+	}{
+		{name: "feature 26 is not activated", height: 149, expectedFirst: 100, expectedLast: 149},
+		{name: "feature 26 is activated after the boost period", height: 200,
+			adjustedActivationHeight: 160, expectedFirst: 100, expectedLast: 149},
+		{name: "feature 26 cuts the boost period short", height: 200,
+			adjustedActivationHeight: 120, expectedFirst: 100, expectedLast: 119},
+		{name: "feature 26 is activated at the first boosted block", height: 200,
+			adjustedActivationHeight: 100, expectedFirst: 0, expectedLast: 0},
+		{name: "feature 26 is activated before the boost", height: 200,
+			adjustedActivationHeight: 50, expectedFirst: 0, expectedLast: 0},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			first, last, err := rewardBoostFeatureInfo(test.height, makeFeatures(t, test.adjustedActivationHeight), sets)
+			require.NoError(t, err)
+			assert.Equal(t, test.expectedFirst, first)
+			assert.Equal(t, test.expectedLast, last)
+		})
+	}
+}
+
+func TestResetBlockRewardOnAdjustedDistributionActivation(t *testing.T) {
+	const (
+		activationHeight = uint64(100)
+		initialReward    = uint64(600000000)
+		votedReward      = uint64(700000000)
+	)
+	makeFeatures := func(t *testing.T) featuresState {
+		mf := NewMockFeaturesState(t)
+		mf.EXPECT().newestIsActivatedAtHeight(mock.Anything, mock.Anything).RunAndReturn(
+			func(featureID int16, height uint64) bool {
+				return settings.Feature(featureID) == settings.AdjustedBlockRewardDistribution &&
+					height >= activationHeight
+			}).Maybe()
+		mf.EXPECT().newestActivationHeight(mock.Anything).RunAndReturn(func(featureID int16) (uint64, error) {
+			if settings.Feature(featureID) == settings.AdjustedBlockRewardDistribution {
+				return activationHeight, nil
+			}
+			return 0, keyvalue.ErrNotFound
+		}).Maybe()
+		return mf
+	}
+	sets := settings.MustMainNetSettings()
+	sets.InitialBlockReward = initialReward
+
+	t.Run("the reward is reset at the activation height only", func(t *testing.T) {
+		mp, storage := createTestObjects(t, sets)
+		feat := makeFeatures(t)
+		ids := genRandBlockIds(t, 3)
+
+		// Before the activation height nothing is written.
+		storage.addBlock(t, ids[0])
+		require.NoError(t, resetBlockRewardOnAdjustedDistributionActivation(feat, mp, activationHeight-1, ids[0]))
+		reward, err := mp.rewardAtHeight(activationHeight-1, 1)
+		require.NoError(t, err)
+		assert.Equal(t, initialReward, reward)
+
+		// At the activation height the reward is reset to the full reward of feature 26.
+		storage.addBlock(t, ids[1])
+		require.NoError(t, resetBlockRewardOnAdjustedDistributionActivation(feat, mp, activationHeight, ids[1]))
+		reward, err = mp.rewardAtHeight(activationHeight, 1)
+		require.NoError(t, err)
+		assert.Equal(t, uint64(adjustedFullReward), reward)
+		reward, err = mp.reward()
+		require.NoError(t, err)
+		assert.Equal(t, uint64(adjustedFullReward), reward)
+
+		// The block right before the activation height keeps the old reward.
+		reward, err = mp.rewardAtHeight(activationHeight-1, 1)
+		require.NoError(t, err)
+		assert.Equal(t, initialReward, reward)
+
+		// After the activation height nothing is written anymore.
+		storage.addBlock(t, ids[2])
+		require.NoError(t, resetBlockRewardOnAdjustedDistributionActivation(feat, mp, activationHeight+1, ids[2]))
+		reward, err = mp.rewardAtHeight(activationHeight+1, 1)
+		require.NoError(t, err)
+		assert.Equal(t, uint64(adjustedFullReward), reward)
+	})
+	t.Run("the reset overrides the voted reward at the same height", func(t *testing.T) {
+		mp, storage := createTestObjects(t, sets)
+		feat := makeFeatures(t)
+		id := genRandBlockIds(t, 1)[0]
+		storage.addBlock(t, id)
+
+		// The voting changes the reward for the same height the feature is activated at.
+		require.NoError(t, mp.saveNewRewardChange(votedReward, activationHeight, id))
+		require.NoError(t, resetBlockRewardOnAdjustedDistributionActivation(feat, mp, activationHeight, id))
+
+		reward, err := mp.rewardAtHeight(activationHeight, 1)
+		require.NoError(t, err)
+		assert.Equal(t, uint64(adjustedFullReward), reward)
+	})
+	t.Run("the reward stays votable after the reset", func(t *testing.T) {
+		mp, storage := createTestObjects(t, sets)
+		feat := makeFeatures(t)
+		ids := genRandBlockIds(t, 2)
+
+		storage.addBlock(t, ids[0])
+		require.NoError(t, resetBlockRewardOnAdjustedDistributionActivation(feat, mp, activationHeight, ids[0]))
+
+		storage.addBlock(t, ids[1])
+		newReward := uint64(adjustedFullReward) + sets.BlockRewardIncrement
+		require.NoError(t, mp.saveNewRewardChange(newReward, activationHeight+10, ids[1]))
+
+		reward, err := mp.rewardAtHeight(activationHeight+10, 1)
+		require.NoError(t, err)
+		assert.Equal(t, newReward, reward)
+	})
 }

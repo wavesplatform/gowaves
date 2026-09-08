@@ -323,7 +323,7 @@ func CreatePayloadByContentID(contentID PeerMessageID) (Payload, error) {
 		return &BlockID{}, nil
 	case ContentIDBlock, ContentIDScore, ContentIDTransaction, ContentIDMicroblock, ContentIDInvMicroblock,
 		ContentIDPBBlock, ContentIDPBMicroBlock, ContentIDPBTransaction, ContentIDBlockSnapshot,
-		ContentIDMicroBlockSnapshot:
+		ContentIDMicroBlockSnapshot, ContentIDEndorseBlock:
 		return &BytesPayload{}, nil
 	case ContentIDGetBlockIDs, ContentIDBlockIDs:
 		return &BlockIDsPayload{}, nil

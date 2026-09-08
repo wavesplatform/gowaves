@@ -2,7 +2,7 @@ package client
 
 import (
 	"encoding/json"
-	"strconv"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -383,7 +383,7 @@ func TestEthereumInvocationTransactionInfo(t *testing.T) {
 	}
 
 	for i, jsonSrc := range tests {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			txInfo := new(EthereumTransactionInfo)
 			err := json.Unmarshal([]byte(jsonSrc), txInfo)
 			require.NoError(t, err, "unmarshal invocation Ethereum transaction info")

@@ -2,23 +2,20 @@ FROM golang:1.26-alpine3.22@sha256:07e91d24f6330432729082bb580983181809e0a48f0f3
 LABEL wavesplatform-gowaves-itests-tmp=true
 WORKDIR /app
 
-RUN apk add --no-cache make musl-dev gcc git
+RUN apk add --no-cache make musl-dev gcc
 
 COPY go.mod .
 COPY go.sum .
 
 RUN go mod download
 
-COPY .git .git
-RUN git restore --source=HEAD --worktree .
-COPY go.mod .
-COPY go.sum .
 COPY Makefile .
 COPY cmd cmd
 COPY pkg pkg
 
 ARG WITH_RACE_SUFFIX=""
-RUN make build-node-native${WITH_RACE_SUFFIX}
+ARG VERSION="v0.0.0-itest"
+RUN make build-node-native${WITH_RACE_SUFFIX} VERSION=${VERSION}
 
 FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
 ENV TZ=Etc/UTC \

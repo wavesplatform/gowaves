@@ -20,11 +20,11 @@ func EstimateTree(tree *ast.Tree, v int) (TreeEstimation, error) {
 		if err != nil {
 			return TreeEstimation{}, errors.Wrapf(err, "failed to estimate with tree estimator V%d", v)
 		}
-		max, verifier, functions, err := te.estimate()
+		e, verifier, functions, err := te.estimate()
 		if err != nil {
 			return TreeEstimation{}, errors.Wrapf(err, "failed to estimate with tree estimator V%d", v)
 		}
-		return TreeEstimation{Estimation: max, Verifier: verifier, Functions: functions}, nil
+		return TreeEstimation{Estimation: e, Verifier: verifier, Functions: functions}, nil
 	case 2:
 		id := base64.StdEncoding.EncodeToString(tree.Digest[:])
 		switch id {
@@ -50,11 +50,11 @@ func EstimateTree(tree *ast.Tree, v int) (TreeEstimation, error) {
 		if err != nil {
 			return TreeEstimation{}, errors.Wrapf(err, "failed to estimate with tree estimator V%d", v)
 		}
-		max, verifier, functions, err := te.estimate()
+		e, verifier, functions, err := te.estimate()
 		if err != nil {
 			return TreeEstimation{}, errors.Wrapf(err, "failed to estimate with tree estimator V%d", v)
 		}
-		return TreeEstimation{Estimation: max, Verifier: verifier, Functions: functions}, nil
+		return TreeEstimation{Estimation: e, Verifier: verifier, Functions: functions}, nil
 	case 3:
 		te, err := newTreeEstimatorV3(tree)
 		if err != nil {
@@ -70,11 +70,11 @@ func EstimateTree(tree *ast.Tree, v int) (TreeEstimation, error) {
 		if err != nil {
 			return TreeEstimation{}, errors.Wrapf(err, "failed to estimate with tree estimator V%d", v)
 		}
-		max, verifier, functions, err := te.estimate()
+		e, verifier, functions, err := te.estimate()
 		if err != nil {
 			return TreeEstimation{}, errors.Wrapf(err, "failed to estimate with tree estimator V%d", v)
 		}
-		return TreeEstimation{Estimation: max, Verifier: verifier, Functions: functions}, nil
+		return TreeEstimation{Estimation: e, Verifier: verifier, Functions: functions}, nil
 	default:
 		return TreeEstimation{}, errors.Errorf("unsupported version of tree estimator '%d'", v)
 	}

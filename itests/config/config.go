@@ -32,8 +32,8 @@ const (
 	goContainerName    = "go-node"
 
 	ScalaImageRepository = "wavesplatform/wavesnode"
+	ScalaImageTag        = "1.6.4"
 	goImageRepository    = "go-node"
-	DefaultImageTag      = "latest"
 )
 
 const (
@@ -57,6 +57,15 @@ func (c *TestConfig) GetRichestAccount() AccountInfo {
 		}
 	}
 	return r
+}
+
+func (c *TestConfig) GetAccount(address string) (AccountInfo, error) {
+	for _, a := range c.Accounts {
+		if a.Address.String() == address {
+			return a, nil
+		}
+	}
+	return AccountInfo{}, fmt.Errorf("account with address '%s' is not found", address)
 }
 
 func (c *TestConfig) GenesisSH() crypto.Digest {
@@ -135,7 +144,7 @@ func (c *ScalaConfigurator) DockerRunOptions() *dockertest.RunOptions {
 	}
 
 	if c.imageTag == "" {
-		c.imageTag = DefaultImageTag
+		c.imageTag = ScalaImageTag
 	}
 
 	kps := new(strings.Builder)
@@ -239,7 +248,7 @@ func (c *GoConfigurator) DockerRunOptions() *dockertest.RunOptions {
 	opt := &dockertest.RunOptions{
 		Repository: goImageRepository,
 		Name:       c.suite + "-" + goContainerName,
-		Tag:        DefaultImageTag,
+		Tag:        "latest",
 		User:       "gowaves",
 		Hostname:   "go-node",
 		Platform:   Platform(),

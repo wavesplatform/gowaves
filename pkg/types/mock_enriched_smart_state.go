@@ -168,7 +168,7 @@ type MockEnrichedSmartState_IsNotFound_Call struct {
 
 // IsNotFound is a helper method to define mock.On call
 //   - err error
-func (_e *MockEnrichedSmartState_Expecter) IsNotFound(err interface{}) *MockEnrichedSmartState_IsNotFound_Call {
+func (_e *MockEnrichedSmartState_Expecter) IsNotFound(err any) *MockEnrichedSmartState_IsNotFound_Call {
 	return &MockEnrichedSmartState_IsNotFound_Call{Call: _e.mock.On("IsNotFound", err)}
 }
 
@@ -228,7 +228,7 @@ type MockEnrichedSmartState_IsStateUntouched_Call struct {
 
 // IsStateUntouched is a helper method to define mock.On call
 //   - account proto.Recipient
-func (_e *MockEnrichedSmartState_Expecter) IsStateUntouched(account interface{}) *MockEnrichedSmartState_IsStateUntouched_Call {
+func (_e *MockEnrichedSmartState_Expecter) IsStateUntouched(account any) *MockEnrichedSmartState_IsStateUntouched_Call {
 	return &MockEnrichedSmartState_IsStateUntouched_Call{Call: _e.mock.On("IsStateUntouched", account)}
 }
 
@@ -290,7 +290,7 @@ type MockEnrichedSmartState_NewestAddrByAlias_Call struct {
 
 // NewestAddrByAlias is a helper method to define mock.On call
 //   - alias proto.Alias
-func (_e *MockEnrichedSmartState_Expecter) NewestAddrByAlias(alias interface{}) *MockEnrichedSmartState_NewestAddrByAlias_Call {
+func (_e *MockEnrichedSmartState_Expecter) NewestAddrByAlias(alias any) *MockEnrichedSmartState_NewestAddrByAlias_Call {
 	return &MockEnrichedSmartState_NewestAddrByAlias_Call{Call: _e.mock.On("NewestAddrByAlias", alias)}
 }
 
@@ -351,7 +351,7 @@ type MockEnrichedSmartState_NewestAssetBalance_Call struct {
 // NewestAssetBalance is a helper method to define mock.On call
 //   - account proto.Recipient
 //   - assetID crypto.Digest
-func (_e *MockEnrichedSmartState_Expecter) NewestAssetBalance(account interface{}, assetID interface{}) *MockEnrichedSmartState_NewestAssetBalance_Call {
+func (_e *MockEnrichedSmartState_Expecter) NewestAssetBalance(account any, assetID any) *MockEnrichedSmartState_NewestAssetBalance_Call {
 	return &MockEnrichedSmartState_NewestAssetBalance_Call{Call: _e.mock.On("NewestAssetBalance", account, assetID)}
 }
 
@@ -417,7 +417,7 @@ type MockEnrichedSmartState_NewestAssetBalanceByAddressID_Call struct {
 // NewestAssetBalanceByAddressID is a helper method to define mock.On call
 //   - id proto.AddressID
 //   - asset crypto.Digest
-func (_e *MockEnrichedSmartState_Expecter) NewestAssetBalanceByAddressID(id interface{}, asset interface{}) *MockEnrichedSmartState_NewestAssetBalanceByAddressID_Call {
+func (_e *MockEnrichedSmartState_Expecter) NewestAssetBalanceByAddressID(id any, asset any) *MockEnrichedSmartState_NewestAssetBalanceByAddressID_Call {
 	return &MockEnrichedSmartState_NewestAssetBalanceByAddressID_Call{Call: _e.mock.On("NewestAssetBalanceByAddressID", id, asset)}
 }
 
@@ -484,7 +484,7 @@ type MockEnrichedSmartState_NewestAssetConstInfo_Call struct {
 
 // NewestAssetConstInfo is a helper method to define mock.On call
 //   - assetID proto.AssetID
-func (_e *MockEnrichedSmartState_Expecter) NewestAssetConstInfo(assetID interface{}) *MockEnrichedSmartState_NewestAssetConstInfo_Call {
+func (_e *MockEnrichedSmartState_Expecter) NewestAssetConstInfo(assetID any) *MockEnrichedSmartState_NewestAssetConstInfo_Call {
 	return &MockEnrichedSmartState_NewestAssetConstInfo_Call{Call: _e.mock.On("NewestAssetConstInfo", assetID)}
 }
 
@@ -546,7 +546,7 @@ type MockEnrichedSmartState_NewestAssetInfo_Call struct {
 
 // NewestAssetInfo is a helper method to define mock.On call
 //   - assetID crypto.Digest
-func (_e *MockEnrichedSmartState_Expecter) NewestAssetInfo(assetID interface{}) *MockEnrichedSmartState_NewestAssetInfo_Call {
+func (_e *MockEnrichedSmartState_Expecter) NewestAssetInfo(assetID any) *MockEnrichedSmartState_NewestAssetInfo_Call {
 	return &MockEnrichedSmartState_NewestAssetInfo_Call{Call: _e.mock.On("NewestAssetInfo", assetID)}
 }
 
@@ -606,7 +606,7 @@ type MockEnrichedSmartState_NewestAssetIsSponsored_Call struct {
 
 // NewestAssetIsSponsored is a helper method to define mock.On call
 //   - assetID crypto.Digest
-func (_e *MockEnrichedSmartState_Expecter) NewestAssetIsSponsored(assetID interface{}) *MockEnrichedSmartState_NewestAssetIsSponsored_Call {
+func (_e *MockEnrichedSmartState_Expecter) NewestAssetIsSponsored(assetID any) *MockEnrichedSmartState_NewestAssetIsSponsored_Call {
 	return &MockEnrichedSmartState_NewestAssetIsSponsored_Call{Call: _e.mock.On("NewestAssetIsSponsored", assetID)}
 }
 
@@ -668,7 +668,7 @@ type MockEnrichedSmartState_NewestBlockInfoByHeight_Call struct {
 
 // NewestBlockInfoByHeight is a helper method to define mock.On call
 //   - height proto.Height
-func (_e *MockEnrichedSmartState_Expecter) NewestBlockInfoByHeight(height interface{}) *MockEnrichedSmartState_NewestBlockInfoByHeight_Call {
+func (_e *MockEnrichedSmartState_Expecter) NewestBlockInfoByHeight(height any) *MockEnrichedSmartState_NewestBlockInfoByHeight_Call {
 	return &MockEnrichedSmartState_NewestBlockInfoByHeight_Call{Call: _e.mock.On("NewestBlockInfoByHeight", height)}
 }
 
@@ -730,7 +730,7 @@ type MockEnrichedSmartState_NewestFullAssetInfo_Call struct {
 
 // NewestFullAssetInfo is a helper method to define mock.On call
 //   - assetID crypto.Digest
-func (_e *MockEnrichedSmartState_Expecter) NewestFullAssetInfo(assetID interface{}) *MockEnrichedSmartState_NewestFullAssetInfo_Call {
+func (_e *MockEnrichedSmartState_Expecter) NewestFullAssetInfo(assetID any) *MockEnrichedSmartState_NewestFullAssetInfo_Call {
 	return &MockEnrichedSmartState_NewestFullAssetInfo_Call{Call: _e.mock.On("NewestFullAssetInfo", assetID)}
 }
 
@@ -792,7 +792,7 @@ type MockEnrichedSmartState_NewestFullWavesBalance_Call struct {
 
 // NewestFullWavesBalance is a helper method to define mock.On call
 //   - account proto.Recipient
-func (_e *MockEnrichedSmartState_Expecter) NewestFullWavesBalance(account interface{}) *MockEnrichedSmartState_NewestFullWavesBalance_Call {
+func (_e *MockEnrichedSmartState_Expecter) NewestFullWavesBalance(account any) *MockEnrichedSmartState_NewestFullWavesBalance_Call {
 	return &MockEnrichedSmartState_NewestFullWavesBalance_Call{Call: _e.mock.On("NewestFullWavesBalance", account)}
 }
 
@@ -854,7 +854,7 @@ type MockEnrichedSmartState_NewestLeasingInfo_Call struct {
 
 // NewestLeasingInfo is a helper method to define mock.On call
 //   - id crypto.Digest
-func (_e *MockEnrichedSmartState_Expecter) NewestLeasingInfo(id interface{}) *MockEnrichedSmartState_NewestLeasingInfo_Call {
+func (_e *MockEnrichedSmartState_Expecter) NewestLeasingInfo(id any) *MockEnrichedSmartState_NewestLeasingInfo_Call {
 	return &MockEnrichedSmartState_NewestLeasingInfo_Call{Call: _e.mock.On("NewestLeasingInfo", id)}
 }
 
@@ -916,7 +916,7 @@ type MockEnrichedSmartState_NewestRecipientToAddress_Call struct {
 
 // NewestRecipientToAddress is a helper method to define mock.On call
 //   - recipient proto.Recipient
-func (_e *MockEnrichedSmartState_Expecter) NewestRecipientToAddress(recipient interface{}) *MockEnrichedSmartState_NewestRecipientToAddress_Call {
+func (_e *MockEnrichedSmartState_Expecter) NewestRecipientToAddress(recipient any) *MockEnrichedSmartState_NewestRecipientToAddress_Call {
 	return &MockEnrichedSmartState_NewestRecipientToAddress_Call{Call: _e.mock.On("NewestRecipientToAddress", recipient)}
 }
 
@@ -978,7 +978,7 @@ type MockEnrichedSmartState_NewestScriptByAccount_Call struct {
 
 // NewestScriptByAccount is a helper method to define mock.On call
 //   - account proto.Recipient
-func (_e *MockEnrichedSmartState_Expecter) NewestScriptByAccount(account interface{}) *MockEnrichedSmartState_NewestScriptByAccount_Call {
+func (_e *MockEnrichedSmartState_Expecter) NewestScriptByAccount(account any) *MockEnrichedSmartState_NewestScriptByAccount_Call {
 	return &MockEnrichedSmartState_NewestScriptByAccount_Call{Call: _e.mock.On("NewestScriptByAccount", account)}
 }
 
@@ -1040,7 +1040,7 @@ type MockEnrichedSmartState_NewestScriptByAsset_Call struct {
 
 // NewestScriptByAsset is a helper method to define mock.On call
 //   - assetID crypto.Digest
-func (_e *MockEnrichedSmartState_Expecter) NewestScriptByAsset(assetID interface{}) *MockEnrichedSmartState_NewestScriptByAsset_Call {
+func (_e *MockEnrichedSmartState_Expecter) NewestScriptByAsset(assetID any) *MockEnrichedSmartState_NewestScriptByAsset_Call {
 	return &MockEnrichedSmartState_NewestScriptByAsset_Call{Call: _e.mock.On("NewestScriptByAsset", assetID)}
 }
 
@@ -1102,7 +1102,7 @@ type MockEnrichedSmartState_NewestScriptBytesByAccount_Call struct {
 
 // NewestScriptBytesByAccount is a helper method to define mock.On call
 //   - account proto.Recipient
-func (_e *MockEnrichedSmartState_Expecter) NewestScriptBytesByAccount(account interface{}) *MockEnrichedSmartState_NewestScriptBytesByAccount_Call {
+func (_e *MockEnrichedSmartState_Expecter) NewestScriptBytesByAccount(account any) *MockEnrichedSmartState_NewestScriptBytesByAccount_Call {
 	return &MockEnrichedSmartState_NewestScriptBytesByAccount_Call{Call: _e.mock.On("NewestScriptBytesByAccount", account)}
 }
 
@@ -1164,7 +1164,7 @@ type MockEnrichedSmartState_NewestScriptPKByAddr_Call struct {
 
 // NewestScriptPKByAddr is a helper method to define mock.On call
 //   - addr proto.WavesAddress
-func (_e *MockEnrichedSmartState_Expecter) NewestScriptPKByAddr(addr interface{}) *MockEnrichedSmartState_NewestScriptPKByAddr_Call {
+func (_e *MockEnrichedSmartState_Expecter) NewestScriptPKByAddr(addr any) *MockEnrichedSmartState_NewestScriptPKByAddr_Call {
 	return &MockEnrichedSmartState_NewestScriptPKByAddr_Call{Call: _e.mock.On("NewestScriptPKByAddr", addr)}
 }
 
@@ -1226,7 +1226,7 @@ type MockEnrichedSmartState_NewestTransactionByID_Call struct {
 
 // NewestTransactionByID is a helper method to define mock.On call
 //   - bytes []byte
-func (_e *MockEnrichedSmartState_Expecter) NewestTransactionByID(bytes interface{}) *MockEnrichedSmartState_NewestTransactionByID_Call {
+func (_e *MockEnrichedSmartState_Expecter) NewestTransactionByID(bytes any) *MockEnrichedSmartState_NewestTransactionByID_Call {
 	return &MockEnrichedSmartState_NewestTransactionByID_Call{Call: _e.mock.On("NewestTransactionByID", bytes)}
 }
 
@@ -1286,7 +1286,7 @@ type MockEnrichedSmartState_NewestTransactionHeightByID_Call struct {
 
 // NewestTransactionHeightByID is a helper method to define mock.On call
 //   - bytes []byte
-func (_e *MockEnrichedSmartState_Expecter) NewestTransactionHeightByID(bytes interface{}) *MockEnrichedSmartState_NewestTransactionHeightByID_Call {
+func (_e *MockEnrichedSmartState_Expecter) NewestTransactionHeightByID(bytes any) *MockEnrichedSmartState_NewestTransactionHeightByID_Call {
 	return &MockEnrichedSmartState_NewestTransactionHeightByID_Call{Call: _e.mock.On("NewestTransactionHeightByID", bytes)}
 }
 
@@ -1346,7 +1346,7 @@ type MockEnrichedSmartState_NewestWavesBalance_Call struct {
 
 // NewestWavesBalance is a helper method to define mock.On call
 //   - account proto.Recipient
-func (_e *MockEnrichedSmartState_Expecter) NewestWavesBalance(account interface{}) *MockEnrichedSmartState_NewestWavesBalance_Call {
+func (_e *MockEnrichedSmartState_Expecter) NewestWavesBalance(account any) *MockEnrichedSmartState_NewestWavesBalance_Call {
 	return &MockEnrichedSmartState_NewestWavesBalance_Call{Call: _e.mock.On("NewestWavesBalance", account)}
 }
 
@@ -1408,7 +1408,7 @@ type MockEnrichedSmartState_RetrieveEntries_Call struct {
 
 // RetrieveEntries is a helper method to define mock.On call
 //   - account proto.Recipient
-func (_e *MockEnrichedSmartState_Expecter) RetrieveEntries(account interface{}) *MockEnrichedSmartState_RetrieveEntries_Call {
+func (_e *MockEnrichedSmartState_Expecter) RetrieveEntries(account any) *MockEnrichedSmartState_RetrieveEntries_Call {
 	return &MockEnrichedSmartState_RetrieveEntries_Call{Call: _e.mock.On("RetrieveEntries", account)}
 }
 
@@ -1471,7 +1471,7 @@ type MockEnrichedSmartState_RetrieveNewestBinaryEntry_Call struct {
 // RetrieveNewestBinaryEntry is a helper method to define mock.On call
 //   - account proto.Recipient
 //   - key string
-func (_e *MockEnrichedSmartState_Expecter) RetrieveNewestBinaryEntry(account interface{}, key interface{}) *MockEnrichedSmartState_RetrieveNewestBinaryEntry_Call {
+func (_e *MockEnrichedSmartState_Expecter) RetrieveNewestBinaryEntry(account any, key any) *MockEnrichedSmartState_RetrieveNewestBinaryEntry_Call {
 	return &MockEnrichedSmartState_RetrieveNewestBinaryEntry_Call{Call: _e.mock.On("RetrieveNewestBinaryEntry", account, key)}
 }
 
@@ -1539,7 +1539,7 @@ type MockEnrichedSmartState_RetrieveNewestBooleanEntry_Call struct {
 // RetrieveNewestBooleanEntry is a helper method to define mock.On call
 //   - account proto.Recipient
 //   - key string
-func (_e *MockEnrichedSmartState_Expecter) RetrieveNewestBooleanEntry(account interface{}, key interface{}) *MockEnrichedSmartState_RetrieveNewestBooleanEntry_Call {
+func (_e *MockEnrichedSmartState_Expecter) RetrieveNewestBooleanEntry(account any, key any) *MockEnrichedSmartState_RetrieveNewestBooleanEntry_Call {
 	return &MockEnrichedSmartState_RetrieveNewestBooleanEntry_Call{Call: _e.mock.On("RetrieveNewestBooleanEntry", account, key)}
 }
 
@@ -1607,7 +1607,7 @@ type MockEnrichedSmartState_RetrieveNewestIntegerEntry_Call struct {
 // RetrieveNewestIntegerEntry is a helper method to define mock.On call
 //   - account proto.Recipient
 //   - key string
-func (_e *MockEnrichedSmartState_Expecter) RetrieveNewestIntegerEntry(account interface{}, key interface{}) *MockEnrichedSmartState_RetrieveNewestIntegerEntry_Call {
+func (_e *MockEnrichedSmartState_Expecter) RetrieveNewestIntegerEntry(account any, key any) *MockEnrichedSmartState_RetrieveNewestIntegerEntry_Call {
 	return &MockEnrichedSmartState_RetrieveNewestIntegerEntry_Call{Call: _e.mock.On("RetrieveNewestIntegerEntry", account, key)}
 }
 
@@ -1675,7 +1675,7 @@ type MockEnrichedSmartState_RetrieveNewestStringEntry_Call struct {
 // RetrieveNewestStringEntry is a helper method to define mock.On call
 //   - account proto.Recipient
 //   - key string
-func (_e *MockEnrichedSmartState_Expecter) RetrieveNewestStringEntry(account interface{}, key interface{}) *MockEnrichedSmartState_RetrieveNewestStringEntry_Call {
+func (_e *MockEnrichedSmartState_Expecter) RetrieveNewestStringEntry(account any, key any) *MockEnrichedSmartState_RetrieveNewestStringEntry_Call {
 	return &MockEnrichedSmartState_RetrieveNewestStringEntry_Call{Call: _e.mock.On("RetrieveNewestStringEntry", account, key)}
 }
 
@@ -1742,7 +1742,7 @@ type MockEnrichedSmartState_WavesBalanceProfile_Call struct {
 
 // WavesBalanceProfile is a helper method to define mock.On call
 //   - id proto.AddressID
-func (_e *MockEnrichedSmartState_Expecter) WavesBalanceProfile(id interface{}) *MockEnrichedSmartState_WavesBalanceProfile_Call {
+func (_e *MockEnrichedSmartState_Expecter) WavesBalanceProfile(id any) *MockEnrichedSmartState_WavesBalanceProfile_Call {
 	return &MockEnrichedSmartState_WavesBalanceProfile_Call{Call: _e.mock.On("WavesBalanceProfile", id)}
 }
 

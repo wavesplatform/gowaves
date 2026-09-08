@@ -169,6 +169,7 @@ func initWaitSnapshotStateInFSM(state *StateData, fsm *stateless.StateMachine, i
 			return nil
 		}).
 		Ignore(BlockEvent).
+		Ignore(BlockEndorsementEvent).
 		Ignore(MinedBlockEvent).
 		Ignore(BlockIDsEvent).
 		Ignore(MicroBlockEvent).

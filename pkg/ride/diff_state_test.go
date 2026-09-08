@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -197,4 +198,80 @@ func TestErrorOnDuplicateLeasing(t *testing.T) {
 	err3 := diff.lease(*validRecipient.Address(), *validRecipient.Address(), 1000, digest1)
 	assert.EqualError(t, err3,
 		"lease with id '8N6F4oV2SmfWZ45xVNLQr2rjHyvDWNz8R3wxJzE83ZHm' already exists in ride execution diff")
+}
+
+func TestDiffBalanceToFullWavesBalanceTakesDepositIntoAccount(t *testing.T) {
+	tests := []struct {
+		name               string
+		lightNodeActivated bool
+		expectedGenerating uint64
+	}{
+		{
+			name:               "before Light Node activation",
+			lightNodeActivated: false,
+			expectedGenerating: 900,
+		},
+		{
+			name:               "after Light Node activation",
+			lightNodeActivated: true,
+			expectedGenerating: 800,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			balance := diffBalance{
+				balance:         1_000,
+				leaseIn:         200,
+				leaseOut:        100,
+				deposit:         300,
+				stateGenerating: 900,
+			}
+
+			actual, err := balance.toFullWavesBalance(test.lightNodeActivated)
+			require.NoError(t, err)
+			require.Equal(t, &proto.FullWavesBalance{
+				Regular:    1_000,
+				Generating: test.expectedGenerating,
+				Available:  600,
+				Effective:  800,
+				LeaseIn:    200,
+				LeaseOut:   100,
+			}, actual)
+		})
+	}
+}
+
+func TestDiffStateLoadsDepositFromWavesBalanceProfile(t *testing.T) {
+	m := types.NewMockEnrichedSmartState(t)
+	m.EXPECT().WavesBalanceProfile(validAddress.ID()).Return(
+		&types.WavesBalanceProfile{
+			Balance: 1_000,
+			Deposit: 300,
+		}, nil,
+	).Once()
+	diff := newDiffState(m)
+
+	actual, err := diff.loadWavesBalance(validAddress.ID())
+	require.NoError(t, err)
+	require.Equal(t, int64(300), actual.deposit)
+	effective, err := actual.effectiveBalance()
+	require.NoError(t, err)
+	require.Equal(t, int64(700), effective)
+}
+
+func TestValidateChangedWavesBalancesTakesDepositIntoAccount(t *testing.T) {
+	balances := []changedWavesBalancesProfile{
+		{
+			addrID: validAddress.ID(),
+			diff: diffBalance{
+				balance: 100,
+				deposit: 101,
+			},
+		},
+	}
+
+	err := validateChangedWavesBalancesWithOldBalancesBeforeTx(
+		proto.TestNetScheme, balances, balances, nil,
+	)
+	require.ErrorContains(t, err, "negative scala-like effective balance -1")
 }

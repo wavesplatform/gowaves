@@ -10,6 +10,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
 
+	"github.com/wavesplatform/gowaves/pkg/miner/endorsementpool"
+
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
@@ -79,6 +81,11 @@ type BaseInfo struct {
 
 	utx types.UtxPool
 
+	endorsements        types.EndorsementPool
+	endorsementIDsCache *endorsementpool.EndorsementIDsCache
+
+	embeddedWallet types.EmbeddedWallet
+
 	minPeersMining int
 
 	skipMessageList *messages.SkipMessageList
@@ -90,6 +97,8 @@ type BaseInfo struct {
 	cleanCancel     context.CancelFunc
 	logger          *slog.Logger
 	netLogger       *slog.Logger
+
+	generationPeriod uint64
 }
 
 func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.Peer) {
@@ -195,6 +204,7 @@ const (
 	StartMiningEvent        = "StartMining"
 	ChangeSyncPeerEvent     = "ChangeSyncPeer"
 	BlockSnapshotEvent      = "BlockSnapshotEvent"
+	BlockEndorsementEvent   = "BlockEndorsement"
 	MicroBlockSnapshotEvent = "MicroBlockSnapshotEvent"
 )
 
@@ -220,6 +230,7 @@ func NewFSM(
 	syncPeer *network.SyncPeer,
 	enableLightMode bool,
 	logger, netLogger *slog.Logger,
+	generationPeriod uint64,
 ) (*FSM, Async, error) {
 	if microblockInterval <= 0 {
 		return nil, nil, errors.New("microblock interval must be positive")
@@ -239,22 +250,23 @@ func NewFSM(
 
 		microMiner: miner.NewMicroMiner(services),
 
-		MicroBlockCache:    services.MicroBlockCache,
-		MicroBlockInvCache: microblock_cache.NewMicroblockInvCache(),
-		microblockInterval: microblockInterval,
+		MicroBlockCache:     services.MicroBlockCache,
+		MicroBlockInvCache:  microblock_cache.NewMicroblockInvCache(),
+		microblockInterval:  microblockInterval,
+		actions:             &ActionsImpl{services: services, logger: logger},
+		utx:                 services.UtxPool,
+		endorsements:        services.EndorsementPool,
+		endorsementIDsCache: endorsementpool.NewEndorsementIDsCache(endorsementpool.EndorsementIDCacheSizeDefault),
+		embeddedWallet:      services.Wallet,
+		minPeersMining:      services.MinPeersMining,
 
-		actions: &ActionsImpl{services: services, logger: logger},
-
-		utx: services.UtxPool,
-
-		minPeersMining: services.MinPeersMining,
-
-		skipMessageList: services.SkipMessageList,
-		syncPeer:        syncPeer,
-		enableLightMode: enableLightMode,
-		cleanUtxRunning: &atomic.Bool{},
-		logger:          logger,
-		netLogger:       netLogger,
+		skipMessageList:  services.SkipMessageList,
+		syncPeer:         syncPeer,
+		enableLightMode:  enableLightMode,
+		cleanUtxRunning:  &atomic.Bool{},
+		logger:           logger,
+		netLogger:        netLogger,
+		generationPeriod: generationPeriod,
 	}
 
 	info.scheduler.Reschedule() // Reschedule mining just before starting the FSM (i.e. before starting the node).
@@ -393,6 +405,12 @@ func (f *FSM) ChangeSyncPeer(p peer.Peer) (Async, error) {
 func (f *FSM) BlockSnapshot(p peer.Peer, blockID proto.BlockID, snapshots proto.BlockSnapshot) (Async, error) {
 	asyncRes := &Async{}
 	err := f.fsm.Fire(BlockSnapshotEvent, asyncRes, p, blockID, snapshots)
+	return *asyncRes, err
+}
+
+func (f *FSM) BlockEndorsement(blockEndorsement *proto.BlockEndorsement) (Async, error) {
+	asyncRes := &Async{}
+	err := f.fsm.Fire(BlockEndorsementEvent, asyncRes, blockEndorsement)
 	return *asyncRes, err
 }
 

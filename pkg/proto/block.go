@@ -5,8 +5,10 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	stderrs "errors"
+	"fmt"
 	"io"
 
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/jinzhu/copier"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
@@ -214,7 +216,18 @@ func (id BlockID) WriteTo(w io.Writer) (int64, error) {
 	return int64(n), err
 }
 
-// ReadFrom reads the binary representation of BlockID from a io.Reader. It reads only the content of the ID
+func (id BlockID) Len() int {
+	switch id.idType {
+	case SignatureID:
+		return crypto.SignatureSize
+	case DigestID:
+		return crypto.DigestSize
+	default:
+		return 0
+	}
+}
+
+// ReadFrom reads the binary representation of BlockID from an io.Reader. It reads only the content of the ID
 // (either crypto.Digest or crypto.Signature). ReadFrom does not process any additional data that might
 // describe the type of the ID.
 //
@@ -284,6 +297,19 @@ func (id *BlockID) readUndefinedFrom(r io.Reader) (int64, error) {
 
 func (id *BlockID) IsPayload() {}
 
+func (id BlockID) Equals(other BlockID) bool {
+	if id.idType != other.idType {
+		return false
+	}
+	switch id.idType {
+	case SignatureID:
+		return id.sig == other.sig
+	case DigestID:
+		return id.dig == other.dig
+	}
+	return false
+}
+
 type ChallengedHeader struct {
 	Timestamp uint64 `json:"timestamp"`
 	NxtConsensus
@@ -329,15 +355,16 @@ type BlockHeader struct {
 	RewardVote             int64        `json:"desiredReward"`
 	ConsensusBlockLength   uint32       `json:"-"`
 	NxtConsensus           `json:"nxt-consensus"`
-	TransactionBlockLength uint32            `json:"transactionBlockLength,omitempty"`
-	TransactionCount       int               `json:"transactionCount"`
-	GeneratorPublicKey     crypto.PublicKey  `json:"generatorPublicKey"`
-	BlockSignature         crypto.Signature  `json:"signature"`
-	TransactionsRoot       B58Bytes          `json:"transactionsRoot,omitempty"`
-	StateHash              *crypto.Digest    `json:"stateHash,omitempty"`        // is nil before protocol version 1.5
-	ChallengedHeader       *ChallengedHeader `json:"challengedHeader,omitempty"` // is nil before protocol version 1.5
-
-	ID BlockID `json:"id"` // this field must be generated and set after Block unmarshalling
+	TransactionBlockLength uint32              `json:"transactionBlockLength,omitempty"`
+	TransactionCount       int                 `json:"transactionCount"`
+	GeneratorPublicKey     crypto.PublicKey    `json:"generatorPublicKey"`
+	BlockSignature         crypto.Signature    `json:"signature"`
+	TransactionsRoot       B58Bytes            `json:"transactionsRoot,omitempty"`
+	StateHash              *crypto.Digest      `json:"stateHash,omitempty"`        // is nil before protocol version 1.5
+	ChallengedHeader       *ChallengedHeader   `json:"challengedHeader,omitempty"` // is nil before protocol version 1.5
+	FinalizationVoting     *FinalizationVoting `json:"finalizationVoting,omitempty"`
+	// This field must be generated and set after Block unmarshalling.
+	ID BlockID `json:"id"`
 }
 
 func (b *BlockHeader) GetStateHash() (crypto.Digest, bool) {
@@ -349,6 +376,17 @@ func (b *BlockHeader) GetStateHash() (crypto.Digest, bool) {
 		sh = *b.StateHash
 	}
 	return sh, present
+}
+
+func (b *BlockHeader) GetFinalizationVoting() (FinalizationVoting, bool) {
+	var (
+		fv      FinalizationVoting
+		present = b.FinalizationVoting != nil
+	)
+	if present {
+		fv = *b.FinalizationVoting
+	}
+	return fv, present
 }
 
 func (b *BlockHeader) GetChallengedHeader() (ChallengedHeader, bool) {
@@ -458,6 +496,14 @@ func (b *BlockHeader) HeaderToProtobufHeader(scheme Scheme) (*g.Block_Header, er
 	if sh, present := b.GetStateHash(); present {
 		stateHash = sh.Bytes()
 	}
+	var finalizationVoting *g.FinalizationVoting
+	if fv, present := b.GetFinalizationVoting(); present {
+		var err error
+		finalizationVoting, err = fv.ToProtobuf()
+		if err != nil {
+			return nil, err
+		}
+	}
 	return &g.Block_Header{
 		ChainId:             int32(scheme),
 		Reference:           b.Parent.Bytes(),
@@ -471,6 +517,7 @@ func (b *BlockHeader) HeaderToProtobufHeader(scheme Scheme) (*g.Block_Header, er
 		TransactionsRoot:    b.TransactionsRoot,
 		StateHash:           stateHash,
 		ChallengedHeader:    challengedHeader,
+		FinalizationVoting:  finalizationVoting,
 	}, nil
 }
 
@@ -545,15 +592,22 @@ func (b *BlockHeader) MarshalHeaderToBinary() ([]byte, error) {
 		res = append(res, fb...)
 		if b.Version >= RewardBlockVersion {
 			rvb := make([]byte, 8)
-			binary.BigEndian.PutUint64(rvb, uint64(b.RewardVote))
+			rv, rvErr := safecast.Convert[uint64](b.RewardVote)
+			if rvErr != nil {
+				return nil, fmt.Errorf("failed to convert RewardVote to uint64: %w", rvErr)
+			}
+			binary.BigEndian.PutUint64(rvb, rv)
 			res = append(res, rvb...)
 		}
 	} else {
-		res = append(res, byte(b.TransactionCount))
+		txCount, err := safecast.Convert[byte](b.TransactionCount)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert transactions count to byte")
+		}
+		res = append(res, txCount) //nolint:makezero // header is written and filled before.
 	}
 	res = append(res, b.GeneratorPublicKey[:]...)
 	res = append(res, b.BlockSignature[:]...)
-
 	return res, nil
 }
 
@@ -652,9 +706,8 @@ type Block struct {
 func (b *Block) Marshal(scheme Scheme) ([]byte, error) {
 	if b.Version >= ProtobufBlockVersion {
 		return b.MarshalToProtobuf(scheme)
-	} else {
-		return b.MarshalBinary(scheme)
 	}
+	return b.MarshalBinary(scheme)
 }
 
 func (b *Block) Clone() *Block {
@@ -865,9 +918,17 @@ func (b *Block) WriteToWithoutSignature(w io.Writer, scheme Scheme) (int64, erro
 	// transactions
 	s.Uint32(b.TransactionBlockLength)
 	if b.Version >= NgBlockVersion {
-		s.Uint32(uint32(b.TransactionCount))
+		cnt, cntErr := safecast.Convert[uint32](b.TransactionCount)
+		if cntErr != nil {
+			return 0, fmt.Errorf("failed to convert transactions count to uint32: %w", cntErr)
+		}
+		s.Uint32(cnt)
 	} else {
-		s.Byte(byte(b.TransactionCount))
+		txCount, err := safecast.Convert[byte](b.TransactionCount)
+		if err != nil {
+			return 0, errors.Wrap(err, "failed to convert transactions count to byte")
+		}
+		s.Byte(txCount)
 	}
 	if _, err := b.Transactions.WriteToBinary(s, scheme); err != nil {
 		return 0, err
@@ -991,6 +1052,7 @@ func CreateBlock(
 	rewardVote int64,
 	scheme Scheme,
 	stateHash *crypto.Digest,
+	blockFinalizationVoting *FinalizationVoting,
 ) (*Block, error) {
 	consensusLength := nxtConsensus.BinarySize()
 	b := &Block{
@@ -1006,6 +1068,7 @@ func CreateBlock(
 			TransactionCount:     transactions.Count(),
 			GeneratorPublicKey:   publicKey,
 			StateHash:            stateHash,
+			FinalizationVoting:   blockFinalizationVoting,
 		},
 		Transactions: transactions,
 	}
@@ -1045,9 +1108,8 @@ type BlockMarshaller struct {
 func (a BlockMarshaller) Marshal(scheme Scheme) ([]byte, error) {
 	if a.b.Version >= ProtobufBlockVersion {
 		return a.b.MarshalToProtobuf(scheme)
-	} else {
-		return a.b.MarshalBinary(scheme)
 	}
+	return a.b.MarshalBinary(scheme)
 }
 
 type Transactions []Transaction

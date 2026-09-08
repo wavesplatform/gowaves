@@ -192,7 +192,7 @@ Send the transaction to the network:
 
 ### Building from sources
 
-Go version 1.25 or later is required to build the `node`, `importer`, `wallet` and other tools.
+Go version 1.26 or later is required to build the `node`, `importer`, `wallet` and other tools.
 
 To build a node, importer or other tools run a `make` command:
 
@@ -206,3 +206,4 @@ make release-node
 
 * [chaincmp](https://github.com/wavesplatform/gowaves/blob/master/cmd/chaincmp/README.md) - utility to compare blockchains on few nodes
 * [wmd](https://github.com/wavesplatform/gowaves/blob/master/cmd/wmd/README.md) - service to provide a market data for Waves DEX transactions
+* [commit](https://github.com/wavesplatform/gowaves/blob/master/cmd/commit/README.md) - utility to create CommitToGeneration transactions

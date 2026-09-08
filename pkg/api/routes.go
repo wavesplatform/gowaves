@@ -108,6 +108,9 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 			r.Get("/height/{id}", wrapper(a.BlockHeightByID))
 			r.Get("/at/{height}", wrapper(a.BlockAt))
 			r.Get("/{id}", wrapper(a.BlockIDAt))
+			// Finalization.
+			r.Get("/height/finalized", wrapper(a.FinalizedHeight))
+			r.Get("/headers/finalized", wrapper(a.FinalizedHeader))
 
 			r.Route("/headers", func(r chi.Router) {
 				r.Get("/last", wrapper(a.BlocksHeadersLast))
@@ -115,6 +118,11 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 				r.Get("/{id}", wrapper(a.BlockHeadersID))
 				r.Get("/seq/{from:\\d+}/{to:\\d+}", wrapper(a.BlocksHeadersSeqFromTo))
 			})
+		})
+
+		// Finalization generators.
+		r.Route("/generators", func(r chi.Router) {
+			r.Get("/at/{height:\\d+}", wrapper(a.GeneratorsAt))
 		})
 
 		r.Route("/assets", func(r chi.Router) {
@@ -137,12 +145,15 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 			r.Get("/unconfirmed/size", wrapper(a.unconfirmedSize))
 			r.Get("/info/{id}", wrapper(a.TransactionInfo))
 			r.Post("/broadcast", wrapper(a.TransactionsBroadcast))
+
+			rAuth := r.With(checkAuthMiddleware)
+			rAuth.Post("/sign", wrapper(a.transactionSign))
 		})
 
 		r.Route("/peers", func(r chi.Router) {
 			r.Get("/all", wrapper(a.PeersAll))
 			r.Get("/connected", wrapper(a.PeersConnected))
-			r.Get("/suspended", wrapper(a.PeersSuspended))
+			r.Get("/suspended", wrapper(a.PeersBlackListed))
 			r.Get("/blacklisted", wrapper(a.PeersBlackListed))
 
 			rAuth := r.With(checkAuthMiddleware)
@@ -160,6 +171,7 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 			rAuth.Post("/print", wrapper(a.debugPrint))
 			rAuth.Post("/rollback", wrapper(a.RollbackToHeight))
 			rAuth.Post("/rollback-to/{id}", wrapper(a.RollbackTo))
+			rAuth.Post("/blacklist", wrapper(a.PeersBlackList))
 		})
 		r.Route("/node", func(r chi.Router) {
 			r.Get("/version", wrapper(a.version))

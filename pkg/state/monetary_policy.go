@@ -176,7 +176,7 @@ func (m *monetaryPolicy) updateBlockReward(
 	case votes.increase >= threshold:
 		reward += m.settings.BlockRewardIncrement
 	case votes.decrease >= threshold:
-		reward -= m.settings.BlockRewardIncrement
+		reward -= min(reward, m.settings.BlockRewardIncrement) // the reward can't go below zero
 	default:
 		return nil // nothing to do, reward remains the same
 	}

@@ -1,11 +1,16 @@
 version: "2"
 linters:
+  enable:
+    - exhaustive
   settings:
     cyclop:
       max-complexity: 30
       package-average: 10
     errcheck:
       check-type-assertions: false
+    exhaustive:
+      check:
+        - switch
     exhaustruct:
       exclude:
         - ^net/http.Client$

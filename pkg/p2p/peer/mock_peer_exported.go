@@ -195,7 +195,7 @@ type MockPeer_Equal_Call struct {
 
 // Equal is a helper method to define mock.On call
 //   - peer Peer
-func (_e *MockPeer_Expecter) Equal(peer interface{}) *MockPeer_Equal_Call {
+func (_e *MockPeer_Expecter) Equal(peer any) *MockPeer_Equal_Call {
 	return &MockPeer_Equal_Call{Call: _e.mock.On("Equal", peer)}
 }
 
@@ -369,7 +369,7 @@ type MockPeer_SendMessage_Call struct {
 
 // SendMessage is a helper method to define mock.On call
 //   - message proto.Message
-func (_e *MockPeer_Expecter) SendMessage(message interface{}) *MockPeer_SendMessage_Call {
+func (_e *MockPeer_Expecter) SendMessage(message any) *MockPeer_SendMessage_Call {
 	return &MockPeer_SendMessage_Call{Call: _e.mock.On("SendMessage", message)}
 }
 

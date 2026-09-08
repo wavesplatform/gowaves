@@ -26,7 +26,7 @@ type BaseSuite struct {
 }
 
 func (suite *BaseSuite) BaseSetup(options ...config.BlockchainOption) {
-	suite.BaseSetupWithImages(config.ScalaImageRepository, config.DefaultImageTag, options...)
+	suite.BaseSetupWithImages(config.ScalaImageRepository, config.ScalaImageTag, options...)
 }
 
 func (suite *BaseSuite) BaseSetupWithImages(scalaRepository, scalaTag string,

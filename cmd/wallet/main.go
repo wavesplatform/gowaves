@@ -449,11 +449,11 @@ func createWallet(
 		return errors.Wrap(err, "failed to write the wallet's data to the wallet")
 
 	}
-	fmt.Printf("New account has been added to wallet successfully %s\n", walletPath) //nolint:forbidigo // As intended
-	fmt.Printf("Account Seed:   %s\n", walletCredentials.accountSeed.String())
-	fmt.Printf("Public Key:     %s\n", walletCredentials.pk.String())
-	fmt.Printf("Secret Key:     %s\n", walletCredentials.sk.String())
-	fmt.Printf("Address:        %s\n", walletCredentials.address.String())
+	fmt.Fprintf(os.Stdout, "New account has been added to wallet successfully %s\n", walletPath)
+	fmt.Fprintf(os.Stdout, "Account Seed:   %s\n", walletCredentials.accountSeed.String())
+	fmt.Fprintf(os.Stdout, "Public Key:     %s\n", walletCredentials.pk.String())
+	fmt.Fprintf(os.Stdout, "Secret Key:     %s\n", walletCredentials.sk.String())
+	fmt.Fprintf(os.Stdout, "Address:        %s\n", walletCredentials.address.String())
 	return nil
 }
 

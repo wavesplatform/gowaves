@@ -69,8 +69,7 @@ func (err StateError) Unwrap() error {
 }
 
 func IsTxCommitmentError(err error) bool {
-	var stateErr StateError
-	if errors.As(err, &stateErr) {
+	if stateErr, ok := errors.AsType[StateError](err); ok {
 		return stateErr.Type() == TxCommitmentError
 	}
 	return false

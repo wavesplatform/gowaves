@@ -53,6 +53,12 @@ func (s *SyncPeer) Clear() {
 	s.peer = nil
 }
 
+func (s *SyncPeer) IsEmpty() bool {
+	s.m.Lock()
+	defer s.m.Unlock()
+	return s.peer == nil
+}
+
 type Network struct {
 	infoCh        <-chan peer.InfoMessage
 	networkInfoCh chan<- InfoMessage
@@ -114,8 +120,7 @@ func (n *Network) Run(ctx context.Context) {
 }
 
 func (n *Network) handleConnected(msg *peer.Connected) {
-	err := n.peers.NewConnection(msg.Peer)
-	if err != nil {
+	if err := n.peers.NewConnection(msg.Peer); err != nil {
 		n.logger.Debug("Failed to establish connection with peer", slog.Any("direction", msg.Peer.Direction()),
 			slog.Any("peer", msg.Peer.ID()), logging.Error(err))
 		return

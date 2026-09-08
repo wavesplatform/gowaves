@@ -111,7 +111,7 @@ type MockUpdatesPublisherInterface_PublishUpdates_Call struct {
 //   - nc *nats.Conn
 //   - scheme proto.Scheme
 //   - l2ContractAddress string
-func (_e *MockUpdatesPublisherInterface_Expecter) PublishUpdates(ctx interface{}, updates interface{}, nc interface{}, scheme interface{}, l2ContractAddress interface{}) *MockUpdatesPublisherInterface_PublishUpdates_Call {
+func (_e *MockUpdatesPublisherInterface_Expecter) PublishUpdates(ctx any, updates any, nc any, scheme any, l2ContractAddress any) *MockUpdatesPublisherInterface_PublishUpdates_Call {
 	return &MockUpdatesPublisherInterface_PublishUpdates_Call{Call: _e.mock.On("PublishUpdates", ctx, updates, nc, scheme, l2ContractAddress)}
 }
 
