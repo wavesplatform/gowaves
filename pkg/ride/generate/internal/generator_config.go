@@ -1,10 +1,11 @@
 package internal
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
@@ -55,8 +56,8 @@ func fillRideObjectStructNames(obj rideObject) error {
 		versions[act.LibVersion] = struct{}{}
 	}
 
-	sort.Slice(obj.Actions, func(i, j int) bool {
-		return obj.Actions[i].LibVersion < obj.Actions[j].LibVersion
+	slices.SortFunc(obj.Actions, func(a, b actionsObject) int {
+		return cmp.Compare(a.LibVersion, b.LibVersion)
 	})
 
 	for i := 0; i < len(obj.Actions); i++ {
