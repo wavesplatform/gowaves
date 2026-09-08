@@ -32,8 +32,8 @@ const (
 	goContainerName    = "go-node"
 
 	ScalaImageRepository = "wavesplatform/wavesnode"
+	ScalaImageTag        = "1.6.4"
 	goImageRepository    = "go-node"
-	DefaultImageTag      = "1.6.4"
 )
 
 const (
@@ -144,7 +144,7 @@ func (c *ScalaConfigurator) DockerRunOptions() *dockertest.RunOptions {
 	}
 
 	if c.imageTag == "" {
-		c.imageTag = DefaultImageTag
+		c.imageTag = ScalaImageTag
 	}
 
 	kps := new(strings.Builder)

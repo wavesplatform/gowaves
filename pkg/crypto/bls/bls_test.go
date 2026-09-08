@@ -88,6 +88,142 @@ func TestAggregateFromWavesSecrets_SameMessage(t *testing.T) {
 	require.False(t, ok, "aggregate must fail on different message")
 }
 
+// generateKeyPairs creates n BLS key pairs from random Waves secret keys.
+func generateKeyPairs(t *testing.T, n int) ([]bls.SecretKey, []bls.PublicKey) {
+	t.Helper()
+	sks := make([]bls.SecretKey, n)
+	pks := make([]bls.PublicKey, n)
+	for i := range n {
+		sk, err := secretKeyFromWavesSecretKey(randWavesSK(t))
+		require.NoError(t, err)
+		pk, err := sk.PublicKey()
+		require.NoError(t, err)
+		sks[i], pks[i] = sk, pk
+	}
+	return sks, pks
+}
+
+// signAll signs the given message with every given secret key.
+func signAll(t *testing.T, sks []bls.SecretKey, msg []byte) []bls.Signature {
+	t.Helper()
+	sigs := make([]bls.Signature, len(sks))
+	for i, sk := range sks {
+		sig, err := bls.Sign(sk, msg)
+		require.NoError(t, err)
+		sigs[i] = sig
+	}
+	return sigs
+}
+
+// TestAggregatePublicKeys_SameMessage checks that an aggregated public key acts as an ordinary public key of the
+// group of signers: every signer signs the same message, each signature is verified separately by the corresponding
+// public key, and the aggregated signature is verified by the aggregated public key. Aggregating a public key of a
+// signer who did not sign, or leaving out a signer who did, must break the verification.
+func TestAggregatePublicKeys_SameMessage(t *testing.T) {
+	const n = 4
+	msg := []byte("aggregated public key test")
+
+	sks, pks := generateKeyPairs(t, n+1) // The last key pair is an outsider, it doesn't sign the message.
+	signers, signerPKs := sks[:n], pks[:n]
+	outsiderSK, outsiderPK := sks[n], pks[n]
+
+	// Every signature is valid for its own public key and invalid for the public key of another signer.
+	sigs := signAll(t, signers, msg)
+	for i := range signers {
+		ok, err := bls.Verify(signerPKs[i], msg, sigs[i])
+		require.NoError(t, err)
+		assert.True(t, ok, "signature %d must be valid for its own public key", i)
+
+		ok, err = bls.Verify(signerPKs[(i+1)%n], msg, sigs[i])
+		require.NoError(t, err)
+		assert.False(t, ok, "signature %d must be invalid for the public key of another signer", i)
+	}
+
+	// The aggregated signature is valid for the aggregated public key of all the signers.
+	aggSig, err := bls.AggregateSignatures(sigs)
+	require.NoError(t, err)
+	aggPK, err := bls.AggregatePublicKeys(signerPKs)
+	require.NoError(t, err)
+
+	ok, err := bls.Verify(aggPK, msg, aggSig)
+	require.NoError(t, err)
+	assert.True(t, ok, "aggregated signature must be valid for the aggregated public key")
+
+	// The same verification through VerifyAggregate must produce the same result.
+	assert.True(t, bls.VerifyAggregate(signerPKs, msg, aggSig))
+
+	// A different message must not verify.
+	ok, err = bls.Verify(aggPK, []byte("another message"), aggSig)
+	require.NoError(t, err)
+	assert.False(t, ok, "aggregated signature must be invalid for a different message")
+
+	// A public key of a signer who didn't sign the message added to the aggregate must break the verification.
+	extendedPKs := append(slices.Clone(signerPKs), outsiderPK)
+	extendedPK, err := bls.AggregatePublicKeys(extendedPKs)
+	require.NoError(t, err)
+	ok, err = bls.Verify(extendedPK, msg, aggSig)
+	require.NoError(t, err)
+	assert.False(t, ok, "aggregated public key of a larger set of signers must not verify the signature")
+	assert.False(t, bls.VerifyAggregate(extendedPKs, msg, aggSig))
+
+	// But it verifies again as soon as the signature of that signer joins the aggregate.
+	outsiderSig, err := bls.Sign(outsiderSK, msg)
+	require.NoError(t, err)
+	extendedSig, err := bls.AggregateSignatures(append(slices.Clone(sigs), outsiderSig))
+	require.NoError(t, err)
+	ok, err = bls.Verify(extendedPK, msg, extendedSig)
+	require.NoError(t, err)
+	assert.True(t, ok, "aggregated signature of all the signers must be valid for their aggregated public key")
+
+	// A missing signer breaks the verification in the same way.
+	reducedPKs := signerPKs[:n-1]
+	reducedPK, err := bls.AggregatePublicKeys(reducedPKs)
+	require.NoError(t, err)
+	ok, err = bls.Verify(reducedPK, msg, aggSig)
+	require.NoError(t, err)
+	assert.False(t, ok, "aggregated public key of a smaller set of signers must not verify the signature")
+	assert.False(t, bls.VerifyAggregate(reducedPKs, msg, aggSig))
+}
+
+// TestAggregatePublicKeys_OrderIndependent checks that aggregation of public keys is commutative.
+func TestAggregatePublicKeys_OrderIndependent(t *testing.T) {
+	_, pks := generateKeyPairs(t, 5)
+
+	expected, err := bls.AggregatePublicKeys(pks)
+	require.NoError(t, err)
+
+	slices.Reverse(pks)
+	actual, err := bls.AggregatePublicKeys(pks)
+	require.NoError(t, err)
+	assert.Equal(t, expected, actual, "order of public keys must not affect the aggregate")
+
+	// A single public key aggregates into itself.
+	single, err := bls.AggregatePublicKeys(pks[:1])
+	require.NoError(t, err)
+	assert.Equal(t, pks[0], single)
+}
+
+// TestAggregatePublicKeys_Errors checks that invalid sets of public keys are rejected.
+func TestAggregatePublicKeys_Errors(t *testing.T) {
+	_, pks := generateKeyPairs(t, 2)
+
+	_, err := bls.AggregatePublicKeys(nil)
+	assert.ErrorIs(t, err, bls.ErrNoPublicKeys)
+
+	_, err = bls.AggregatePublicKeys([]bls.PublicKey{pks[0], pks[1], pks[0]})
+	assert.ErrorIs(t, err, bls.ErrDuplicatePublicKey)
+
+	// Keys that are not valid points of G1 are rejected.
+	_, err = bls.AggregatePublicKeys([]bls.PublicKey{pks[0], {}})
+	assert.Error(t, err)
+
+	// The identity, a valid encoding but an unusable public key, is rejected as well.
+	var identity bls.PublicKey
+	identity[0] = 0xc0 // Compressed point at infinity.
+	_, err = bls.AggregatePublicKeys([]bls.PublicKey{pks[0], identity})
+	assert.Error(t, err)
+}
+
 func TestVerifyAggregate_RejectsDuplicatePublicKeys(t *testing.T) {
 	sk1, err := secretKeyFromWavesSecretKey(randWavesSK(t))
 	require.NoError(t, err)

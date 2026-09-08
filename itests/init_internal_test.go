@@ -70,8 +70,8 @@ func testsSetup() error {
 	slog.Info("Pulling scala-node image", "platform", platform)
 	if plErr := pool.Client.PullImage(
 		dc.PullImageOptions{
-			Repository: "wavesplatform/wavesnode",
-			Tag:        "latest",
+			Repository: config.ScalaImageRepository,
+			Tag:        config.ScalaImageTag,
 			Platform:   platform,
 		},
 		dc.AuthConfiguration{}); plErr != nil {

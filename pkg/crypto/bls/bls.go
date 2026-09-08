@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cloudflare/circl/ecc/bls12381"
 	cbls "github.com/cloudflare/circl/sign/bls"
 	"github.com/mr-tron/base58"
 
@@ -23,8 +24,11 @@ const (
 )
 
 var (
-	ErrNoSignatures       = errors.New("no signatures")
-	ErrDuplicateSignature = errors.New("duplicate signature")
+	ErrNoSignatures                = errors.New("no signatures")
+	ErrDuplicateSignature          = errors.New("duplicate signature")
+	ErrNoPublicKeys                = errors.New("no public keys")
+	ErrDuplicatePublicKey          = errors.New("duplicate public key")
+	ErrIdentityAggregatedPublicKey = errors.New("aggregated public key is the identity")
 )
 
 // SecretKey is 32-byte BLS secret key.
@@ -266,25 +270,49 @@ func AggregateSignatures(signatures []Signature) (Signature, error) {
 	return NewSignatureFromBytes(aggregate)
 }
 
-// VerifyAggregate verifies aggregated signature over the same message.
-func VerifyAggregate(pks []PublicKey, msg []byte, sig Signature) bool {
+// AggregatePublicKeys combines the given public keys into a single aggregated public key by adding up the
+// corresponding points of G1. Every key is validated (correct encoding, on-curve, in the correct subgroup and
+// not the identity) while being deserialized. Duplicate keys are rejected.
+func AggregatePublicKeys(pks []PublicKey) (PublicKey, error) {
 	if len(pks) == 0 {
-		return false
+		return PublicKey{}, ErrNoPublicKeys
 	}
 	if !isUnique(pks) {
+		return PublicKey{}, ErrDuplicatePublicKey
+	}
+	var agg bls12381.G1
+	agg.SetIdentity()
+	for i := range pks {
+		var p bls12381.G1
+		if err := p.SetBytes(pks[i].Bytes()); err != nil { // SetBytes rejects points outside of the G1 subgroup.
+			return PublicKey{}, fmt.Errorf("failed to aggregate public keys: invalid public key #%d: %w", i, err)
+		}
+		if p.IsIdentity() {
+			return PublicKey{}, fmt.Errorf("failed to aggregate public keys: public key #%d is the identity", i)
+		}
+		agg.Add(&agg, &p)
+	}
+	if agg.IsIdentity() { // Aggregation of valid keys can still cancel out to the identity, such a key is unusable.
+		return PublicKey{}, ErrIdentityAggregatedPublicKey
+	}
+	return NewPublicKeyFromBytes(agg.BytesCompressed())
+}
+
+// VerifyAggregate verifies aggregated signature over the same message.
+// This is the FastAggregateVerify algorithm of the BLS signature scheme with proof of possession: the public keys
+// are aggregated into a single one, and the aggregated signature is verified against it.
+// Security note: aggregation of public keys is only safe against rogue public key attacks if every key was proven
+// to be possessed by its owner, see VerifyPoP. Keys passed here MUST have been registered with a valid PoP.
+func VerifyAggregate(pks []PublicKey, msg []byte, sig Signature) bool {
+	apk, err := AggregatePublicKeys(pks)
+	if err != nil {
 		return false
 	}
-	ks := make([]*cbls.PublicKey[cbls.G1], len(pks))
-	ms := make([][]byte, len(pks))
-	for i := range pks {
-		k := new(cbls.PublicKey[cbls.G1])
-		if err := k.UnmarshalBinary(pks[i].Bytes()); err != nil {
-			return false
-		}
-		ks[i] = k
-		ms[i] = msg
+	ok, err := Verify(apk, msg, sig)
+	if err != nil {
+		return false
 	}
-	return cbls.VerifyAggregate[cbls.G1](ks, ms, sig.Bytes())
+	return ok
 }
 
 func isUnique[T comparable](in []T) bool {
