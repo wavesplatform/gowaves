@@ -3,6 +3,8 @@ package bls
 import (
 	"encoding/binary"
 	"fmt"
+
+	cbls "github.com/cloudflare/circl/sign/bls"
 )
 
 const PoPMessageSize = PublicKeySize + 4
@@ -44,9 +46,5 @@ func VerifyPoP(pk PublicKey, height uint32, sig Signature) (bool, error) {
 		return false, fmt.Errorf("failed to verify PoP, invalid public key")
 	}
 	msg := BuildPoPMessage(pk, height)
-	ok, err := Verify(pk, msg, sig)
-	if err != nil {
-		return false, fmt.Errorf("failed to verify PoP: %w", err)
-	}
-	return ok, nil
+	return cbls.Verify[cbls.G1](cpk, msg, sig.Bytes()), nil
 }
