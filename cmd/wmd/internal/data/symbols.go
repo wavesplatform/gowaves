@@ -61,6 +61,8 @@ func NewSymbolsFromFile(name string, oracle proto.WavesAddress, scheme byte) (*S
 	if err != nil {
 		return nil, wrapError(err)
 	}
+	defer f.Close()
+
 	s := bufio.NewScanner(f)
 	i := 1
 	for s.Scan() {
@@ -75,6 +77,9 @@ func NewSymbolsFromFile(name string, oracle proto.WavesAddress, scheme byte) (*S
 		ticker := strings.ToUpper(fs[0])
 		r.put(ticker, id)
 		i++
+	}
+	if err := s.Err(); err != nil {
+		return nil, wrapError(err)
 	}
 	return r, nil
 }
