@@ -48,7 +48,7 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0
 	github.com/wavesplatform/goleveldb v1.1.0
 	github.com/xenolf/lego v2.7.2+incompatible
-	go.uber.org/atomic v1.11.0
+	go.uber.org/atomic v1.12.0
 	go.uber.org/goleak v1.3.0
 	golang.org/x/crypto v0.57.0
 	golang.org/x/exp v0.0.0-20260527015227-08cc5374adb3
