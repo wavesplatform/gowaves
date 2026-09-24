@@ -30,7 +30,6 @@ graphify-out/
 *.log
 *.mem
 *.bck.*
-!cmd/wmd/symbols.txt
 **/.DS_Store
 .DS_Store
 blocks_storage

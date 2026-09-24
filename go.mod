@@ -47,7 +47,6 @@ require (
 	github.com/umbracle/fastrlp v0.1.0
 	github.com/valyala/bytebufferpool v1.0.0
 	github.com/wavesplatform/goleveldb v1.1.0
-	github.com/xenolf/lego v2.7.2+incompatible
 	go.uber.org/atomic v1.12.0
 	go.uber.org/goleak v1.3.0
 	golang.org/x/crypto v0.57.0
