@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	filippo.io/edwards25519 v1.2.0
-	github.com/beevik/ntp v1.5.0
+	github.com/beevik/ntp v1.6.0
 	github.com/btcsuite/btcd/btcec/v2 v2.5.0
 	github.com/ccoveille/go-safecast/v2 v2.0.1
 	github.com/cenkalti/backoff/v4 v4.3.0
