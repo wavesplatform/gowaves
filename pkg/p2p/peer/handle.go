@@ -76,7 +76,9 @@ func Handle(ctx context.Context, peer Peer, parent Parent, remote Remote, logger
 
 		case bb := <-remote.FromCh:
 			if !errSentToParent {
-				dl.Debug("Receiving from network", slog.Any("peer", peer.ID()), logging.Data(bb.Bytes()))
+				if dl.Enabled(ctx, slog.LevelDebug) {
+					dl.Debug("Receiving from network", slog.Any("peer", peer.ID()), logging.Data(bb.Bytes()))
+				}
 				err := bytesToMessage(bb.Bytes(), parent.MessageCh, peer, logger)
 				if err != nil {
 					out := InfoMessage{Peer: peer, Value: &InternalErr{Err: err}}
