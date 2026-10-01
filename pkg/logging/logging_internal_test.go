@@ -104,3 +104,45 @@ func TestError(t *testing.T) {
 		})
 	}
 }
+
+func TestData(t *testing.T) {
+	data := []byte{0x00, 0x01, 0xfe, 0xff, 'a', 'b', 'c'}
+	const expected = "AAH+/2FiYw=="
+	for _, test := range []struct {
+		name    string
+		handler func(w *bytes.Buffer) slog.Handler
+		check   func(t *testing.T, out []byte)
+	}{
+		{
+			name:    "text",
+			handler: func(w *bytes.Buffer) slog.Handler { return slog.NewTextHandler(w, nil) },
+			check: func(t *testing.T, out []byte) {
+				assert.Contains(t, string(out), `data="`+expected+`"`)
+			},
+		},
+		{
+			name:    "json",
+			handler: func(w *bytes.Buffer) slog.Handler { return slog.NewJSONHandler(w, nil) },
+			check: func(t *testing.T, out []byte) {
+				var m map[string]any
+				require.NoError(t, json.Unmarshal(out, &m))
+				assert.Equal(t, expected, m["data"])
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			buf := new(bytes.Buffer)
+			slog.New(test.handler(buf)).Info("test", Data(data))
+			test.check(t, buf.Bytes())
+		})
+	}
+}
+
+func BenchmarkDataDiscarded(b *testing.B) {
+	data := make([]byte, 1<<20)
+	l := slog.New(slog.DiscardHandler)
+	b.ReportAllocs()
+	for b.Loop() {
+		l.Debug("test", Data(data))
+	}
+}

@@ -3,6 +3,7 @@ package logging
 import (
 	"context"
 	"encoding"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"log/slog"
@@ -200,4 +201,17 @@ func (v txIDSlogValuer) LogValue() slog.Value {
 func TxID(t txIDGetter, scheme scheme) slog.Attr {
 	var val slog.LogValuer = txIDSlogValuer{t: t, scheme: scheme}
 	return slog.Any("txID", val)
+}
+
+type base64SlogValuer []byte
+
+func (v base64SlogValuer) LogValue() slog.Value {
+	return slog.StringValue(base64.StdEncoding.EncodeToString(v))
+}
+
+// Data returns a slog.Attr that lazily encodes the given bytes as base64 string.
+// Encoding happens only if the record is actually handled.
+func Data(data []byte) slog.Attr {
+	var val slog.LogValuer = base64SlogValuer(data)
+	return slog.Any("data", val)
 }

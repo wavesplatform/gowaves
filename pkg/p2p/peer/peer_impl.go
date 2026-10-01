@@ -85,7 +85,9 @@ func (a *PeerImpl) SendMessage(m proto.Message) {
 		slog.Error("Failed to send message", logging.Type(m), logging.Error(err))
 		return
 	}
-	a.logger.Debug("Sending to network", "peer", a.id, "data", proto.B64Bytes(b))
+	if a.logger.Enabled(context.Background(), slog.LevelDebug) {
+		a.logger.Debug("Sending to network", slog.Any("peer", a.id), logging.Data(b))
+	}
 
 	select {
 	case a.remote.ToCh <- b:

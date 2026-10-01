@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -196,7 +195,7 @@ func (s *Session) waitForSend(data []byte) error {
 	defer s.tp.Put(timer)
 
 	if s.logger.Enabled(s.ctx, slog.LevelDebug) {
-		s.logger.Debug("Sending data", "data", base64.StdEncoding.EncodeToString(data))
+		s.logger.Debug("Sending data", logging.Data(data))
 	}
 	select {
 	case s.sendCh <- newSendPacket(data, errCh):
@@ -252,9 +251,7 @@ func (s *Session) sendLoop() error {
 			if dataBuf.Len() > 0 {
 				data := dataBuf.Bytes()
 				if s.logger.Enabled(s.ctx, slog.LevelDebug) {
-					s.logger.Debug("Sending data to connection",
-						"len", len(data),
-						"data", base64.StdEncoding.EncodeToString(data))
+					s.logger.Debug("Sending data to connection", slog.Int("len", len(data)), logging.Data(data))
 				}
 				written, err := s.writeConnIfNotClosed(data)
 				if err != nil {
@@ -402,8 +399,7 @@ func (s *Session) readMessagePayload(hdr Header, conn io.Reader) error {
 	// The slice of bytes passed into the handler is only valid for the duration of the handler invocation.
 	// So inside the handler better deserialize message or make a copy of the bytes.
 	if s.logger.Enabled(s.ctx, slog.LevelDebug) {
-		s.logger.Debug("Invoking OnReceive handler", "message",
-			base64.StdEncoding.EncodeToString(s.receiveBuffer.Bytes()))
+		s.logger.Debug("Invoking OnReceive handler", logging.Data(s.receiveBuffer.Bytes()))
 	}
 	s.config.handler.OnReceive(s, s.receiveBuffer) // Invoke OnReceive handler.
 	return nil
