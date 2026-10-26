@@ -226,7 +226,8 @@ func main() {
 		gotErr := false
 		select {
 		case heightChan <- h:
-		case <-errChan:
+		case err := <-errChan:
+			slog.Warn("Failed to download state hash", logging.Error(err))
 			gotErr = true
 		}
 		if gotErr {
