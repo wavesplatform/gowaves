@@ -1,6 +1,6 @@
 module github.com/wavesplatform/gowaves
 
-go 1.26.0
+go 1.26.8
 
 require (
 	filippo.io/edwards25519 v1.2.0
@@ -10,8 +10,8 @@ require (
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/cloudflare/circl v1.6.5
-	github.com/consensys/gnark v0.16.3
-	github.com/consensys/gnark-crypto v0.21.0
+	github.com/consensys/gnark v0.16.4
+	github.com/consensys/gnark-crypto v0.21.1-0.20260913224755-1409fe592052
 	github.com/coocood/freecache v1.2.7
 	github.com/cosmos/go-bip39 v1.0.0
 	github.com/dpotapov/slogpfx v0.0.0-20230917063348-41a73c95c536
