@@ -10,16 +10,10 @@ import (
 
 func TestStateCheckFailedError_MarshalJSON(t *testing.T) {
 	value := StateCheckFailedError{
-		validationErrorWithTransaction: validationErrorWithTransaction{
-			validationError: validationError{
-				genericError: genericError{
-					ID:       StateCheckFailedErrorID,
-					HttpCode: http.StatusBadRequest,
-					Message:  "some message",
-				},
-			},
-			Transaction: nil,
-		},
+		ID:          StateCheckFailedErrorID,
+		HttpCode:    http.StatusBadRequest,
+		Message:     "some message",
+		Transaction: nil,
 		embeddedFields: map[string]any{
 			"extra_field": "value",
 			"extra_int":   1,

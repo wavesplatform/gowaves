@@ -14,9 +14,7 @@ var sig2 = crypto.MustSignatureFromBase58("53wmPSc2n5DwpDcJUfNCV7j2wCuc227M9onwr
 
 func makeBlock(sig crypto.Signature) *proto.Block {
 	return &proto.Block{
-		BlockHeader: proto.BlockHeader{
-			BlockSignature: sig,
-		},
+		BlockSignature: sig,
 	}
 }
 

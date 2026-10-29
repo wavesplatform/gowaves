@@ -404,12 +404,10 @@ func (ws *WrappedState) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, 
 		return nil, errors.Wrap(err, "failed to find out sponsoring of the asset")
 	}
 	return &proto.AssetInfo{
-		AssetConstInfo: proto.AssetConstInfo{
-			ID:          asset,
-			IssueHeight: ws.height,
-			Issuer:      searchNewAsset.dAppIssuer,
-			Decimals:    uint8(searchNewAsset.decimals),
-		},
+		ID:              asset,
+		IssueHeight:     ws.height,
+		Issuer:          searchNewAsset.dAppIssuer,
+		Decimals:        uint8(searchNewAsset.decimals), // #nosec G115: decimals are validated on issue.
 		Quantity:        uint64(searchNewAsset.quantity),
 		IssuerPublicKey: issuerPK,
 		Reissuable:      searchNewAsset.reissuable,
@@ -453,12 +451,10 @@ func (ws *WrappedState) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAss
 	}
 
 	assetInfo := proto.AssetInfo{
-		AssetConstInfo: proto.AssetConstInfo{
-			ID:          asset,
-			IssueHeight: ws.height,
-			Issuer:      searchNewAsset.dAppIssuer,
-			Decimals:    uint8(searchNewAsset.decimals),
-		},
+		ID:              asset,
+		IssueHeight:     ws.height,
+		Issuer:          searchNewAsset.dAppIssuer,
+		Decimals:        uint8(searchNewAsset.decimals), // #nosec G115: decimals are validated on issue.
 		Quantity:        uint64(searchNewAsset.quantity),
 		IssuerPublicKey: issuerPK,
 		Reissuable:      searchNewAsset.reissuable,

@@ -1056,21 +1056,19 @@ func CreateBlock(
 ) (*Block, error) {
 	consensusLength := nxtConsensus.BinarySize()
 	b := &Block{
-		BlockHeader: BlockHeader{
-			Version:              version,
-			Timestamp:            timestamp,
-			Parent:               parentID,
-			FeaturesCount:        len(features),
-			Features:             features,
-			RewardVote:           rewardVote,
-			ConsensusBlockLength: uint32(consensusLength),
-			NxtConsensus:         nxtConsensus,
-			TransactionCount:     transactions.Count(),
-			GeneratorPublicKey:   publicKey,
-			StateHash:            stateHash,
-			FinalizationVoting:   blockFinalizationVoting,
-		},
-		Transactions: transactions,
+		Version:              version,
+		Timestamp:            timestamp,
+		Parent:               parentID,
+		FeaturesCount:        len(features),
+		Features:             features,
+		RewardVote:           rewardVote,
+		ConsensusBlockLength: uint32(consensusLength), // #nosec G115: consensus binary size is small.
+		NxtConsensus:         nxtConsensus,
+		TransactionCount:     transactions.Count(),
+		GeneratorPublicKey:   publicKey,
+		StateHash:            stateHash,
+		FinalizationVoting:   blockFinalizationVoting,
+		Transactions:         transactions,
 	}
 	switch {
 	case version < NgBlockVersion:

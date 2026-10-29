@@ -3262,9 +3262,7 @@ func TestEthereumTransferAssetsTransformTxToRideObj(t *testing.T) {
 	env := newTestEnv(t).withLibVersion(ast.LibV6).withScheme(proto.TestNetScheme).
 		withConsensusImprovementsActivatedFunc().withBlockRewardDistribution().
 		withAsset(&proto.FullAssetInfo{
-			AssetInfo: proto.AssetInfo{
-				AssetConstInfo: proto.AssetConstInfo{ID: fullAssetID},
-			},
+			ID: fullAssetID,
 		}).toEnv()
 
 	rideObj, err := transactionToObject(env, &tx)

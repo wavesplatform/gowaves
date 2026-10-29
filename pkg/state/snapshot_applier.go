@@ -445,15 +445,13 @@ func (a *blockSnapshotsApplier) ApplyNewAsset(snapshot proto.NewAssetSnapshot) e
 	height := a.info.CurrentBlockHeight()
 
 	assetFullInfo := &assetInfo{
-		assetConstInfo: assetConstInfo{
-			Tail:                 proto.DigestTail(snapshot.AssetID),
-			Issuer:               snapshot.IssuerPublicKey,
-			Decimals:             snapshot.Decimals,
-			IssueHeight:          height,
-			IsNFT:                snapshot.IsNFT,
-			IssueSequenceInBlock: a.info.StateActionsCounter().NextIssueActionNumber(),
-		},
-		assetChangeableInfo: assetChangeableInfo{},
+		Tail:                 proto.DigestTail(snapshot.AssetID),
+		Issuer:               snapshot.IssuerPublicKey,
+		Decimals:             snapshot.Decimals,
+		IssueHeight:          height,
+		IsNFT:                snapshot.IsNFT,
+		IssueSequenceInBlock: a.info.StateActionsCounter().NextIssueActionNumber(),
+		assetChangeableInfo:  assetChangeableInfo{},
 	}
 	err := a.stor.assets.issueAsset(assetID, assetFullInfo, a.info.BlockID())
 	if err != nil {

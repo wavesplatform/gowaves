@@ -11,12 +11,10 @@ import (
 
 func TestMockStateManager_ScoreAtHeight(t *testing.T) {
 	genesis := &proto.Block{
-		BlockHeader: proto.BlockHeader{
-			NxtConsensus: proto.NxtConsensus{
-				BaseTarget: 153722867,
-			},
-			BlockSignature: crypto.MustSignatureFromBase58("31oSQjtBqNjyj37qmrkocHvoazMtycbaw1shbznXoN66d3nfwczqTr4FKdGmqvaVGyxtrpiKdF6RGiZWNa9rEEkY"),
-		},
+		BaseTarget: 153722867,
+		BlockSignature: crypto.MustSignatureFromBase58(
+			"31oSQjtBqNjyj37qmrkocHvoazMtycbaw1shbznXoN66d3nfwczqTr4FKdGmqvaVGyxtrpiKdF6RGiZWNa9rEEkY",
+		),
 	}
 
 	m, err := NewMockStateManager(genesis)
@@ -27,21 +25,17 @@ func TestMockStateManager_ScoreAtHeight(t *testing.T) {
 
 func TestMockStateManager_RollbackToHeight(t *testing.T) {
 	genesis := &proto.Block{
-		BlockHeader: proto.BlockHeader{
-			NxtConsensus: proto.NxtConsensus{
-				BaseTarget: 153722867,
-			},
-			BlockSignature: crypto.MustSignatureFromBase58("31oSQjtBqNjyj37qmrkocHvoazMtycbaw1shbznXoN66d3nfwczqTr4FKdGmqvaVGyxtrpiKdF6RGiZWNa9rEEkY"),
-		},
+		BaseTarget: 153722867,
+		BlockSignature: crypto.MustSignatureFromBase58(
+			"31oSQjtBqNjyj37qmrkocHvoazMtycbaw1shbznXoN66d3nfwczqTr4FKdGmqvaVGyxtrpiKdF6RGiZWNa9rEEkY",
+		),
 	}
 	block1 := &proto.Block{
-		BlockHeader: proto.BlockHeader{
-			Parent: genesisId,
-			NxtConsensus: proto.NxtConsensus{
-				BaseTarget: 100,
-			},
-			BlockSignature: crypto.MustSignatureFromBase58("5z4Ny16o9ED9PG8z4LDnAmPBaQcmDztAeU3Lbz1YBM6q4971BzN71aLX5hYdxK19fpCPkA4NAPcwjyWWD68SWb1F"),
-		},
+		Parent:     genesisId,
+		BaseTarget: 100,
+		BlockSignature: crypto.MustSignatureFromBase58(
+			"5z4Ny16o9ED9PG8z4LDnAmPBaQcmDztAeU3Lbz1YBM6q4971BzN71aLX5hYdxK19fpCPkA4NAPcwjyWWD68SWb1F",
+		),
 	}
 
 	m, err := NewMockStateManager(genesis, block1)
@@ -57,12 +51,8 @@ func TestMockStateManager_RollbackToHeight(t *testing.T) {
 func TestMockStateManager_BlockByHeight(t *testing.T) {
 	sig := crypto.MustSignatureFromBase58("31oSQjtBqNjyj37qmrkocHvoazMtycbaw1shbznXoN66d3nfwczqTr4FKdGmqvaVGyxtrpiKdF6RGiZWNa9rEEkY")
 	genesis := &proto.Block{
-		BlockHeader: proto.BlockHeader{
-			NxtConsensus: proto.NxtConsensus{
-				BaseTarget: 153722867,
-			},
-			BlockSignature: sig,
-		},
+		BaseTarget:     153722867,
+		BlockSignature: sig,
 	}
 
 	m, err := NewMockStateManager(genesis)
@@ -74,12 +64,8 @@ func TestMockStateManager_BlockByHeight(t *testing.T) {
 func TestMockStateManager_DuplicateBlock(t *testing.T) {
 	sig := crypto.MustSignatureFromBase58("31oSQjtBqNjyj37qmrkocHvoazMtycbaw1shbznXoN66d3nfwczqTr4FKdGmqvaVGyxtrpiKdF6RGiZWNa9rEEkY")
 	genesis := &proto.Block{
-		BlockHeader: proto.BlockHeader{
-			NxtConsensus: proto.NxtConsensus{
-				BaseTarget: 153722867,
-			},
-			BlockSignature: sig,
-		},
+		BaseTarget:     153722867,
+		BlockSignature: sig,
 	}
 
 	require.Panics(t, func() {

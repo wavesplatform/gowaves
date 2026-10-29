@@ -250,23 +250,21 @@ func TestBlock_WriteTo(t *testing.T) {
 	transactions := Transactions{createAlias}
 
 	block := Block{
-		BlockHeader: BlockHeader{
-			Version:                3,
-			Timestamp:              1558019400034,
-			Parent:                 parent,
-			FeaturesCount:          0,   // ??
-			Features:               nil, // ??
-			RewardVote:             -1,
-			ConsensusBlockLength:   40, //  ??
-			TransactionBlockLength: uint32(transactions.BinarySize() + 4),
-			TransactionCount:       len(transactions),
-			GeneratorPublicKey:     public,
-			BlockSignature:         sig, //
+		Version:                3,
+		Timestamp:              1558019400034,
+		Parent:                 parent,
+		FeaturesCount:          0,   // ??
+		Features:               nil, // ??
+		RewardVote:             -1,
+		ConsensusBlockLength:   40, //  ??
+		TransactionBlockLength: uint32(transactions.BinarySize() + 4),
+		TransactionCount:       len(transactions),
+		GeneratorPublicKey:     public,
+		BlockSignature:         sig, //
 
-			NxtConsensus: NxtConsensus{
-				BaseTarget:   1010,   // 8
-				GenSignature: gensig, //
-			},
+		NxtConsensus: NxtConsensus{
+			BaseTarget:   1010,   // 8
+			GenSignature: gensig, //
 		},
 		Transactions: transactions,
 	}
@@ -430,23 +428,19 @@ func TestBlockVerifyRootHash(t *testing.T) {
 
 	// Block
 	block := Block{
-		BlockHeader: BlockHeader{
-			Version:              ProtobufBlockVersion,
-			Timestamp:            1,
-			Parent:               parent,
-			FeaturesCount:        0,
-			Features:             nil,
-			RewardVote:           -1,
-			ConsensusBlockLength: 40,
-			NxtConsensus: NxtConsensus{
-				BaseTarget:   1010,
-				GenSignature: gs,
-			},
-			TransactionBlockLength: uint32(txs2.BinarySize() + 4),
-			TransactionCount:       len(txs2),
-			GeneratorPublicKey:     public,
-		},
-		Transactions: txs2,
+		Version:                ProtobufBlockVersion,
+		Timestamp:              1,
+		Parent:                 parent,
+		FeaturesCount:          0,
+		Features:               nil,
+		RewardVote:             -1,
+		ConsensusBlockLength:   40,
+		BaseTarget:             1010,
+		GenSignature:           gs,
+		TransactionBlockLength: uint32(txs2.BinarySize() + 4),
+		TransactionCount:       len(txs2),
+		GeneratorPublicKey:     public,
+		Transactions:           txs2,
 	}
 	err = block.SetTransactionsRoot(TestNetScheme)
 	require.NoError(t, err)

@@ -259,22 +259,20 @@ func MustStageNetSettings() *BlockchainSettings { return mustLoadEmbeddedSetting
 
 func MustDefaultCustomSettings() *BlockchainSettings {
 	return &BlockchainSettings{
-		Type: Custom,
-		FunctionalitySettings: FunctionalitySettings{
-			FeaturesVotingPeriod:                5000,
-			VotesForFeatureActivation:           4000,
-			MaxTxTimeBackOffset:                 120 * 60000,
-			MaxTxTimeForwardOffset:              90 * 60000,
-			AddressSchemeCharacter:              proto.CustomNetScheme,
-			AverageBlockDelaySeconds:            60,
-			MaxBaseTarget:                       math.MaxUint64,
-			MinUpdateAssetInfoInterval:          100000,
-			BlockRewardTerm:                     100000,
-			BlockRewardTermAfter20:              50000,
-			MinXTNBuyBackPeriod:                 defaultMinXTNBuyBackPeriod,
-			LightNodeBlockFieldsAbsenceInterval: lightNodeBlockFieldsAbsenceIntervalDefault,
-			MaxEndorsements:                     8,
-		},
+		Type:                                Custom,
+		FeaturesVotingPeriod:                5000,
+		VotesForFeatureActivation:           4000,
+		MaxTxTimeBackOffset:                 120 * 60000,
+		MaxTxTimeForwardOffset:              90 * 60000,
+		AddressSchemeCharacter:              proto.CustomNetScheme,
+		AverageBlockDelaySeconds:            60,
+		MaxBaseTarget:                       math.MaxUint64,
+		MinUpdateAssetInfoInterval:          100000,
+		BlockRewardTerm:                     100000,
+		BlockRewardTermAfter20:              50000,
+		MinXTNBuyBackPeriod:                 defaultMinXTNBuyBackPeriod,
+		LightNodeBlockFieldsAbsenceInterval: lightNodeBlockFieldsAbsenceIntervalDefault,
+		MaxEndorsements:                     8,
 	}
 }
 
@@ -314,12 +312,10 @@ func mustLoadEmbeddedSettings(blockchain BlockchainType) *BlockchainSettings {
 func ReadBlockchainSettings(r io.Reader) (*BlockchainSettings, error) {
 	jsonParser := json.NewDecoder(r)
 	defaultSettings := BlockchainSettings{
-		FunctionalitySettings: FunctionalitySettings{
-			MinBlockTime:                        minBlockTimeDefault,
-			DelayDelta:                          delayDeltaDefault,
-			MinXTNBuyBackPeriod:                 defaultMinXTNBuyBackPeriod,
-			LightNodeBlockFieldsAbsenceInterval: lightNodeBlockFieldsAbsenceIntervalDefault,
-		},
+		MinBlockTime:                        minBlockTimeDefault,
+		DelayDelta:                          delayDeltaDefault,
+		MinXTNBuyBackPeriod:                 defaultMinXTNBuyBackPeriod,
+		LightNodeBlockFieldsAbsenceInterval: lightNodeBlockFieldsAbsenceIntervalDefault,
 	}
 	s := defaultSettings
 	if err := jsonParser.Decode(&s); err != nil {

@@ -3031,12 +3031,10 @@ func (s *stateManager) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, e
 		return nil, wrapErr(stateerr.Other, err)
 	}
 	return &proto.AssetInfo{
-		AssetConstInfo: proto.AssetConstInfo{
-			ID:          proto.ReconstructDigest(assetID, info.Tail),
-			IssueHeight: info.IssueHeight,
-			Issuer:      issuer,
-			Decimals:    info.Decimals,
-		},
+		ID:              proto.ReconstructDigest(assetID, info.Tail),
+		IssueHeight:     info.IssueHeight,
+		Issuer:          issuer,
+		Decimals:        info.Decimals,
 		Quantity:        info.quantity.Uint64(),
 		IssuerPublicKey: info.Issuer,
 
@@ -3133,12 +3131,10 @@ func (s *stateManager) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error
 		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return &proto.AssetInfo{
-		AssetConstInfo: proto.AssetConstInfo{
-			ID:          proto.ReconstructDigest(assetID, info.Tail),
-			IssueHeight: info.IssueHeight,
-			Issuer:      issuer,
-			Decimals:    info.Decimals,
-		},
+		ID:              proto.ReconstructDigest(assetID, info.Tail),
+		IssueHeight:     info.IssueHeight,
+		Issuer:          issuer,
+		Decimals:        info.Decimals,
 		Quantity:        info.quantity.Uint64(),
 		IssuerPublicKey: info.Issuer,
 

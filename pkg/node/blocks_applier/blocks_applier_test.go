@@ -16,35 +16,27 @@ import (
 var genesisSign = crypto.MustSignatureFromBase58("31oSQjtBqNjyj37qmrkocHvoazMtycbaw1shbznXoN66d3nfwczqTr4FKdGmqvaVGyxtrpiKdF6RGiZWNa9rEEkY")
 var genesisId = proto.NewBlockIDFromSignature(genesisSign)
 var genesis = &proto.Block{
-	BlockHeader: proto.BlockHeader{
-		Timestamp:      1558613307877,
-		BlockSignature: genesisSign,
-		NxtConsensus: proto.NxtConsensus{
-			BaseTarget:   153722867,
-			GenSignature: crypto.MustBytesFromBase58("11111111111111111111111111111111"),
-		},
-	},
+	Timestamp:      1558613307877,
+	BlockSignature: genesisSign,
+	BaseTarget:     153722867,
+	GenSignature:   crypto.MustBytesFromBase58("11111111111111111111111111111111"),
 }
 
 func TestApply_ValidBlockWithRollback(t *testing.T) {
 	block1 := &proto.Block{
-		BlockHeader: proto.BlockHeader{
-			Parent: genesisId,
-			NxtConsensus: proto.NxtConsensus{
-				BaseTarget: 100,
-			},
-			BlockSignature: crypto.MustSignatureFromBase58("5z4Ny16o9ED9PG8z4LDnAmPBaQcmDztAeU3Lbz1YBM6q4971BzN71aLX5hYdxK19fpCPkA4NAPcwjyWWD68SWb1F"),
-		},
+		Parent:     genesisId,
+		BaseTarget: 100,
+		BlockSignature: crypto.MustSignatureFromBase58(
+			"5z4Ny16o9ED9PG8z4LDnAmPBaQcmDztAeU3Lbz1YBM6q4971BzN71aLX5hYdxK19fpCPkA4NAPcwjyWWD68SWb1F",
+		),
 	}
 	block2 := &proto.Block{
-		BlockHeader: proto.BlockHeader{
-			Parent: genesisId,
-			NxtConsensus: proto.NxtConsensus{
-				BaseTarget: 50,
-			},
-			TransactionBlockLength: 4,
-			BlockSignature:         crypto.MustSignatureFromBase58("sV8beveiVKCiUn9BGZRgZj7V5tRRWPMRj1V9WWzKWnigtfQyZ2eErVXHi7vyGXj5hPuaxF9sGxowZr5XuD4UAwW"),
-		},
+		Parent:                 genesisId,
+		BaseTarget:             50,
+		TransactionBlockLength: 4,
+		BlockSignature: crypto.MustSignatureFromBase58(
+			"sV8beveiVKCiUn9BGZRgZj7V5tRRWPMRj1V9WWzKWnigtfQyZ2eErVXHi7vyGXj5hPuaxF9sGxowZr5XuD4UAwW",
+		),
 	}
 
 	mockState, err := NewMockStateManager(genesis, block1)
@@ -62,24 +54,20 @@ func TestApply_ValidBlockWithRollback(t *testing.T) {
 // Emulate new blocks have error, so we can't accept them, and rollbacked blocks apply again
 func TestApply_InvalidBlockWithRollback(t *testing.T) {
 	block1 := &proto.Block{
-		BlockHeader: proto.BlockHeader{
-			Parent: genesisId,
-			NxtConsensus: proto.NxtConsensus{
-				BaseTarget: 100,
-			},
-			TransactionBlockLength: 4,
-			BlockSignature:         crypto.MustSignatureFromBase58("5z4Ny16o9ED9PG8z4LDnAmPBaQcmDztAeU3Lbz1YBM6q4971BzN71aLX5hYdxK19fpCPkA4NAPcwjyWWD68SWb1F"),
-		},
+		Parent:                 genesisId,
+		BaseTarget:             100,
+		TransactionBlockLength: 4,
+		BlockSignature: crypto.MustSignatureFromBase58(
+			"5z4Ny16o9ED9PG8z4LDnAmPBaQcmDztAeU3Lbz1YBM6q4971BzN71aLX5hYdxK19fpCPkA4NAPcwjyWWD68SWb1F",
+		),
 	}
 	block2 := &proto.Block{
-		BlockHeader: proto.BlockHeader{
-			Parent: genesisId,
-			NxtConsensus: proto.NxtConsensus{
-				BaseTarget: 50,
-			},
-			TransactionBlockLength: 4,
-			BlockSignature:         crypto.MustSignatureFromBase58("sV8beveiVKCiUn9BGZRgZj7V5tRRWPMRj1V9WWzKWnigtfQyZ2eErVXHi7vyGXj5hPuaxF9sGxowZr5XuD4UAwW"),
-		},
+		Parent:                 genesisId,
+		BaseTarget:             50,
+		TransactionBlockLength: 4,
+		BlockSignature: crypto.MustSignatureFromBase58(
+			"sV8beveiVKCiUn9BGZRgZj7V5tRRWPMRj1V9WWzKWnigtfQyZ2eErVXHi7vyGXj5hPuaxF9sGxowZr5XuD4UAwW",
+		),
 	}
 
 	stateMock := state.NewMockState(t)

@@ -38,19 +38,15 @@ func defaultAssetInfoTransfer(tail [12]byte, reissuable bool,
 	amount int64, issuer crypto.PublicKey,
 	name string) *assetInfo {
 	return &assetInfo{
-		assetConstInfo: assetConstInfo{
-			Tail:     tail,
-			Issuer:   issuer,
-			Decimals: 2,
-			IsNFT:    false,
-		},
-		assetChangeableInfo: assetChangeableInfo{
-			quantity:                 *big.NewInt(amount),
-			name:                     name,
-			description:              "description",
-			lastNameDescChangeHeight: 1,
-			reissuable:               reissuable,
-		},
+		Tail:                     tail,
+		Issuer:                   issuer,
+		Decimals:                 2,
+		IsNFT:                    false,
+		quantity:                 *big.NewInt(amount),
+		name:                     name,
+		description:              "description",
+		lastNameDescChangeHeight: 1,
+		reissuable:               reissuable,
 	}
 }
 
@@ -1127,21 +1123,17 @@ func TestNoExtraStaticAssetInfoSnapshot(t *testing.T) {
 	assert.NoError(t, err)
 	assetID := proto.AssetIDFromDigest(asset)
 	err = to.state.stor.assets.issueAsset(assetID, &assetInfo{
-		assetConstInfo: assetConstInfo{
-			Tail:                 proto.DigestTail(asset),
-			Issuer:               testGlobal.recipientInfo.pk,
-			Decimals:             0,
-			IssueHeight:          0,
-			IsNFT:                false,
-			IssueSequenceInBlock: 1,
-		},
-		assetChangeableInfo: assetChangeableInfo{
-			quantity:                 *big.NewInt(10),
-			name:                     "asset",
-			description:              "",
-			lastNameDescChangeHeight: 0,
-			reissuable:               true,
-		},
+		Tail:                     proto.DigestTail(asset),
+		Issuer:                   testGlobal.recipientInfo.pk,
+		Decimals:                 0,
+		IssueHeight:              0,
+		IsNFT:                    false,
+		IssueSequenceInBlock:     1,
+		quantity:                 *big.NewInt(10),
+		name:                     "asset",
+		description:              "",
+		lastNameDescChangeHeight: 0,
+		reissuable:               true,
 	}, blockID0)
 	assert.NoError(t, err)
 
