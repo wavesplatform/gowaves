@@ -28,7 +28,7 @@ require (
 	github.com/mattn/go-isatty v0.0.24
 	github.com/minio/minlz v1.2.2
 	github.com/mr-tron/base58 v1.3.0
-	github.com/nats-io/nats-server/v2 v2.15.0
+	github.com/nats-io/nats-server/v2 v2.15.1
 	github.com/nats-io/nats.go v1.54.0
 	github.com/neilotoole/slogt v1.1.0
 	github.com/ory/dockertest/v3 v3.12.0
