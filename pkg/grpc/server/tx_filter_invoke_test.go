@@ -33,7 +33,7 @@ func TestTxFilterInvoke(t *testing.T) {
 	filterInvoke := newTxFilterInvoke(filter)
 	tx = &proto.InvokeScriptWithProofs{SenderPK: pk, ID: &id}
 	assert.Equal(t, true, filterInvoke.filter(tx))
-	tx = &proto.TransferWithSig{Transfer: proto.Transfer{SenderPK: pk}, ID: &id}
+	tx = &proto.TransferWithSig{SenderPK: pk, ID: &id}
 	assert.Equal(t, false, filterInvoke.filter(tx))
 	tx = &proto.InvokeScriptWithProofs{SenderPK: pk2, ID: &id}
 	assert.Equal(t, false, filterInvoke.filter(tx))

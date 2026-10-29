@@ -124,21 +124,17 @@ func TestPerformIssueWithSig(t *testing.T) {
 	assert.NoError(t, err, "performIssueWithSig() failed")
 	to.stor.flush(t)
 	expectedAssetInfo := assetInfo{
-		assetConstInfo: assetConstInfo{
-			Tail:                 proto.DigestTail(*tx.ID),
-			Issuer:               tx.SenderPK,
-			Decimals:             tx.Decimals,
-			IssueHeight:          1,
-			IsNFT:                false,
-			IssueSequenceInBlock: 1,
-		},
-		assetChangeableInfo: assetChangeableInfo{
-			quantity:                 *big.NewInt(int64(tx.Quantity)),
-			name:                     tx.Name,
-			description:              tx.Description,
-			lastNameDescChangeHeight: 1,
-			reissuable:               tx.Reissuable,
-		},
+		Tail:                     proto.DigestTail(*tx.ID),
+		Issuer:                   tx.SenderPK,
+		Decimals:                 tx.Decimals,
+		IssueHeight:              1,
+		IsNFT:                    false,
+		IssueSequenceInBlock:     1,
+		quantity:                 *big.NewInt(int64(tx.Quantity)),
+		name:                     tx.Name,
+		description:              tx.Description,
+		lastNameDescChangeHeight: 1,
+		reissuable:               tx.Reissuable,
 	}
 
 	// Check asset info.
@@ -157,21 +153,17 @@ func TestPerformIssueWithProofs(t *testing.T) {
 	assert.NoError(t, err, "performIssueWithProofs() failed")
 	to.stor.flush(t)
 	expectedAssetInfo := assetInfo{
-		assetConstInfo: assetConstInfo{
-			Tail:                 proto.DigestTail(*tx.ID),
-			Issuer:               tx.SenderPK,
-			Decimals:             tx.Decimals,
-			IssueHeight:          1,
-			IsNFT:                false,
-			IssueSequenceInBlock: 1,
-		},
-		assetChangeableInfo: assetChangeableInfo{
-			quantity:                 *big.NewInt(int64(tx.Quantity)),
-			name:                     tx.Name,
-			description:              tx.Description,
-			lastNameDescChangeHeight: 1,
-			reissuable:               tx.Reissuable,
-		},
+		Tail:                     proto.DigestTail(*tx.ID),
+		Issuer:                   tx.SenderPK,
+		Decimals:                 tx.Decimals,
+		IssueHeight:              1,
+		IsNFT:                    false,
+		IssueSequenceInBlock:     1,
+		quantity:                 *big.NewInt(int64(tx.Quantity)),
+		name:                     tx.Name,
+		description:              tx.Description,
+		lastNameDescChangeHeight: 1,
+		reissuable:               tx.Reissuable,
 	}
 
 	// Check asset info.

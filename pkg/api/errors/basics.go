@@ -94,12 +94,10 @@ func NewUnknownError(inner error) *UnknownError {
 
 func NewUnknownErrorWithMsg(message string, inner error) *UnknownError {
 	return &UnknownError{
-		genericError: genericError{
-			ID:       UnknownErrorID,
-			HttpCode: http.StatusInternalServerError,
-			Message:  message,
-		},
-		inner: inner,
+		ID:       UnknownErrorID,
+		HttpCode: http.StatusInternalServerError,
+		Message:  message,
+		inner:    inner,
 	}
 }
 
@@ -113,11 +111,9 @@ type WrongJsonError struct {
 
 func NewWrongJsonError(cause string, validationErrors []error) *WrongJsonError {
 	return &WrongJsonError{
-		genericError: genericError{
-			ID:       WrongJSONErrorID,
-			HttpCode: http.StatusBadRequest,
-			Message:  "failed to parse json message",
-		},
+		ID:               WrongJSONErrorID,
+		HttpCode:         http.StatusBadRequest,
+		Message:          "failed to parse json message",
 		Cause:            cause,
 		ValidationErrors: validationErrors,
 	}
@@ -150,12 +146,10 @@ func NewUnavailableError(inner error) *UnavailableError {
 
 func NewUnavailableErrorWithMsg(message string, inner error) *UnavailableError {
 	return &UnavailableError{
-		genericError: genericError{
-			ID:       ServiceUnavailableErrorID,
-			HttpCode: http.StatusServiceUnavailable,
-			Message:  message,
-		},
-		inner: inner,
+		ID:       ServiceUnavailableErrorID,
+		HttpCode: http.StatusServiceUnavailable,
+		Message:  message,
+		inner:    inner,
 	}
 }
 
@@ -186,12 +180,10 @@ func NewBadRequestError(inner error) *BadRequestError {
 
 func NewBadRequestErrorWithMsg(message string, inner error) *BadRequestError {
 	return &BadRequestError{
-		genericError: genericError{
-			ID:       BadRequestErrorID,
-			HttpCode: http.StatusBadRequest,
-			Message:  message,
-		},
-		inner: inner,
+		ID:       BadRequestErrorID,
+		HttpCode: http.StatusBadRequest,
+		Message:  message,
+		inner:    inner,
 	}
 }
 
@@ -222,11 +214,9 @@ func NewNotImplementedError(inner error) *NotImplementedError {
 
 func NewNotImplementedErrorWithMsg(message string, inner error) *NotImplementedError {
 	return &NotImplementedError{
-		genericError: genericError{
-			ID:       NotImplementedErrorID,
-			HttpCode: http.StatusNotImplemented,
-			Message:  message,
-		},
-		inner: inner,
+		ID:       NotImplementedErrorID,
+		HttpCode: http.StatusNotImplemented,
+		Message:  message,
+		inner:    inner,
 	}
 }

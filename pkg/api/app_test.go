@@ -10,9 +10,7 @@ import (
 
 func TestAppAuth(t *testing.T) {
 	cfg := &settings.BlockchainSettings{
-		FunctionalitySettings: settings.FunctionalitySettings{
-			GenerationPeriod: 0,
-		},
+		GenerationPeriod: 0,
 	}
 	app, _ := NewApp("apiKey", nil, services.Services{}, cfg)
 	require.Error(t, app.checkAuth("bla"))

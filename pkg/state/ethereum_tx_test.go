@@ -68,11 +68,9 @@ func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.Enr
 		assets:          newAssets,
 	}
 	blockchainSettings := &settings.BlockchainSettings{
-		FunctionalitySettings: settings.FunctionalitySettings{
-			CheckTempNegativeAfterTime:          1,
-			AllowLeasedBalanceTransferUntilTime: 1,
-			AddressSchemeCharacter:              scheme,
-		},
+		CheckTempNegativeAfterTime:          1,
+		AllowLeasedBalanceTransferUntilTime: 1,
+		AddressSchemeCharacter:              scheme,
 	}
 
 	snapshotApplier := newBlockSnapshotsApplier(

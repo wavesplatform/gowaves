@@ -70,11 +70,9 @@ func stateParams() StateParams {
 	s := DefaultStorageParams()
 	s.DbParams.BloomFilterStore = keyvalue.NoOpStore{}
 	return StateParams{
-		StorageParams: s,
-		ValidationParams: ValidationParams{
-			VerificationGoroutinesNum: runtime.NumCPU() * 2,
-			Time:                      ntptime.Stub{},
-		},
+		StorageParams:             s,
+		VerificationGoroutinesNum: runtime.NumCPU() * 2,
+		Time:                      ntptime.Stub{},
 	}
 }
 

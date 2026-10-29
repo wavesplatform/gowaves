@@ -540,19 +540,15 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 		case *proto.IssueScriptAction:
 			// Create asset's info.
 			ai := &assetInfo{
-				assetConstInfo: assetConstInfo{
-					Tail:        proto.DigestTail(a.ID),
-					Issuer:      senderPK,
-					Decimals:    uint8(a.Decimals),
-					IssueHeight: info.blockInfo.Height,
-				},
-				assetChangeableInfo: assetChangeableInfo{
-					quantity:                 *big.NewInt(a.Quantity),
-					name:                     a.Name,
-					description:              a.Description,
-					lastNameDescChangeHeight: info.blockInfo.Height,
-					reissuable:               a.Reissuable,
-				},
+				Tail:                     proto.DigestTail(a.ID),
+				Issuer:                   senderPK,
+				Decimals:                 uint8(a.Decimals), // #nosec G115: decimals are validated by action check.
+				IssueHeight:              info.blockInfo.Height,
+				quantity:                 *big.NewInt(a.Quantity),
+				name:                     a.Name,
+				description:              a.Description,
+				lastNameDescChangeHeight: info.blockInfo.Height,
+				reissuable:               a.Reissuable,
 			}
 			if nftErr := ai.initIsNFTFlag(ia.stor.features); nftErr != nil {
 				return proto.DAppError, info.failedChanges,

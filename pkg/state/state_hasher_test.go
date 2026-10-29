@@ -361,23 +361,19 @@ func TestScalaCompatibility(t *testing.T) {
 		base64.StdEncoding.EncodeToString(generatorsHasher.stateHashAt(bID).Bytes()))
 
 	sh := proto.StateHashV2{
-		BlockID: bID,
-		FieldsHashesV2: proto.FieldsHashesV2{
-			FieldsHashesV1: proto.FieldsHashesV1{
-				WavesBalanceHash:  wavesBalanceHasher.stateHashAt(bID),
-				AssetBalanceHash:  assetBalanceHasher.stateHashAt(bID),
-				DataEntryHash:     dataEntryHasher.stateHashAt(bID),
-				AccountScriptHash: accountScriptHasher.stateHashAt(bID),
-				AssetScriptHash:   assetScriptHasher.stateHashAt(bID),
-				LeaseBalanceHash:  leaseHasher.stateHashAt(bID),
-				LeaseStatusHash:   leaseStatusHasher.stateHashAt(bID),
-				SponsorshipHash:   sponsorshipHasher.stateHashAt(bID),
-				AliasesHash:       aliasHasher.stateHashAt(bID),
-			},
-			GeneratorsHash: generatorsHasher.stateHashAt(bID),
-			// EUKq8xDt8hyATpY6mmPev2bVjVmJAFQzXdTVyky34CEr
-			GeneratorsBalancesHash: crypto.MustFastHash(binary.BigEndian.AppendUint64(nil, 3000)),
-		},
+		BlockID:           bID,
+		WavesBalanceHash:  wavesBalanceHasher.stateHashAt(bID),
+		AssetBalanceHash:  assetBalanceHasher.stateHashAt(bID),
+		DataEntryHash:     dataEntryHasher.stateHashAt(bID),
+		AccountScriptHash: accountScriptHasher.stateHashAt(bID),
+		AssetScriptHash:   assetScriptHasher.stateHashAt(bID),
+		LeaseBalanceHash:  leaseHasher.stateHashAt(bID),
+		LeaseStatusHash:   leaseStatusHasher.stateHashAt(bID),
+		SponsorshipHash:   sponsorshipHasher.stateHashAt(bID),
+		AliasesHash:       aliasHasher.stateHashAt(bID),
+		GeneratorsHash:    generatorsHasher.stateHashAt(bID),
+		// EUKq8xDt8hyATpY6mmPev2bVjVmJAFQzXdTVyky34CEr
+		GeneratorsBalancesHash: crypto.MustFastHash(binary.BigEndian.AppendUint64(nil, 3000)),
 	}
 	prevHash := crypto.MustDigestFromBase58("46e2hSbVy6YNqx4GH2ZwJW66jMD6FgXzirAUHDD6mVGi")
 	err = sh.GenerateSumHash(prevHash.Bytes())

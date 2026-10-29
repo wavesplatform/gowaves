@@ -405,21 +405,17 @@ func makeDataTransactionObject(t *testing.T, sig, senderPublicKey string, keys, 
 
 func makeFullAssetInfo(digest crypto.Digest, pk crypto.PublicKey, address proto.WavesAddress, script []byte, tx proto.Transaction) rideType {
 	info := &proto.FullAssetInfo{
-		AssetInfo: proto.AssetInfo{
-			AssetConstInfo: proto.AssetConstInfo{
-				ID:          digest,
-				IssueHeight: 100500,
-				Issuer:      address,
-				Decimals:    2,
-			},
-			Quantity:        1,
-			IssuerPublicKey: pk,
-			Reissuable:      true,
-			Scripted:        true,
-			Sponsored:       true,
-		},
-		Name:        "name",
-		Description: "description",
+		ID:              digest,
+		IssueHeight:     100500,
+		Issuer:          address,
+		Decimals:        2,
+		Quantity:        1,
+		IssuerPublicKey: pk,
+		Reissuable:      true,
+		Scripted:        true,
+		Sponsored:       true,
+		Name:            "name",
+		Description:     "description",
 		ScriptInfo: proto.ScriptInfo{
 			Version:    3,
 			Bytes:      script,

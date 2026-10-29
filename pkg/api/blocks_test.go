@@ -15,18 +15,16 @@ import (
 
 func TestApp_BlocksFirst(t *testing.T) {
 	g := &proto.Block{
-		BlockHeader: proto.BlockHeader{
-			BlockSignature: crypto.MustSignatureFromBase58("5uqnLK3Z9eiot6FyYBfwUnbyid3abicQbAZjz38GQ1Q8XigQMxTK4C1zNkqS1SVw7FqSidbZKxWAKLVoEsp4nNqa"),
-		},
+		BlockSignature: crypto.MustSignatureFromBase58(
+			"5uqnLK3Z9eiot6FyYBfwUnbyid3abicQbAZjz38GQ1Q8XigQMxTK4C1zNkqS1SVw7FqSidbZKxWAKLVoEsp4nNqa",
+		),
 	}
 
 	s := state.NewMockState(t)
 	s.EXPECT().BlockByHeight(proto.Height(1)).Return(g, nil)
 
 	cfg := &settings.BlockchainSettings{
-		FunctionalitySettings: settings.FunctionalitySettings{
-			GenerationPeriod: 0,
-		},
+		GenerationPeriod: 0,
 	}
 	app, err := NewApp("api-key", nil, services.Services{State: s}, cfg)
 	require.NoError(t, err)
@@ -42,9 +40,7 @@ func TestApp_BlocksLast(t *testing.T) {
 	s.EXPECT().BlockByHeight(proto.Height(1)).Return(g, nil)
 
 	cfg := &settings.BlockchainSettings{
-		FunctionalitySettings: settings.FunctionalitySettings{
-			GenerationPeriod: 0,
-		},
+		GenerationPeriod: 0,
 	}
 	app, err := NewApp("api-key", nil, services.Services{State: s}, cfg)
 	require.NoError(t, err)

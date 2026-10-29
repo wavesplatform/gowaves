@@ -58,9 +58,7 @@ func TestSigFSM_Signatures(t *testing.T) {
 
 func block(sig crypto.Signature) *proto.Block {
 	return &proto.Block{
-		BlockHeader: proto.BlockHeader{
-			BlockSignature: sig,
-		},
+		BlockSignature: sig,
 	}
 }
 

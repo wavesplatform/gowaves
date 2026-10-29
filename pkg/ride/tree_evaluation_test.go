@@ -638,7 +638,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 		withAdditionalDApp(dApp2).withTree(dApp2, tree2).
 		withInvocation("cancel", withTransactionID(crypto.Digest{})).
 		withWavesBalance(sender, 10000).withWavesBalance(dApp1, 10000).withWavesBalance(dApp2, 0).
-		withAsset(&proto.FullAssetInfo{AssetInfo: proto.AssetInfo{AssetConstInfo: proto.AssetConstInfo{ID: aid}}}).
+		withAsset(&proto.FullAssetInfo{ID: aid}).
 		withAssetBalance(dApp2, aid, 0).
 		withWrappedState()
 
@@ -1934,7 +1934,7 @@ func TestInvokeDAppFromDAppSmartAssetValidation(t *testing.T) {
 		withWavesBalance(sender, 0).withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 0).
 		withAsset(
 			&proto.FullAssetInfo{
-				AssetInfo:  proto.AssetInfo{AssetConstInfo: proto.AssetConstInfo{ID: asset}, Reissuable: true},
+				ID: asset, Reissuable: true,
 				ScriptInfo: proto.ScriptInfo{Bytes: asb, Version: int32(ast.LibV5), Complexity: 7}},
 		).
 		withAssetBalance(dApp1, asset, 0).withAssetBalance(dApp2, asset, 10000).
@@ -3082,13 +3082,11 @@ func TestLigaDApp1(t *testing.T) {
 	}
 
 	team1AssetInfo := proto.AssetInfo{
-		AssetConstInfo: proto.AssetConstInfo{
-			ID: team1,
+		ID: team1,
 
-			IssueHeight: 100500,
-			Issuer:      dapp,
-			Decimals:    0,
-		},
+		IssueHeight:     100500,
+		Issuer:          dapp,
+		Decimals:        0,
 		Quantity:        1000,
 		IssuerPublicKey: pk,
 		Reissuable:      false,
@@ -3096,12 +3094,10 @@ func TestLigaDApp1(t *testing.T) {
 		Sponsored:       false,
 	}
 	team2AssetInfo := proto.AssetInfo{
-		AssetConstInfo: proto.AssetConstInfo{
-			ID:          team2,
-			Decimals:    0,
-			Issuer:      dapp,
-			IssueHeight: 100501,
-		},
+		ID:              team2,
+		Decimals:        0,
+		Issuer:          dapp,
+		IssueHeight:     100501,
 		IssuerPublicKey: pk,
 		Quantity:        1000,
 		Reissuable:      false,
@@ -3406,17 +3402,13 @@ func TestAssetInfoV3V4(t *testing.T) {
 	env := newTestEnv(t).withComplexityLimit(2000).withTree(issuer, treeV3).
 		withAsset(
 			&proto.FullAssetInfo{
-				AssetInfo: proto.AssetInfo{
-					AssetConstInfo: proto.AssetConstInfo{
-						ID:          assetID1,
-						IssueHeight: 100500,
-						Issuer:      issuer.address(),
-					},
-					IssuerPublicKey: issuer.publicKey(),
-					Quantity:        1000,
-				},
-				Name:        "ASSET1",
-				Description: "DESCRIPTION1",
+				ID:              assetID1,
+				IssueHeight:     100500,
+				Issuer:          issuer.address(),
+				IssuerPublicKey: issuer.publicKey(),
+				Quantity:        1000,
+				Name:            "ASSET1",
+				Description:     "DESCRIPTION1",
 			}).
 		withAssetBalance(issuer, assetID1, 1000)
 
@@ -3719,20 +3711,18 @@ func TestRecipientAddressToString(t *testing.T) {
 
 	id := crypto.MustDigestFromBase58("2RW5wedbBi9PTEM9Ao5s5Y7U25FD7PepujC2CS7Qeta1")
 	tx := &proto.TransferWithProofs{
-		Type:    proto.TransferTransaction,
-		Version: 3,
-		ID:      &id,
-		Proofs:  proto.NewProofs(),
-		Transfer: proto.Transfer{
-			SenderPK:    crypto.PublicKey{},
-			AmountAsset: proto.OptionalAsset{},
-			FeeAsset:    proto.OptionalAsset{},
-			Timestamp:   0,
-			Amount:      0,
-			Fee:         0,
-			Recipient:   proto.NewRecipientFromAddress(proto.MustAddressFromString("3N61Xs9cTetvoP1uZSrtuRxxJ4A4RCR7a4G")),
-			Attachment:  nil,
-		},
+		Type:        proto.TransferTransaction,
+		Version:     3,
+		ID:          &id,
+		Proofs:      proto.NewProofs(),
+		SenderPK:    crypto.PublicKey{},
+		AmountAsset: proto.OptionalAsset{},
+		FeeAsset:    proto.OptionalAsset{},
+		Timestamp:   0,
+		Amount:      0,
+		Fee:         0,
+		Recipient:   proto.NewRecipientFromAddress(proto.MustAddressFromString("3N61Xs9cTetvoP1uZSrtuRxxJ4A4RCR7a4G")),
+		Attachment:  nil,
 	}
 
 	env := newTestEnv(t).withScheme(proto.TestNetScheme).withLibVersion(tree.LibVersion).
@@ -3959,16 +3949,14 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 		withHeight(height).
 		withThis(dApp1).withSender(sender).withDApp(dApp1).withAdditionalDApp(dApp2).
 		withTree(dApp1, tree1).withTree(dApp2, tree2).
-		withAsset(&proto.FullAssetInfo{AssetInfo: proto.AssetInfo{
-			AssetConstInfo: proto.AssetConstInfo{
-				ID:          asset,
-				Decimals:    2,
-				IssueHeight: 100500,
-				Issuer:      issuer.address(),
-			},
+		withAsset(&proto.FullAssetInfo{
+			ID:              asset,
+			Decimals:        2,
+			IssueHeight:     100500,
+			Issuer:          issuer.address(),
 			Quantity:        1000000,
-			IssuerPublicKey: issuer.publicKey(),
-		}}).withAssetBalance(sender, asset, 0).withAssetBalance(dApp1, asset, 0).withAssetBalance(dApp2, asset, 0).
+			IssuerPublicKey: issuer.publicKey()}).
+		withAssetBalance(sender, asset, 0).withAssetBalance(dApp1, asset, 0).withAssetBalance(dApp2, asset, 0).
 		withInvocation("call", withTransactionID(txID)).
 		withWrappedState()
 
@@ -4117,11 +4105,10 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 		withInvocation("call", withTransactionID(crypto.Digest{})).
 		withTree(dApp1, tree1).withTree(dApp2, tree2).withTree(dApp3, tree3).
 		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 0).withWavesBalance(dApp3, 0).withWavesBalance(sender, 0).
-		withAsset(&proto.FullAssetInfo{AssetInfo: proto.AssetInfo{
-			AssetConstInfo:  proto.AssetConstInfo{ID: nft, Issuer: dApp1.address()},
+		withAsset(&proto.FullAssetInfo{
+			ID: nft, Issuer: dApp1.address(),
 			Quantity:        1,
-			IssuerPublicKey: dApp1.publicKey(),
-		}}).
+			IssuerPublicKey: dApp1.publicKey()}).
 		withAssetBalance(dApp1, nft, 0).withAssetBalance(dApp2, nft, 0).withAssetBalance(dApp3, nft, 0).withAssetBalance(sender, nft, 0).
 		withWrappedState()
 
@@ -4250,17 +4237,14 @@ func TestBurnAndFailOnTransferInInvokeAfterRideV6(t *testing.T) {
 		withInvocation("call").
 		withTree(dApp1, tree1).withTree(dApp2, tree2).
 		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 0).withWavesBalance(sender, 0).
-		withAsset(&proto.FullAssetInfo{AssetInfo: proto.AssetInfo{
-			AssetConstInfo: proto.AssetConstInfo{
-				ID:          asset,
-				Decimals:    2,
-				IssueHeight: 100500,
-				Issuer:      dApp1.address(),
-			},
+		withAsset(&proto.FullAssetInfo{
+			ID:              asset,
+			Decimals:        2,
+			IssueHeight:     100500,
+			Issuer:          dApp1.address(),
 			Quantity:        10,
 			IssuerPublicKey: dApp1.publicKey(),
-			Reissuable:      true,
-		}}).withAssetBalance(dApp1, asset, 1).withAssetBalance(dApp2, asset, 0).
+			Reissuable:      true}).withAssetBalance(dApp1, asset, 1).withAssetBalance(dApp2, asset, 0).
 		withWrappedState()
 
 	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
@@ -4314,16 +4298,13 @@ func TestReissueInInvoke(t *testing.T) {
 		withInvocation("call").
 		withTree(dApp1, tree1).withTree(dApp2, tree2).
 		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 1_00000000).withWavesBalance(sender, 0).
-		withAsset(&proto.FullAssetInfo{AssetInfo: proto.AssetInfo{
-			AssetConstInfo: proto.AssetConstInfo{
-				ID:          asset,
-				IssueHeight: 100500,
-				Issuer:      dApp2.address(),
-			},
+		withAsset(&proto.FullAssetInfo{
+			ID:              asset,
+			IssueHeight:     100500,
+			Issuer:          dApp2.address(),
 			IssuerPublicKey: dApp2.publicKey(),
 			Quantity:        10,
-			Reissuable:      true,
-		}}).withAssetBalance(dApp1, asset, 0).withAssetBalance(dApp2, asset, 0).
+			Reissuable:      true}).withAssetBalance(dApp1, asset, 0).withAssetBalance(dApp2, asset, 0).
 		withWrappedState()
 
 	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
@@ -5902,14 +5883,10 @@ func TestEvaluatorComplexityFailedPaymentsCheck(t *testing.T) {
 	assetID, err := crypto.NewDigestFromBase58("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
 	require.NoError(t, err)
 	asset := &proto.FullAssetInfo{
-		AssetInfo: proto.AssetInfo{
-			AssetConstInfo: proto.AssetConstInfo{
-				ID:       assetID,
-				Issuer:   sender.address(),
-				Decimals: 1,
-			},
-			Quantity: 100500,
-		},
+		ID:          assetID,
+		Issuer:      sender.address(),
+		Decimals:    1,
+		Quantity:    100500,
 		Name:        "a-test",
 		Description: "description a-test",
 	}

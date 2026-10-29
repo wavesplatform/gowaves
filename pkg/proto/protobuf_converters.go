@@ -1901,11 +1901,9 @@ func (c *ProtobufConverter) challengedHeader(pbCh *g.Block_Header_ChallengedHead
 		return nil
 	}
 	return &ChallengedHeader{
-		Timestamp: uint64(pbCh.Timestamp),
-		NxtConsensus: NxtConsensus{
-			GenSignature: pbCh.GenerationSignature,
-			BaseTarget:   c.uint64(pbCh.BaseTarget),
-		},
+		Timestamp:          uint64(pbCh.Timestamp), // #nosec G115: timestamp is validated elsewhere.
+		GenSignature:       pbCh.GenerationSignature,
+		BaseTarget:         c.uint64(pbCh.BaseTarget),
 		Features:           c.features(pbCh.FeatureVotes),
 		GeneratorPublicKey: c.publicKey(pbCh.Generator),
 		RewardVote:         pbCh.RewardVote,

@@ -83,9 +83,7 @@ func TestNodeApi_WavesRegularBalanceByAddress(t *testing.T) {
 	}
 
 	cfg := &settings.BlockchainSettings{
-		FunctionalitySettings: settings.FunctionalitySettings{
-			GenerationPeriod: 0,
-		},
+		GenerationPeriod: 0,
 	}
 
 	t.Run("success", func(t *testing.T) {
@@ -160,7 +158,7 @@ func TestNodeApi_TransactionSignCommitToGeneration(t *testing.T) {
 	w := newTestWallet(t)
 
 	cfg := &settings.BlockchainSettings{
-		FunctionalitySettings: settings.FunctionalitySettings{GenerationPeriod: 100},
+		GenerationPeriod: 100,
 	}
 
 	app, err := NewApp("", nil, services.Services{
@@ -267,9 +265,7 @@ func (failingReader) Read([]byte) (int, error) {
 func TestNodeApi_PeersBlackList(t *testing.T) {
 	t.Run("success ip:port", func(t *testing.T) {
 		cfg := &settings.BlockchainSettings{
-			FunctionalitySettings: settings.FunctionalitySettings{
-				GenerationPeriod: 0,
-			},
+			GenerationPeriod: 0,
 		}
 
 		peerManager := peers.NewMockPeerManager(t)
@@ -307,9 +303,7 @@ func TestNodeApi_PeersBlackList(t *testing.T) {
 
 	t.Run("success ip", func(t *testing.T) {
 		cfg := &settings.BlockchainSettings{
-			FunctionalitySettings: settings.FunctionalitySettings{
-				GenerationPeriod: 0,
-			},
+			GenerationPeriod: 0,
 		}
 
 		peerManager := peers.NewMockPeerManager(t)
@@ -345,9 +339,7 @@ func TestNodeApi_PeersBlackList(t *testing.T) {
 
 	t.Run("success ip:port with leading slash", func(t *testing.T) {
 		cfg := &settings.BlockchainSettings{
-			FunctionalitySettings: settings.FunctionalitySettings{
-				GenerationPeriod: 0,
-			},
+			GenerationPeriod: 0,
 		}
 
 		peerManager := peers.NewMockPeerManager(t)
@@ -387,9 +379,7 @@ func TestNodeApi_PeersBlackList(t *testing.T) {
 
 	t.Run("error reading body", func(t *testing.T) {
 		cfg := &settings.BlockchainSettings{
-			FunctionalitySettings: settings.FunctionalitySettings{
-				GenerationPeriod: 0,
-			},
+			GenerationPeriod: 0,
 		}
 
 		peerManager := peers.NewMockPeerManager(t)

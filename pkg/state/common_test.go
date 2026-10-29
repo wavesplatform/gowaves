@@ -339,18 +339,14 @@ func defaultNFT(tail [proto.AssetIDTailSize]byte) *assetInfo {
 
 func defaultAssetInfo(tail [12]byte, reissuable bool) *assetInfo {
 	return &assetInfo{
-		assetConstInfo: assetConstInfo{
-			Tail:     tail,
-			Issuer:   testGlobal.issuerInfo.pk,
-			Decimals: 2,
-		},
-		assetChangeableInfo: assetChangeableInfo{
-			quantity:                 *big.NewInt(10000000),
-			name:                     "asset",
-			description:              "description",
-			lastNameDescChangeHeight: 1,
-			reissuable:               reissuable,
-		},
+		Tail:                     tail,
+		Issuer:                   testGlobal.issuerInfo.pk,
+		Decimals:                 2,
+		quantity:                 *big.NewInt(10000000),
+		name:                     "asset",
+		description:              "description",
+		lastNameDescChangeHeight: 1,
+		reissuable:               reissuable,
 	}
 }
 
