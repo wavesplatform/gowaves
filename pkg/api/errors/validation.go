@@ -90,106 +90,78 @@ func (e StateCheckFailedError) MarshalJSON() ([]byte, error) {
 
 var (
 	InvalidSignature = &InvalidSignatureError{
-		genericError: genericError{
-			ID:       InvalidSignatureErrorID,
-			HttpCode: http.StatusBadRequest,
-			Message:  "invalid signature",
-		},
+		ID:       InvalidSignatureErrorID,
+		HttpCode: http.StatusBadRequest,
+		Message:  "invalid signature",
 	}
 	InvalidAddress = &InvalidAddressError{
-		genericError: genericError{
-			ID:       InvalidAddressErrorID,
-			HttpCode: http.StatusBadRequest,
-			Message:  "invalid address",
-		},
+		ID:       InvalidAddressErrorID,
+		HttpCode: http.StatusBadRequest,
+		Message:  "invalid address",
 	}
 	InvalidPublicKey = &InvalidPublicKeyError{
-		genericError: genericError{
-			ID:       InvalidPublicKeyErrorID,
-			HttpCode: http.StatusBadRequest,
-			Message:  "invalid public key",
-		},
+		ID:       InvalidPublicKeyErrorID,
+		HttpCode: http.StatusBadRequest,
+		Message:  "invalid public key",
 	}
 	InvalidMessage = &InvalidMessageError{
-		genericError: genericError{
-			ID:       InvalidMessageErrorID,
-			HttpCode: http.StatusBadRequest,
-			Message:  "invalid message",
-		},
+		ID:       InvalidMessageErrorID,
+		HttpCode: http.StatusBadRequest,
+		Message:  "invalid message",
 	}
 	InvalidName = &InvalidNameError{
-		genericError: genericError{
-			ID:       InvalidNameErrorID,
-			HttpCode: http.StatusBadRequest,
-			Message:  "invalid name",
-		},
+		ID:       InvalidNameErrorID,
+		HttpCode: http.StatusBadRequest,
+		Message:  "invalid name",
 	}
 	Overflow = &OverflowError{
-		genericError: genericError{
-			ID:       OverflowErrorID,
-			HttpCode: http.StatusBadRequest,
-			Message:  "overflow error",
-		},
+		ID:       OverflowErrorID,
+		HttpCode: http.StatusBadRequest,
+		Message:  "overflow error",
 	}
 	ToSelf = &ToSelfError{
-		genericError: genericError{
-			ID:       ToSelfErrorID,
-			HttpCode: http.StatusBadRequest,
-			Message:  "Transaction to yourself",
-		},
+		ID:       ToSelfErrorID,
+		HttpCode: http.StatusBadRequest,
+		Message:  "Transaction to yourself",
 	}
 	MissingSenderPrivateKey = &MissingSenderPrivateKeyError{
-		genericError: genericError{
-			ID:       MissingSenderPrivateKeyErrorID,
-			HttpCode: http.StatusBadRequest,
-			Message:  "no private key for sender address in wallet",
-		},
+		ID:       MissingSenderPrivateKeyErrorID,
+		HttpCode: http.StatusBadRequest,
+		Message:  "no private key for sender address in wallet",
 	}
 	BlockDoesNotExist = &BlockDoesNotExistError{
-		genericError: genericError{
-			ID:       BlockDoesNotExistErrorID,
-			HttpCode: http.StatusNotFound,
-			Message:  "block does not exist",
-		},
+		ID:       BlockDoesNotExistErrorID,
+		HttpCode: http.StatusNotFound,
+		Message:  "block does not exist",
 	}
 	DataKeyDoesNotExist = &DataKeyDoesNotExistError{
-		genericError: genericError{
-			ID:       DataKeyDoesNotExistErrorID,
-			HttpCode: http.StatusNotFound,
-			Message:  "no data for this key",
-		},
+		ID:       DataKeyDoesNotExistErrorID,
+		HttpCode: http.StatusNotFound,
+		Message:  "no data for this key",
 	}
 )
 
 func NewCustomValidationError(message string) *CustomValidationError {
 	return &CustomValidationError{
-		genericError: genericError{
-			ID:       CustomValidationErrorErrorID,
-			HttpCode: http.StatusBadRequest,
-			Message:  message,
-		},
+		ID:       CustomValidationErrorErrorID,
+		HttpCode: http.StatusBadRequest,
+		Message:  message,
 	}
 }
 
 func NewAliasDoesNotExistError(aliasFull string) *AliasDoesNotExistError {
 	return &AliasDoesNotExistError{
-		genericError: genericError{
-			ID:       AliasDoesNotExistErrorID,
-			HttpCode: http.StatusNotFound,
-			Message:  fmt.Sprintf("alias '%s' doesn't exist", aliasFull),
-		},
+		ID:       AliasDoesNotExistErrorID,
+		HttpCode: http.StatusNotFound,
+		Message:  fmt.Sprintf("alias '%s' doesn't exist", aliasFull),
 	}
 }
 
 func NewInvalidIDsError(ids []string) *InvalidIdsError {
 	return &InvalidIdsError{
-		validationError: validationError{
-			genericError: genericError{
-				ID:       InvalidIdsErrorID,
-				HttpCode: http.StatusBadRequest,
-				Message:  fmt.Sprintf("Request contains invalid IDs. %s", strings.Join(ids, ", ")),
-			},
-		},
-		IDs: ids,
+		ID:       InvalidIdsErrorID,
+		HttpCode: http.StatusBadRequest,
+		Message:  fmt.Sprintf("Request contains invalid IDs. %s", strings.Join(ids, ", ")),
+		IDs:      ids,
 	}
 }

@@ -80,12 +80,10 @@ func randomStateHashV1() StateHashV1 {
 
 func randomStateHashV2() StateHashV2 {
 	return StateHashV2{
-		BlockID: randomBlockID(),
-		SumHash: randomDigest(),
-		FieldsHashesV2: FieldsHashesV2{
-			FieldsHashesV1: randomFieldsHashesV1(),
-			GeneratorsHash: randomDigest(),
-		},
+		BlockID:        randomBlockID(),
+		SumHash:        randomDigest(),
+		FieldsHashesV1: randomFieldsHashesV1(),
+		GeneratorsHash: randomDigest(),
 	}
 }
 
@@ -94,18 +92,16 @@ func createStateHashV1() StateHashV1 {
 		BlockID: NewBlockIDFromSignature(crypto.MustSignatureFromBase58(
 			"2UwZrKyjx7Bs4RYkEk5SLCdtr9w6GR1EDbpS3TH9DGJKcxSCuQP4nivk4YPFpQTqWmoXXPPUiy6riF3JwhikbSQu",
 		)),
-		SumHash: crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6"),
-		FieldsHashesV1: FieldsHashesV1{
-			WavesBalanceHash:  crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ2RLn55UPzUDVgnh64EwYAU5iCj6z6"),
-			AssetBalanceHash:  crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ2RLn55UPzUDVgnh64EwYAU5iCj6z6"),
-			DataEntryHash:     crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ2RLn55UPzUDVgnh64EwYAU5iCj6z6"),
-			AccountScriptHash: crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ2RLn55UPzUDVgnh64EwYAU5iCj6z6"),
-			AssetScriptHash:   crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6"),
-			LeaseBalanceHash:  crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6"),
-			LeaseStatusHash:   crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6"),
-			SponsorshipHash:   crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6"),
-			AliasesHash:       crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ2RLn55UPzUDVgnh64EwYAU5iCj6z6"),
-		},
+		SumHash:           crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6"),
+		WavesBalanceHash:  crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ2RLn55UPzUDVgnh64EwYAU5iCj6z6"),
+		AssetBalanceHash:  crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ2RLn55UPzUDVgnh64EwYAU5iCj6z6"),
+		DataEntryHash:     crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ2RLn55UPzUDVgnh64EwYAU5iCj6z6"),
+		AccountScriptHash: crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ2RLn55UPzUDVgnh64EwYAU5iCj6z6"),
+		AssetScriptHash:   crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6"),
+		LeaseBalanceHash:  crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6"),
+		LeaseStatusHash:   crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6"),
+		SponsorshipHash:   crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6"),
+		AliasesHash:       crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ2RLn55UPzUDVgnh64EwYAU5iCj6z6"),
 	}
 }
 
@@ -237,22 +233,18 @@ func TestStateHashV2_GenerateSumHashScalaCompatibility(t *testing.T) {
 	TotalHash: KdA4trKip6EpfUSzca42sLVqqjuHishcHDQZeYDC1Mo
 	*/
 	sh := StateHashV2{
-		FieldsHashesV2: FieldsHashesV2{
-			FieldsHashesV1: FieldsHashesV1{
-				WavesBalanceHash:  crypto.MustDigestFromBase58("3PhZ3CqdvDR58QGE62gVJFm5pZ6Q5CMpSLWV3KxVkAT7"),
-				AssetBalanceHash:  crypto.MustDigestFromBase58("6CbFygrWrb31bRy3M9BrFry4DZoxN1FCCRBGk5vdwf4S"),
-				DataEntryHash:     crypto.MustDigestFromBase58("DcBnRPoAFXhM5nXKmEWTMPrMWhyceWt9FHypcJCJ6UKx"),
-				AccountScriptHash: crypto.MustDigestFromBase58("AMrxWar34wJdGWjDj2peT2c1itiPaPwY81hU32hyrB88"),
-				AssetScriptHash:   crypto.MustDigestFromBase58("H8V5TrNNmwCU1erqVXmQbLoi9b4kd5iJSpMmvJ7CXeyf"),
-				LeaseBalanceHash:  crypto.MustDigestFromBase58("59QG6ZmcCkLmNuuPLxp2ifNZcr4BzMCahtKQ5iqyM1kJ"),
-				LeaseStatusHash:   crypto.MustDigestFromBase58("AGLak7NRU4Q6dPWch4nsNbc7iBJMpPUy5agxUW55aLja"),
-				SponsorshipHash:   crypto.MustDigestFromBase58("3mYNS5c9pEJ6LbwSQh9eevfjDsZAU78KoHX6ct22qBK8"),
-				AliasesHash:       crypto.MustDigestFromBase58("46e2hSbVy6YNqx4GH2ZwJW66jMD6FgXzirAUHDD6mVGi"),
-			},
-			GeneratorsHash: crypto.MustDigestFromBase58("Gni1oXsHrtK8wSEuRDeZ9qpF8UpKj41HGEWaYSj9bCyC"),
-			// EUKq8xDt8hyATpY6mmPev2bVjVmJAFQzXdTVyky34CEr
-			GeneratorsBalancesHash: crypto.MustFastHash(binary.BigEndian.AppendUint64(nil, 3000)),
-		},
+		WavesBalanceHash:  crypto.MustDigestFromBase58("3PhZ3CqdvDR58QGE62gVJFm5pZ6Q5CMpSLWV3KxVkAT7"),
+		AssetBalanceHash:  crypto.MustDigestFromBase58("6CbFygrWrb31bRy3M9BrFry4DZoxN1FCCRBGk5vdwf4S"),
+		DataEntryHash:     crypto.MustDigestFromBase58("DcBnRPoAFXhM5nXKmEWTMPrMWhyceWt9FHypcJCJ6UKx"),
+		AccountScriptHash: crypto.MustDigestFromBase58("AMrxWar34wJdGWjDj2peT2c1itiPaPwY81hU32hyrB88"),
+		AssetScriptHash:   crypto.MustDigestFromBase58("H8V5TrNNmwCU1erqVXmQbLoi9b4kd5iJSpMmvJ7CXeyf"),
+		LeaseBalanceHash:  crypto.MustDigestFromBase58("59QG6ZmcCkLmNuuPLxp2ifNZcr4BzMCahtKQ5iqyM1kJ"),
+		LeaseStatusHash:   crypto.MustDigestFromBase58("AGLak7NRU4Q6dPWch4nsNbc7iBJMpPUy5agxUW55aLja"),
+		SponsorshipHash:   crypto.MustDigestFromBase58("3mYNS5c9pEJ6LbwSQh9eevfjDsZAU78KoHX6ct22qBK8"),
+		AliasesHash:       crypto.MustDigestFromBase58("46e2hSbVy6YNqx4GH2ZwJW66jMD6FgXzirAUHDD6mVGi"),
+		GeneratorsHash:    crypto.MustDigestFromBase58("Gni1oXsHrtK8wSEuRDeZ9qpF8UpKj41HGEWaYSj9bCyC"),
+		// EUKq8xDt8hyATpY6mmPev2bVjVmJAFQzXdTVyky34CEr
+		GeneratorsBalancesHash: crypto.MustFastHash(binary.BigEndian.AppendUint64(nil, 3000)),
 	}
 	prevHash := crypto.MustDigestFromBase58("46e2hSbVy6YNqx4GH2ZwJW66jMD6FgXzirAUHDD6mVGi")
 	correctSumHash := crypto.MustDigestFromBase58("KdA4trKip6EpfUSzca42sLVqqjuHishcHDQZeYDC1Mo")

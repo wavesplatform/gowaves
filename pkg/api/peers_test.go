@@ -21,9 +21,7 @@ import (
 
 func TestApp_PeersKnown(t *testing.T) {
 	cfg := &settings.BlockchainSettings{
-		FunctionalitySettings: settings.FunctionalitySettings{
-			GenerationPeriod: 0,
-		},
+		GenerationPeriod: 0,
 	}
 	peerManager := peers.NewMockPeerManager(t)
 	addr := proto.NewTCPAddr(net.ParseIP("127.0.0.1"), 6868).ToIpPort()
@@ -60,9 +58,7 @@ func TestApp_PeersBlackListed(t *testing.T) {
 
 	peerManager.EXPECT().BlackList().Return(testData)
 	cfg := &settings.BlockchainSettings{
-		FunctionalitySettings: settings.FunctionalitySettings{
-			GenerationPeriod: 0,
-		},
+		GenerationPeriod: 0,
 	}
 	app, err := NewApp("key", nil, services.Services{Peers: peerManager}, cfg)
 	require.NoError(t, err)
@@ -100,9 +96,7 @@ func TestApp_PeersAll(t *testing.T) {
 	})
 
 	cfg := &settings.BlockchainSettings{
-		FunctionalitySettings: settings.FunctionalitySettings{
-			GenerationPeriod: 0,
-		},
+		GenerationPeriod: 0,
 	}
 
 	app, err := NewApp("key", nil, services.Services{Peers: peerManager}, cfg)
@@ -141,9 +135,7 @@ func TestApp_PeersBlackList(t *testing.T) {
 		).Return()
 
 		cfg := &settings.BlockchainSettings{
-			FunctionalitySettings: settings.FunctionalitySettings{
-				GenerationPeriod: 0,
-			},
+			GenerationPeriod: 0,
 		}
 
 		app, err := NewApp("key", nil, services.Services{Peers: peerManager}, cfg)
@@ -159,9 +151,7 @@ func TestApp_PeersBlackList(t *testing.T) {
 			)
 			peerManager := peers.NewMockPeerManager(t)
 			cfg := &settings.BlockchainSettings{
-				FunctionalitySettings: settings.FunctionalitySettings{
-					GenerationPeriod: 0,
-				},
+				GenerationPeriod: 0,
 			}
 
 			app, err := NewApp("key", nil, services.Services{Peers: peerManager}, cfg)
@@ -199,9 +189,7 @@ func TestApp_PeersBlackList(t *testing.T) {
 		).Return()
 
 		cfg := &settings.BlockchainSettings{
-			FunctionalitySettings: settings.FunctionalitySettings{
-				GenerationPeriod: 0,
-			},
+			GenerationPeriod: 0,
 		}
 
 		app, err := NewApp("key", nil, services.Services{Peers: peerManager}, cfg)
@@ -214,9 +202,7 @@ func TestApp_PeersBlackList(t *testing.T) {
 		doTest := func(t *testing.T, addr string) {
 			peerManager := peers.NewMockPeerManager(t)
 			cfg := &settings.BlockchainSettings{
-				FunctionalitySettings: settings.FunctionalitySettings{
-					GenerationPeriod: 0,
-				},
+				GenerationPeriod: 0,
 			}
 
 			app, err := NewApp("key", nil, services.Services{Peers: peerManager}, cfg)

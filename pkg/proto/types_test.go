@@ -1711,23 +1711,21 @@ func TestEthereumOrderV4(t *testing.T) {
 		ethOrder := EthereumOrderV4{
 			SenderPK:        ethereumPublicKeyBase58Wrapper{inner: &testEthSenderPK},
 			Eip712Signature: testEthSig,
-			OrderV4: OrderV4{
-				PriceMode:       OrderPriceModeFixedDecimals,
-				Version:         4,
-				ID:              nil,
-				Proofs:          nil, // no proofs because order has Eip712Signature
-				MatcherFeeAsset: asset,
-				OrderBody: OrderBody{
-					SenderPK:   crypto.PublicKey{}, // empty because this is ethereum-signed order
-					MatcherPK:  wavesPKStub,
-					AssetPair:  AssetPair{AmountAsset: asset, PriceAsset: asset},
-					OrderType:  Buy,
-					Price:      1,
-					Amount:     1,
-					Timestamp:  123,
-					Expiration: 321,
-					MatcherFee: 1,
-				},
+			PriceMode:       OrderPriceModeFixedDecimals,
+			Version:         4,
+			ID:              nil,
+			Proofs:          nil, // no proofs because order has Eip712Signature
+			MatcherFeeAsset: asset,
+			OrderBody: OrderBody{
+				SenderPK:   crypto.PublicKey{}, // empty because this is ethereum-signed order
+				MatcherPK:  wavesPKStub,
+				AssetPair:  AssetPair{AmountAsset: asset, PriceAsset: asset},
+				OrderType:  Buy,
+				Price:      1,
+				Amount:     1,
+				Timestamp:  123,
+				Expiration: 321,
+				MatcherFee: 1,
 			},
 		}
 
@@ -2178,20 +2176,18 @@ func TestAttachmentInOrder(t *testing.T) {
 		Version:         4,
 		MatcherFeeAsset: OptionalAsset{},
 		PriceMode:       OrderPriceModeDefault,
-		OrderBody: OrderBody{
-			SenderPK:  pk,
-			MatcherPK: mpk,
-			AssetPair: AssetPair{
-				AmountAsset: *aa,
-				PriceAsset:  *pa,
-			},
-			OrderType:  Sell,
-			Price:      uint64(100),
-			Amount:     uint64(1000),
-			Timestamp:  ts,
-			Expiration: ts + 100*1000,
-			MatcherFee: uint64(10),
+		SenderPK:        pk,
+		MatcherPK:       mpk,
+		AssetPair: AssetPair{
+			AmountAsset: *aa,
+			PriceAsset:  *pa,
 		},
+		OrderType:  Sell,
+		Price:      uint64(100),
+		Amount:     uint64(1000),
+		Timestamp:  ts,
+		Expiration: ts + 100*1000,
+		MatcherFee: uint64(10),
 	}
 	for _, test := range []struct {
 		att  Attachment

@@ -462,19 +462,15 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(
 	blockHeight := info.blockHeight()
 	senderPK := tx.SenderPK
 	ai := assetInfo{
-		assetConstInfo: assetConstInfo{
-			Tail:        proto.DigestTail(assetID),
-			Issuer:      senderPK,
-			Decimals:    tx.Decimals,
-			IssueHeight: blockHeight,
-		},
-		assetChangeableInfo: assetChangeableInfo{
-			quantity:                 *big.NewInt(int64(tx.Quantity)),
-			name:                     tx.Name,
-			description:              tx.Description,
-			lastNameDescChangeHeight: blockHeight,
-			reissuable:               tx.Reissuable,
-		},
+		Tail:                     proto.DigestTail(assetID),
+		Issuer:                   senderPK,
+		Decimals:                 tx.Decimals,
+		IssueHeight:              blockHeight,
+		quantity:                 *big.NewInt(int64(tx.Quantity)), // #nosec G115: quantity is validated by tx check.
+		name:                     tx.Name,
+		description:              tx.Description,
+		lastNameDescChangeHeight: blockHeight,
+		reissuable:               tx.Reissuable,
 	}
 	if err := ai.initIsNFTFlag(sg.stor.features); err != nil {
 		return txSnapshot{}, errors.Wrapf(err, "failed to initialize NFT flag for issued asset %s", assetID.String())

@@ -268,16 +268,14 @@ type StorageParams struct {
 
 func DefaultStorageParams() StorageParams {
 	dbParams := keyvalue.KeyValParams{
-		CacheParams: keyvalue.CacheParams{CacheSize: DefaultCacheSize},
-		BloomFilterParams: keyvalue.BloomFilterParams{
-			BloomFilterCapacity:      DefaultBloomFilterSize,
-			FalsePositiveProbability: DefaultBloomFilterFalsePositiveProbability,
-			BloomFilterStore:         keyvalue.NewStore(""),
-		},
-		WriteBuffer:            DefaultWriteBuffer,
-		CompactionTableSize:    DefaultCompactionTableSize,
-		CompactionTotalSize:    DefaultCompactionTotalSize,
-		OpenFilesCacheCapacity: DefaultOpenFilesCacheCapacity,
+		CacheSize:                DefaultCacheSize,
+		BloomFilterCapacity:      DefaultBloomFilterSize,
+		FalsePositiveProbability: DefaultBloomFilterFalsePositiveProbability,
+		BloomFilterStore:         keyvalue.NewStore(""),
+		WriteBuffer:              DefaultWriteBuffer,
+		CompactionTableSize:      DefaultCompactionTableSize,
+		CompactionTotalSize:      DefaultCompactionTotalSize,
+		OpenFilesCacheCapacity:   DefaultOpenFilesCacheCapacity,
 	}
 	return StorageParams{
 		OffsetLen:       DefaultOffsetLen,
@@ -312,20 +310,16 @@ type StateParams struct {
 
 func DefaultStateParams() StateParams {
 	return StateParams{
-		StorageParams: DefaultStorageParams(),
-		ValidationParams: ValidationParams{
-			VerificationGoroutinesNum: runtime.NumCPU() * 2,
-			Time:                      ntptime.Stub{},
-		},
+		StorageParams:             DefaultStorageParams(),
+		VerificationGoroutinesNum: runtime.NumCPU() * 2,
+		Time:                      ntptime.Stub{},
 	}
 }
 
 func DefaultTestingStateParams() StateParams {
 	return StateParams{
-		StorageParams: DefaultTestingStorageParams(),
-		ValidationParams: ValidationParams{
-			VerificationGoroutinesNum: runtime.NumCPU() * 2,
-			Time:                      ntptime.Stub{},
-		},
+		StorageParams:             DefaultTestingStorageParams(),
+		VerificationGoroutinesNum: runtime.NumCPU() * 2,
+		Time:                      ntptime.Stub{},
 	}
 }

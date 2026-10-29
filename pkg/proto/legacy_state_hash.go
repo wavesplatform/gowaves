@@ -85,12 +85,10 @@ func NewLegacyStateHash(
 			return nil, fmt.Errorf("params for StateHashV2 are not set, but finality feature is activated")
 		}
 		return &StateHashV2{
-			BlockID: blockID,
-			FieldsHashesV2: FieldsHashesV2{
-				FieldsHashesV1:         fh,
-				GeneratorsHash:         p.v2Params.generatorsHash,
-				GeneratorsBalancesHash: p.v2Params.generatorsBalancesHash,
-			},
+			BlockID:                blockID,
+			FieldsHashesV1:         fh,
+			GeneratorsHash:         p.v2Params.generatorsHash,
+			GeneratorsBalancesHash: p.v2Params.generatorsBalancesHash,
 		}, nil
 	}
 	return &StateHashV1{
@@ -250,17 +248,15 @@ func (s *FieldsHashesV2) Equal(other FieldsHashesV2) bool {
 
 func (s FieldsHashesV2) MarshalJSON() ([]byte, error) {
 	return json.Marshal(fieldsHashesJSV2{
-		fieldsHashesJSV1: fieldsHashesJSV1{
-			WavesBalanceHash:  DigestWrapped(s.WavesBalanceHash),
-			AssetBalanceHash:  DigestWrapped(s.AssetBalanceHash),
-			DataEntryHash:     DigestWrapped(s.DataEntryHash),
-			AccountScriptHash: DigestWrapped(s.AccountScriptHash),
-			AssetScriptHash:   DigestWrapped(s.AssetScriptHash),
-			LeaseBalanceHash:  DigestWrapped(s.LeaseBalanceHash),
-			LeaseStatusHash:   DigestWrapped(s.LeaseStatusHash),
-			SponsorshipHash:   DigestWrapped(s.SponsorshipHash),
-			AliasesHash:       DigestWrapped(s.AliasesHash),
-		},
+		WavesBalanceHash:       DigestWrapped(s.WavesBalanceHash),
+		AssetBalanceHash:       DigestWrapped(s.AssetBalanceHash),
+		DataEntryHash:          DigestWrapped(s.DataEntryHash),
+		AccountScriptHash:      DigestWrapped(s.AccountScriptHash),
+		AssetScriptHash:        DigestWrapped(s.AssetScriptHash),
+		LeaseBalanceHash:       DigestWrapped(s.LeaseBalanceHash),
+		LeaseStatusHash:        DigestWrapped(s.LeaseStatusHash),
+		SponsorshipHash:        DigestWrapped(s.SponsorshipHash),
+		AliasesHash:            DigestWrapped(s.AliasesHash),
 		GeneratorsHash:         DigestWrapped(s.GeneratorsHash),
 		GeneratorsBalancesHash: DigestWrapped(s.GeneratorsBalancesHash),
 	})
@@ -407,19 +403,17 @@ func (s *StateHashV1) Equal(other StateHash) bool {
 
 func (s *StateHashV1) toStateHashJS() stateHashJSV1 {
 	return stateHashJSV1{
-		BlockID: s.BlockID,
-		SumHash: DigestWrapped(s.SumHash),
-		fieldsHashesJSV1: fieldsHashesJSV1{
-			WavesBalanceHash:  DigestWrapped(s.WavesBalanceHash),
-			AssetBalanceHash:  DigestWrapped(s.AssetBalanceHash),
-			DataEntryHash:     DigestWrapped(s.DataEntryHash),
-			AccountScriptHash: DigestWrapped(s.AccountScriptHash),
-			AssetScriptHash:   DigestWrapped(s.AssetScriptHash),
-			LeaseBalanceHash:  DigestWrapped(s.LeaseBalanceHash),
-			LeaseStatusHash:   DigestWrapped(s.LeaseStatusHash),
-			SponsorshipHash:   DigestWrapped(s.SponsorshipHash),
-			AliasesHash:       DigestWrapped(s.AliasesHash),
-		},
+		BlockID:           s.BlockID,
+		SumHash:           DigestWrapped(s.SumHash),
+		WavesBalanceHash:  DigestWrapped(s.WavesBalanceHash),
+		AssetBalanceHash:  DigestWrapped(s.AssetBalanceHash),
+		DataEntryHash:     DigestWrapped(s.DataEntryHash),
+		AccountScriptHash: DigestWrapped(s.AccountScriptHash),
+		AssetScriptHash:   DigestWrapped(s.AssetScriptHash),
+		LeaseBalanceHash:  DigestWrapped(s.LeaseBalanceHash),
+		LeaseStatusHash:   DigestWrapped(s.LeaseStatusHash),
+		SponsorshipHash:   DigestWrapped(s.SponsorshipHash),
+		AliasesHash:       DigestWrapped(s.AliasesHash),
 	}
 }
 
@@ -521,23 +515,19 @@ func (s *StateHashV2) UnmarshalBinary(data []byte) error {
 
 func (s *StateHashV2) toStateHashJS() stateHashJSV2 {
 	return stateHashJSV2{
-		BlockID: s.BlockID,
-		SumHash: DigestWrapped(s.SumHash),
-		fieldsHashesJSV2: fieldsHashesJSV2{
-			fieldsHashesJSV1: fieldsHashesJSV1{
-				WavesBalanceHash:  DigestWrapped(s.WavesBalanceHash),
-				AssetBalanceHash:  DigestWrapped(s.AssetBalanceHash),
-				DataEntryHash:     DigestWrapped(s.DataEntryHash),
-				AccountScriptHash: DigestWrapped(s.AccountScriptHash),
-				AssetScriptHash:   DigestWrapped(s.AssetScriptHash),
-				LeaseBalanceHash:  DigestWrapped(s.LeaseBalanceHash),
-				LeaseStatusHash:   DigestWrapped(s.LeaseStatusHash),
-				SponsorshipHash:   DigestWrapped(s.SponsorshipHash),
-				AliasesHash:       DigestWrapped(s.AliasesHash),
-			},
-			GeneratorsHash:         DigestWrapped(s.GeneratorsHash),
-			GeneratorsBalancesHash: DigestWrapped(s.GeneratorsBalancesHash),
-		},
+		BlockID:                s.BlockID,
+		SumHash:                DigestWrapped(s.SumHash),
+		WavesBalanceHash:       DigestWrapped(s.WavesBalanceHash),
+		AssetBalanceHash:       DigestWrapped(s.AssetBalanceHash),
+		DataEntryHash:          DigestWrapped(s.DataEntryHash),
+		AccountScriptHash:      DigestWrapped(s.AccountScriptHash),
+		AssetScriptHash:        DigestWrapped(s.AssetScriptHash),
+		LeaseBalanceHash:       DigestWrapped(s.LeaseBalanceHash),
+		LeaseStatusHash:        DigestWrapped(s.LeaseStatusHash),
+		SponsorshipHash:        DigestWrapped(s.SponsorshipHash),
+		AliasesHash:            DigestWrapped(s.AliasesHash),
+		GeneratorsHash:         DigestWrapped(s.GeneratorsHash),
+		GeneratorsBalancesHash: DigestWrapped(s.GeneratorsBalancesHash),
 	}
 }
 
@@ -592,19 +582,17 @@ func (s StateHashDebugV1) GetSnapshotHash() crypto.Digest {
 
 func (s StateHashDebugV1) GetStateHash() StateHash {
 	sh := &StateHashV1{
-		BlockID: s.BlockID,
-		SumHash: crypto.Digest(s.SumHash),
-		FieldsHashesV1: FieldsHashesV1{
-			WavesBalanceHash:  crypto.Digest(s.WavesBalanceHash),
-			AssetBalanceHash:  crypto.Digest(s.AssetBalanceHash),
-			DataEntryHash:     crypto.Digest(s.DataEntryHash),
-			AccountScriptHash: crypto.Digest(s.AccountScriptHash),
-			AssetScriptHash:   crypto.Digest(s.AssetScriptHash),
-			LeaseBalanceHash:  crypto.Digest(s.LeaseBalanceHash),
-			LeaseStatusHash:   crypto.Digest(s.LeaseStatusHash),
-			SponsorshipHash:   crypto.Digest(s.SponsorshipHash),
-			AliasesHash:       crypto.Digest(s.AliasesHash),
-		},
+		BlockID:           s.BlockID,
+		SumHash:           crypto.Digest(s.SumHash),
+		WavesBalanceHash:  crypto.Digest(s.WavesBalanceHash),
+		AssetBalanceHash:  crypto.Digest(s.AssetBalanceHash),
+		DataEntryHash:     crypto.Digest(s.DataEntryHash),
+		AccountScriptHash: crypto.Digest(s.AccountScriptHash),
+		AssetScriptHash:   crypto.Digest(s.AssetScriptHash),
+		LeaseBalanceHash:  crypto.Digest(s.LeaseBalanceHash),
+		LeaseStatusHash:   crypto.Digest(s.LeaseStatusHash),
+		SponsorshipHash:   crypto.Digest(s.SponsorshipHash),
+		AliasesHash:       crypto.Digest(s.AliasesHash),
 	}
 	return sh
 }
@@ -643,23 +631,19 @@ func (s StateHashDebugV2) GetSnapshotHash() crypto.Digest {
 
 func (s StateHashDebugV2) GetStateHash() StateHash {
 	sh := &StateHashV2{
-		BlockID: s.BlockID,
-		SumHash: crypto.Digest(s.SumHash),
-		FieldsHashesV2: FieldsHashesV2{
-			FieldsHashesV1: FieldsHashesV1{
-				WavesBalanceHash:  crypto.Digest(s.WavesBalanceHash),
-				AssetBalanceHash:  crypto.Digest(s.AssetBalanceHash),
-				DataEntryHash:     crypto.Digest(s.DataEntryHash),
-				AccountScriptHash: crypto.Digest(s.AccountScriptHash),
-				AssetScriptHash:   crypto.Digest(s.AssetScriptHash),
-				LeaseBalanceHash:  crypto.Digest(s.LeaseBalanceHash),
-				LeaseStatusHash:   crypto.Digest(s.LeaseStatusHash),
-				SponsorshipHash:   crypto.Digest(s.SponsorshipHash),
-				AliasesHash:       crypto.Digest(s.AliasesHash),
-			},
-			GeneratorsHash:         crypto.Digest(s.GeneratorsHash),
-			GeneratorsBalancesHash: crypto.Digest(s.GeneratorsBalancesHash),
-		},
+		BlockID:                s.BlockID,
+		SumHash:                crypto.Digest(s.SumHash),
+		WavesBalanceHash:       crypto.Digest(s.WavesBalanceHash),
+		AssetBalanceHash:       crypto.Digest(s.AssetBalanceHash),
+		DataEntryHash:          crypto.Digest(s.DataEntryHash),
+		AccountScriptHash:      crypto.Digest(s.AccountScriptHash),
+		AssetScriptHash:        crypto.Digest(s.AssetScriptHash),
+		LeaseBalanceHash:       crypto.Digest(s.LeaseBalanceHash),
+		LeaseStatusHash:        crypto.Digest(s.LeaseStatusHash),
+		SponsorshipHash:        crypto.Digest(s.SponsorshipHash),
+		AliasesHash:            crypto.Digest(s.AliasesHash),
+		GeneratorsHash:         crypto.Digest(s.GeneratorsHash),
+		GeneratorsBalancesHash: crypto.Digest(s.GeneratorsBalancesHash),
 	}
 	return sh
 }

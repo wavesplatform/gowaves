@@ -871,11 +871,7 @@ func TestTransferByID(t *testing.T) {
 				withWavesBalance(dApp1, 1_00000000).withWavesBalance(sender, 1_00000000).
 				withTransaction(testCase.tx).
 				withAsset(&proto.FullAssetInfo{
-					AssetInfo: proto.AssetInfo{
-						AssetConstInfo: proto.AssetConstInfo{
-							ID: txID,
-						},
-					},
+					ID: txID,
 				}).
 				withWrappedState()
 

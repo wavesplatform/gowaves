@@ -420,12 +420,10 @@ func (rw *blockReadWriter) writeTransactionToMemImpl(
 	status proto.TransactionStatus,
 ) {
 	info := &txInfoWithTx{
-		tx: tx,
-		txInfo: txInfo{
-			height:   rw.height + 1,
-			offset:   rw.blockchainLen,
-			txStatus: status,
-		},
+		tx:       tx,
+		height:   rw.height + 1,
+		offset:   rw.blockchainLen,
+		txStatus: status,
 	}
 	rw.rtx.appendTx(txID, info)
 }

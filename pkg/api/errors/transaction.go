@@ -48,74 +48,56 @@ type (
 
 var (
 	TransactionDoesNotExist = &TransactionDoesNotExistError{
-		genericError: genericError{
-			ID:       TransactionDoesNotExistErrorID,
-			HttpCode: http.StatusNotFound,
-			Message:  "transactions does not exist",
-		},
+		ID:       TransactionDoesNotExistErrorID,
+		HttpCode: http.StatusNotFound,
+		Message:  "transactions does not exist",
 	}
 	UnsupportedTransactionType = &UnsupportedTransactionTypeError{
-		genericError: genericError{
-			ID:       UnsupportedTransactionTypeErrorID,
-			HttpCode: http.StatusNotImplemented,
-			Message:  "transaction type not supported",
-		},
+		ID:       UnsupportedTransactionTypeErrorID,
+		HttpCode: http.StatusNotImplemented,
+		Message:  "transaction type not supported",
 	}
 	InvalidAssetId = &InvalidAssetIdError{
-		genericError: genericError{
-			ID:       InvalidAssetIdErrorID,
-			HttpCode: http.StatusBadRequest,
-			Message:  "Invalid asset id",
-		},
+		ID:       InvalidAssetIdErrorID,
+		HttpCode: http.StatusBadRequest,
+		Message:  "Invalid asset id",
 	}
 	AssetIdNotSpecified = &AssetIdNotSpecifiedError{
-		genericError: genericError{
-			ID:       AssetIdNotSpecifiedErrorID,
-			HttpCode: http.StatusBadRequest,
-			Message:  "Asset ID was not specified",
-		},
+		ID:       AssetIdNotSpecifiedErrorID,
+		HttpCode: http.StatusBadRequest,
+		Message:  "Asset ID was not specified",
 	}
 )
 
 func NewInvalidBlockIDError(message string) *InvalidBlockIdError {
 	return &InvalidBlockIdError{
-		genericError: genericError{
-			ID:       InvalidBlockIdErrorID,
-			HttpCode: http.StatusBadRequest,
-			Message:  message,
-		},
+		ID:       InvalidBlockIdErrorID,
+		HttpCode: http.StatusBadRequest,
+		Message:  message,
 	}
 }
 
 func NewInvalidTransactionIDError(message string) *InvalidTransactionIdError {
 	return &InvalidTransactionIdError{
-		genericError: genericError{
-			ID:       InvalidTransactionIdErrorID,
-			HttpCode: http.StatusBadRequest,
-			Message:  message,
-		},
+		ID:       InvalidTransactionIdErrorID,
+		HttpCode: http.StatusBadRequest,
+		Message:  message,
 	}
 }
 
 func NewAssetDoesNotExistError(digest crypto.Digest) *AssetDoesNotExistError {
 	return &AssetDoesNotExistError{
-		genericError: genericError{
-			ID:       AssetDoesNotExistErrorID,
-			HttpCode: http.StatusNotFound,
-			Message:  fmt.Sprintf("Asset does not exist: %s", digest.String()),
-		},
+		ID:       AssetDoesNotExistErrorID,
+		HttpCode: http.StatusNotFound,
+		Message:  fmt.Sprintf("Asset does not exist: %s", digest.String()),
 	}
 }
 
 func NewAssetsDoesNotExistError(ids []string) *AssetsDoesNotExistError {
 	return &AssetsDoesNotExistError{
-		transactionError: transactionError{
-			genericError: genericError{
-				ID:       AssetsDoesNotExistErrorID,
-				HttpCode: http.StatusNotFound,
-				Message:  fmt.Sprintf("Asset does not exist. %s", strings.Join(ids, ", ")),
-			},
-		},
-		IDs: ids,
+		ID:       AssetsDoesNotExistErrorID,
+		HttpCode: http.StatusNotFound,
+		Message:  fmt.Sprintf("Asset does not exist. %s", strings.Join(ids, ", ")),
+		IDs:      ids,
 	}
 }

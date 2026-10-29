@@ -39,11 +39,11 @@ func TestTxFilter(t *testing.T) {
 	assert.NoError(t, err)
 	tx = &proto.Payment{SenderPK: pk}
 	assert.Equal(t, true, filter.filter(tx))
-	tx = &proto.IssueWithSig{Issue: proto.Issue{SenderPK: pk}}
+	tx = &proto.IssueWithSig{SenderPK: pk}
 	assert.Equal(t, true, filter.filter(tx))
 	tx = &proto.Genesis{}
 	assert.Equal(t, false, filter.filter(tx))
-	tx = &proto.TransferWithSig{Transfer: proto.Transfer{SenderPK: pk2}}
+	tx = &proto.TransferWithSig{SenderPK: pk2}
 	assert.Equal(t, false, filter.filter(tx))
 
 	// Test sender and recipient.
@@ -53,11 +53,11 @@ func TestTxFilter(t *testing.T) {
 	}
 	filter, err = newTxFilter(scheme, req)
 	assert.NoError(t, err)
-	tx = &proto.TransferWithSig{Transfer: proto.Transfer{SenderPK: pk, Recipient: rcp2}}
+	tx = &proto.TransferWithSig{SenderPK: pk, Recipient: rcp2}
 	assert.Equal(t, true, filter.filter(tx))
-	tx = &proto.TransferWithSig{Transfer: proto.Transfer{SenderPK: pk, Recipient: rcp}}
+	tx = &proto.TransferWithSig{SenderPK: pk, Recipient: rcp}
 	assert.Equal(t, false, filter.filter(tx))
-	tx = &proto.TransferWithSig{Transfer: proto.Transfer{SenderPK: pk2, Recipient: rcp2}}
+	tx = &proto.TransferWithSig{SenderPK: pk2, Recipient: rcp2}
 	assert.Equal(t, false, filter.filter(tx))
 
 	// Test sender, recipient and IDs.
@@ -72,12 +72,12 @@ func TestTxFilter(t *testing.T) {
 	}
 	filter, err = newTxFilter(scheme, req)
 	assert.NoError(t, err)
-	tx = &proto.TransferWithSig{Transfer: proto.Transfer{SenderPK: pk, Recipient: rcp}, ID: &id}
+	tx = &proto.TransferWithSig{SenderPK: pk, Recipient: rcp, ID: &id}
 	assert.Equal(t, true, filter.filter(tx))
-	tx = &proto.TransferWithSig{Transfer: proto.Transfer{SenderPK: pk2, Recipient: rcp}, ID: &id}
+	tx = &proto.TransferWithSig{SenderPK: pk2, Recipient: rcp, ID: &id}
 	assert.Equal(t, false, filter.filter(tx))
-	tx = &proto.TransferWithSig{Transfer: proto.Transfer{SenderPK: pk, Recipient: rcp2}, ID: &id}
+	tx = &proto.TransferWithSig{SenderPK: pk, Recipient: rcp2, ID: &id}
 	assert.Equal(t, false, filter.filter(tx))
-	tx = &proto.TransferWithSig{Transfer: proto.Transfer{SenderPK: pk, Recipient: rcp}, ID: &id2}
+	tx = &proto.TransferWithSig{SenderPK: pk, Recipient: rcp, ID: &id2}
 	assert.Equal(t, false, filter.filter(tx))
 }
