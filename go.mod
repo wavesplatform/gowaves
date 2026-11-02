@@ -130,3 +130,5 @@ require (
 	golang.org/x/time v0.16.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260921155816-b14227669459 // indirect
 )
+
+exclude github.com/consensys/gnark-solidity-checker v0.2.0
