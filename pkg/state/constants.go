@@ -25,7 +25,9 @@ const (
 
 	// StateVersion is current version of state internal storage formats.
 	// It increases when backward compatibility with previous storage version is lost.
-	StateVersion = 26
+	// Version 27 changes the formats of Waves and asset balances records and the order of fields hashes of legacy
+	// state hashes, see MigrateStateFromV26.
+	StateVersion = 27
 
 	// Memory limit for address transactions. flush() is called when this
 	// limit is exceeded.

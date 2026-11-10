@@ -1871,6 +1871,12 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 			return ubrErr
 		}
 	}
+	// The activation must be done before the reset of the block reward below, which happens at the activation height.
+	if paErr := activateFeaturesAtSponsoredInvokeFeeFixHeight(
+		s.stor.features, s.settings.SponsoredInvokeFeeFixHeight, blockchainHeight+1, lastBlock,
+	); paErr != nil {
+		return paErr
+	}
 	// The reset of the block reward must be done after the update of the block reward above, this way it
 	// overrides the reward change produced by the voting at the same height.
 	if rbrErr := resetBlockRewardOnAdjustedDistributionActivation(
@@ -1891,6 +1897,46 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 			"blockID", nextBlock.String())
 		if drErr := s.resetDeposits(nextBlock, blockchainHeight); drErr != nil {
 			return drErr
+		}
+	}
+	return nil
+}
+
+// featuresActivatedAtSponsoredInvokeFeeFixHeight returns features activated unconditionally at the sponsored invoke
+// fee fix height.
+func featuresActivatedAtSponsoredInvokeFeeFixHeight() []settings.Feature {
+	return []settings.Feature{settings.AdjustedBlockRewardDistribution}
+}
+
+// activateFeaturesAtSponsoredInvokeFeeFixHeight approves and activates features at the sponsored invoke fee fix
+// height regardless of the voting. Already activated features are skipped, already approved features keep
+// their approval height. Like the activation by voting, the records are stored with the ID of the last applied block.
+func activateFeaturesAtSponsoredInvokeFeeFixHeight(
+	feat featuresState, fixHeight, height proto.Height, lastBlockID proto.BlockID,
+) error {
+	if fixHeight == 0 || height != fixHeight { // one time action, only at the fix height
+		return nil
+	}
+	for _, f := range featuresActivatedAtSponsoredInvokeFeeFixHeight() {
+		featureID := int16(f)
+		activated, err := feat.newestIsActivated(featureID)
+		if err != nil {
+			return errors.Wrapf(err, "failed to check activation of feature %d", featureID)
+		}
+		if activated {
+			continue
+		}
+		approved, err := feat.newestIsApproved(featureID)
+		if err != nil {
+			return errors.Wrapf(err, "failed to check approval of feature %d", featureID)
+		}
+		if !approved {
+			if apErr := feat.approveFeature(featureID, &approvedFeaturesRecord{height}, lastBlockID); apErr != nil {
+				return errors.Wrapf(apErr, "failed to approve feature %d", featureID)
+			}
+		}
+		if acErr := feat.activateFeature(featureID, &activatedFeaturesRecord{height}, lastBlockID); acErr != nil {
+			return errors.Wrapf(acErr, "failed to activate feature %d", featureID)
 		}
 	}
 	return nil
