@@ -38,7 +38,7 @@ require (
 	github.com/prometheus/client_golang v1.25.0
 	github.com/qmuntal/stateless v1.8.0
 	github.com/semrush/zenrpc/v2 v2.1.1
-	github.com/spf13/pflag v1.0.10
+	github.com/spf13/pflag v1.1.0
 	github.com/steakknife/bloomfilter v0.0.0-20180922174646-6819c0d2a570
 	github.com/stoewer/go-strcase v1.3.1
 	github.com/stretchr/testify v1.12.1
