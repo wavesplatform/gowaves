@@ -3,6 +3,7 @@ package crypto
 import (
 	"crypto/rand"
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/mr-tron/base58"
@@ -108,8 +109,47 @@ func TestMerkleTreeRebuildRoot(t *testing.T) {
 		}
 		tree, err := NewMerkleTree()
 		require.NoError(t, err)
-		root := tree.RebuildRoot(l, pfs, test.index)
+		root, err := tree.RebuildRoot(l, pfs, test.index)
+		require.NoError(t, err)
 		assert.Equal(t, r, root, fmt.Sprintf("#%d", i+1))
+	}
+}
+
+func TestMerkleTreeRebuildRootIndexOutOfRange(t *testing.T) {
+	tree, err := NewMerkleTree()
+	require.NoError(t, err)
+	leaf := MustFastHash([]byte("leaf"))
+	proofs := func(n int) []Digest {
+		r := make([]Digest, n)
+		for i := range r {
+			r[i] = MustFastHash([]byte{byte(i)})
+		}
+		return r
+	}
+	for i, test := range []struct {
+		proofs int
+		index  uint64
+		valid  bool
+	}{
+		{0, 0, true},
+		{0, 1, false},
+		{1, 1, true},
+		{1, 2, false},
+		{2, 3, true},
+		{2, 4, false},
+		{2, 5, false},
+		{2, math.MaxUint64, false},
+		{16, 1<<16 - 1, true},
+		{16, 1 << 16, false},
+		{64, math.MaxUint64, true},
+		{65, math.MaxUint64, true},
+	} {
+		_, err = tree.RebuildRoot(leaf, proofs(test.proofs), test.index)
+		if test.valid {
+			assert.NoError(t, err, fmt.Sprintf("#%d", i+1))
+		} else {
+			assert.Error(t, err, fmt.Sprintf("#%d", i+1))
+		}
 	}
 }
 

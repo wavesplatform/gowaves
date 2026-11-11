@@ -65,7 +65,15 @@ func (t *MerkleTree) Root() Digest {
 	}
 }
 
-func (t *MerkleTree) RebuildRoot(leaf Digest, proofsRootToLeafsOrder []Digest, index uint64) Digest {
+// RebuildRoot recalculates the Merkle root hash from the leaf hash, the proofs and the leaf index.
+// Bits of the index, starting from the least significant one, select the side of the node at each level
+// from leafs to root. The index must address a leaf of the tree defined by the proofs,
+// i.e. 0 <= index < 2^len(proofs), otherwise different indices would produce the same root.
+func (t *MerkleTree) RebuildRoot(leaf Digest, proofsRootToLeafsOrder []Digest, index uint64) (Digest, error) {
+	if index>>len(proofsRootToLeafsOrder) != 0 {
+		return Digest{}, errors.Errorf("index %d is out of range for the tree of height %d",
+			index, len(proofsRootToLeafsOrder))
+	}
 	digest := leaf
 	for _, p := range slices.Backward(proofsRootToLeafsOrder) { // Iterate from leafs to root, i.e. in reverse order
 		if index%2 == 0 { // Left
@@ -75,7 +83,7 @@ func (t *MerkleTree) RebuildRoot(leaf Digest, proofsRootToLeafsOrder []Digest, i
 		}
 		index = index / 2
 	}
-	return digest
+	return digest, nil
 }
 
 func (t *MerkleTree) leafDigest(data []byte) Digest {
