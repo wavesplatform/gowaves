@@ -82,6 +82,18 @@ func newFeeDistribution() feeDistribution {
 	return feeDistribution{assetsFeeDistribution: newAssetsFeeDistribution()}
 }
 
+// add appends fees from the other distribution to this one.
+func (distr *feeDistribution) add(other *feeDistribution) {
+	distr.totalWavesFees += other.totalWavesFees
+	distr.currentWavesBlockFees += other.currentWavesBlockFees
+	for asset, fee := range other.totalFees {
+		distr.totalFees[asset] += fee
+	}
+	for asset, fee := range other.currentBlockFees {
+		distr.currentBlockFees[asset] += fee
+	}
+}
+
 func (distr *feeDistribution) marshalBinary() []byte {
 	totalFeesBytes := distr.totalFees.marshalBinary()
 	currentBlockFeesBytes := distr.currentBlockFees.marshalBinary()

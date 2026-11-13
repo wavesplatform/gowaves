@@ -141,6 +141,8 @@ const (
 	finalizationKeyPrefix
 	// Key to address the set of generators.
 	generatorsKeyPrefix
+	// Key to store the progress of the state storage migration.
+	migrationProgressKeyPrefix
 )
 
 var (

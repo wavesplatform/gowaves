@@ -204,6 +204,19 @@ build-rollback-windows:
 
 release-rollback: ver build-rollback-linux build-rollback-darwin-amd64 build-rollback-darwin-arm64 build-rollback-windows
 
+build-migrate-native:
+	@go build -o build/bin/native/migrate -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/migrate
+build-migrate-linux:
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/migrate -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/migrate
+build-migrate-darwin-amd64:
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/migrate -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/migrate
+build-migrate-darwin-arm64:
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o build/bin/darwin-arm64/migrate -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/migrate
+build-migrate-windows:
+	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/migrate.exe -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/migrate
+
+release-migrate: ver build-migrate-linux build-migrate-darwin-amd64 build-migrate-darwin-arm64 build-migrate-windows
+
 build-compiler-native:
 	@go build -o build/bin/native/compiler ./cmd/compiler
 build-compiler-linux:
@@ -279,7 +292,7 @@ dist-commit: release-commit
 
 dist: clean dist-chaincmp dist-importer dist-node dist-wallet dist-compiler dist-convert dist-commit
 
-build: vendor ver build-chaincmp-native build-blockcmp-native build-node-native build-importer-native build-wallet-native build-rollback-native build-compiler-native build-statehash-native build-convert-native
+build: vendor ver build-chaincmp-native build-blockcmp-native build-node-native build-importer-native build-wallet-native build-rollback-native build-migrate-native build-compiler-native build-statehash-native build-convert-native
 
 mock:
 	mockery
