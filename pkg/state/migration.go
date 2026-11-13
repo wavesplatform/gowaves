@@ -44,7 +44,8 @@ func stateMigrations() []stateMigration {
 }
 
 // migrationStep converts all records with the given key prefix. The convert function returns data unchanged
-// if the record is already of the new format, such records are not rewritten.
+// if the record is already of the new format, such records are not rewritten. The record is removed if the convert
+// function returns nil data without an error.
 type migrationStep struct {
 	name    string
 	prefix  byte
@@ -82,7 +83,9 @@ func MigrateState(dataDir string, params keyvalue.KeyValParams) (err error) {
 		return errors.Wrap(sErr, "failed to find state database")
 	}
 	params.CompressionAlgo = metaInfo.DBCompressionAlgo
-	params.DisableBloomFilter = true // the bloom filter is not used by migrations
+	// The bloom filter is not used by migrations, the no-op store prevents overwriting of the stored filter on close.
+	params.DisableBloomFilter = true
+	params.BloomFilterStore = keyvalue.NoOpStore{}
 	db, err := keyvalue.NewKeyVal(dbDir, params)
 	if err != nil {
 		return errors.Wrap(err, "failed to open state database")
@@ -191,7 +194,7 @@ func convertRecordsByPrefix(
 	if err != nil {
 		return err
 	}
-	var converted, kept, inBatch int
+	var converted, removed, kept, inBatch int
 	for iter.Next() {
 		key := keyvalue.SafeKey(iter)
 		if startAfter != nil && bytes.Compare(key, startAfter) <= 0 {
@@ -201,12 +204,17 @@ func convertRecordsByPrefix(
 		if cErr != nil {
 			return errors.Wrapf(cErr, "failed to convert record by key %x", key)
 		}
-		if bytes.Equal(value, iter.Value()) {
+		switch {
+		case value == nil:
+			batch.Delete(key)
+			removed++
+		case bytes.Equal(value, iter.Value()):
 			kept++ // the record is already of the new format
 			continue
+		default:
+			batch.Put(key, value)
+			converted++
 		}
-		batch.Put(key, value)
-		converted++
 		inBatch++
 		if inBatch == migrationBatchSize {
 			p := migrationProgress{Version: version, Step: stepIndex, LastKey: key}
@@ -224,7 +232,8 @@ func convertRecordsByPrefix(
 	if fErr := flushWithProgress(db, batch, migrationProgress{Version: version, Step: stepIndex + 1}); fErr != nil {
 		return fErr
 	}
-	slog.Info("Migration step completed", "step", step.name, "converted", converted, "kept", kept)
+	slog.Info("Migration step completed", "step", step.name, "converted", converted, "removed", removed,
+		"kept", kept)
 	return nil
 }
 
@@ -272,28 +281,4 @@ func readStateInfoFromDB(db *keyvalue.KeyVal) (stateInfo, error) {
 		return stateInfo{}, errors.Wrap(umErr, "failed to unmarshal state info")
 	}
 	return info, nil
-}
-
-func readDBMeta(dataDir string) (stateInfo, error) {
-	data, err := os.ReadFile(filepath.Join(filepath.Clean(dataDir), dbMetaFileName))
-	if err != nil {
-		return stateInfo{}, errors.Wrap(err, "failed to read DB meta file")
-	}
-	var info stateInfo
-	if umErr := info.unmarshalBinary(data); umErr != nil {
-		return stateInfo{}, errors.Wrap(umErr, "failed to unmarshal DB meta file")
-	}
-	return info, nil
-}
-
-func writeDBMeta(dataDir string, info stateInfo) error {
-	data, err := info.marshalBinary()
-	if err != nil {
-		return errors.Wrap(err, "failed to marshal DB meta")
-	}
-	const metaFileMode = 0600
-	if wErr := os.WriteFile(filepath.Join(filepath.Clean(dataDir), dbMetaFileName), data, metaFileMode); wErr != nil {
-		return errors.Wrap(wErr, "failed to write DB meta file")
-	}
-	return nil
 }

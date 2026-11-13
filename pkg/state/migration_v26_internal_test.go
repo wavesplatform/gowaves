@@ -2,6 +2,8 @@ package state
 
 import (
 	"encoding/binary"
+	"encoding/hex"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -111,6 +113,9 @@ func v27BalanceHistory(t *testing.T, entity blockchainEntity, records ...interfa
 // height is StateHashV2.
 const v26LegacyHeights = 6
 
+// v26ValidBlocks is the number of valid blocks in the test state, blocks with greater numbers are rolled back.
+const v26ValidBlocks = 3
+
 type v26TestState struct {
 	dataDir      string
 	wavesKeys    [][]byte
@@ -179,6 +184,10 @@ func createV26TestState(t *testing.T) *v26TestState {
 	ts.hashV2, err = shV2.MarshalBinary()
 	require.NoError(t, err)
 	batch.Put((&legacyStateHashKey{height: v26LegacyHeights}).bytes(), legacyStateHashHistory(t, ts.hashV2))
+	// Valid blocks, the legacy state hashes histories refer to the first block.
+	for blockNum := uint32(1); blockNum <= v26ValidBlocks; blockNum++ {
+		batch.Put((&validBlockNumKey{blockNum: blockNum}).bytes(), void)
+	}
 	// State info.
 	info := stateInfo{Version: stateVersionV26, HasStateHashes: true}
 	infoBytes, err := info.marshalBinary()
@@ -328,5 +337,93 @@ func TestMigrateStateFromV26UnsupportedVersion(t *testing.T) {
 	require.NoError(t, writeDBMeta(dataDir, stateInfo{Version: 25}))
 	require.Error(t, MigrateState(dataDir, defaultTestKeyValParams()))
 	_, err := os.Stat(filepath.Join(dataDir, keyvalueDir))
-	assert.True(t, os.IsNotExist(err), "database must not be created")
+	assert.ErrorIs(t, err, fs.ErrNotExist, "database must not be created")
+}
+
+func TestConvertV26BalanceHistoryAmbiguous(t *testing.T) {
+	// The history of balance 37060876330 at block 1 in the format of version 26 is also the valid history of
+	// balance 42 at block 1 in the format of version 27.
+	data, err := hex.DecodeString("0600000008a100182a00000001")
+	require.NoError(t, err)
+	v26 := v26AssetBalanceHistory(v26TestBalance{balance: 37060876330, blockNum: 1})
+	require.Equal(t, v26, data)
+	v27 := v27BalanceHistory(t, assetBalance, &assetBalanceRecord{Balance: 42})
+	require.Equal(t, v27, data)
+
+	_, err = convertV26AssetBalanceHistory(data)
+	require.ErrorContains(t, err, "ambiguous history")
+}
+
+func TestConvertV26BalanceHistoryNotIncreasingBlockNums(t *testing.T) {
+	data := v26AssetBalanceHistory(v26TestBalance{balance: 1, blockNum: 2}, v26TestBalance{balance: 2, blockNum: 2})
+	_, err := convertV26AssetBalanceHistory(data)
+	require.ErrorContains(t, err, "not increasing")
+}
+
+func TestMigrateStateFromV26AmbiguousBalanceHistory(t *testing.T) {
+	ts := createV26TestState(t)
+	db, err := keyvalue.NewKeyVal(filepath.Join(ts.dataDir, keyvalueDir), defaultTestKeyValParams())
+	require.NoError(t, err)
+	batch, err := db.NewBatch()
+	require.NoError(t, err)
+	key := (&assetBalanceKey{address: proto.AddressID{3}, asset: proto.AssetID{4}}).bytes()
+	batch.Put(key, v26AssetBalanceHistory(v26TestBalance{balance: 37060876330, blockNum: 1}))
+	require.NoError(t, db.Flush(batch))
+	require.NoError(t, db.Close())
+
+	err = MigrateState(ts.dataDir, defaultTestKeyValParams())
+	require.ErrorContains(t, err, "ambiguous history")
+	info, err := readDBMeta(ts.dataDir)
+	require.NoError(t, err)
+	assert.Equal(t, uint16(stateVersionV26), info.Version)
+}
+
+func TestMigrateStateFromV26OrphanLegacyStateHashes(t *testing.T) {
+	ts := createV26TestState(t)
+	db, err := keyvalue.NewKeyVal(filepath.Join(ts.dataDir, keyvalueDir), defaultTestKeyValParams())
+	require.NoError(t, err)
+	batch, err := db.NewBatch()
+	require.NoError(t, err)
+	// The hash of the rolled back block at the height after the last one, its previous SumHash is unknown.
+	orphan := testLegacyStateHash(t, 0xa0, testDigest(0xaa).Bytes())
+	orphanKey := (&legacyStateHashKey{height: v26LegacyHeights + 1}).bytes()
+	hr := newHistoryRecord(legacyStateHash)
+	hr.entries = append(hr.entries, historyEntry{data: v26LegacyStateHash(orphan), blockNum: v26ValidBlocks + 1})
+	data, err := hr.marshalBinary()
+	require.NoError(t, err)
+	batch.Put(orphanKey, data)
+	// The hash of the rolled back block on top of the valid hash at the height 2.
+	validData, err := db.Get((&legacyStateHashKey{height: 2}).bytes())
+	require.NoError(t, err)
+	hr, err = newHistoryRecordFromBytes(validData)
+	require.NoError(t, err)
+	hr.entries = append(hr.entries, historyEntry{data: v26LegacyStateHash(orphan), blockNum: v26ValidBlocks + 2})
+	data, err = hr.marshalBinary()
+	require.NoError(t, err)
+	batch.Put((&legacyStateHashKey{height: 2}).bytes(), data)
+	require.NoError(t, db.Flush(batch))
+	require.NoError(t, db.Close())
+
+	require.NoError(t, MigrateState(ts.dataDir, defaultTestKeyValParams()))
+	ts.verify(t)
+	db, err = keyvalue.NewKeyVal(filepath.Join(ts.dataDir, keyvalueDir), defaultTestKeyValParams())
+	require.NoError(t, err)
+	defer func() { require.NoError(t, db.Close()) }()
+	_, err = db.Get(orphanKey)
+	assert.ErrorIs(t, err, keyvalue.ErrNotFound)
+}
+
+func TestMigrateStateKeepsStoredBloomFilter(t *testing.T) {
+	ts := createV26TestState(t)
+	bloomPath := filepath.Join(t.TempDir(), "bloom")
+	content := []byte("stored bloom filter")
+	require.NoError(t, os.WriteFile(bloomPath, content, 0600))
+	params := defaultTestKeyValParams()
+	params.BloomFilterStore = keyvalue.NewStore(bloomPath)
+
+	require.NoError(t, MigrateState(ts.dataDir, params))
+	ts.verify(t)
+	data, err := os.ReadFile(bloomPath)
+	require.NoError(t, err)
+	assert.Equal(t, content, data)
 }

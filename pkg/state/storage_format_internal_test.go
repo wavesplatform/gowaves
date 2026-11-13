@@ -3,8 +3,10 @@ package state
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	"io/fs"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -227,7 +229,7 @@ func storageFormatGoldenPath() string {
 
 func readStorageFormatGolden(t *testing.T) map[string]string {
 	data, err := os.ReadFile(storageFormatGoldenPath())
-	if os.IsNotExist(err) {
+	if errors.Is(err, fs.ErrNotExist) {
 		return map[string]string{}
 	}
 	require.NoError(t, err)
@@ -277,7 +279,6 @@ func TestStorageFormat(t *testing.T) {
 	if updated && !t.Failed() {
 		data, err := json.MarshalIndent(golden, "", "\t")
 		require.NoError(t, err)
-		require.NoError(t, os.MkdirAll(filepath.Dir(storageFormatGoldenPath()), 0750))
 		require.NoError(t, os.WriteFile(storageFormatGoldenPath(), append(data, '\n'), 0600))
 	}
 }
