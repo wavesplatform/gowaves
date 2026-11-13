@@ -10,8 +10,8 @@ require (
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/cloudflare/circl v1.6.5
-	github.com/consensys/gnark v0.16.4
-	github.com/consensys/gnark-crypto v0.22.0
+	github.com/consensys/gnark v0.16.5
+	github.com/consensys/gnark-crypto v0.22.1-0.20261109214502-1b28c4e97311
 	github.com/coocood/freecache v1.2.7
 	github.com/cosmos/go-bip39 v1.0.0
 	github.com/dpotapov/slogpfx v0.0.0-20230917063348-41a73c95c536
