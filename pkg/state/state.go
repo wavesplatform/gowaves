@@ -5,7 +5,6 @@ import (
 	"context"
 	stderrs "errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"log/slog"
 	"math/big"
@@ -35,7 +34,6 @@ const (
 	rollbackMaxBlocks     = 2000
 	blocksStorDir         = "blocks_storage"
 	keyvalueDir           = "key_value"
-	dbMetaFileName        = ".db.meta"
 	maxScriptsRunsInBlock = 101
 )
 
@@ -533,57 +531,6 @@ func initDatabase(
 		return nil, nil, nil, false, wrapErr(stateerr.Other, errors.Wrap(err, "failed to handle amend flag"))
 	}
 	return db, dbBatch, sdb, handledAmend, nil
-}
-
-func checkAndUpdateDBMeta(dataDir string, amend bool, params StateParams) (_ stateInfo, err error) {
-	dataDir = filepath.Clean(dataDir)
-	infoFilePath := filepath.Join(dataDir, dbMetaFileName)
-	f, err := os.OpenFile(infoFilePath, os.O_RDWR|os.O_CREATE, 0600)
-	if err != nil {
-		return stateInfo{}, errors.Wrap(err, "failed to open DB meta file")
-	}
-	defer func() {
-		if cErr := f.Close(); cErr != nil {
-			err = stderrs.Join(err, errors.Wrap(cErr, "failed to close DB meta file"))
-		}
-	}()
-	fileStat, err := f.Stat()
-	if err != nil {
-		return stateInfo{}, errors.Wrap(err, "failed to stat DB meta file")
-	}
-	info := stateInfo{
-		Version:            StateVersion,
-		Amend:              amend,
-		HasExtendedAPIData: params.StoreExtendedApiData,
-		HasStateHashes:     params.BuildStateHashes,
-		DBCompressionAlgo:  params.DbParams.CompressionAlgo,
-	}
-	if fileStat.Size() != 0 { // file exists and has data
-		data, rErr := io.ReadAll(io.LimitReader(f, proto.MiB))
-		if rErr != nil {
-			return stateInfo{}, errors.Wrap(rErr, "failed to read DB meta file")
-		}
-		var i stateInfo
-		if umErr := i.unmarshalBinary(data); umErr != nil {
-			return stateInfo{}, errors.Wrap(umErr, "failed to unmarshal DB meta file")
-		}
-		info = i
-	}
-	info, err = checkAndUpdateCompatibilityV2(info, params, amend) // check and update compatibility
-	if err != nil {
-		return stateInfo{}, wrapErr(stateerr.IncompatibilityError, err)
-	}
-	data, err := info.marshalBinary()
-	if err != nil {
-		return stateInfo{}, errors.Wrap(err, "failed to marshal DB meta")
-	}
-	if _, err = f.Seek(0, io.SeekStart); err != nil { // seek to beginning
-		return stateInfo{}, errors.Wrap(err, "failed to seek DB meta file")
-	}
-	if _, err = f.Write(data); err != nil { // write updated info
-		return stateInfo{}, errors.Wrap(err, "failed to write DB meta file")
-	}
-	return info, nil
 }
 
 func initGenesis(state *stateManager, height uint64, settings *settings.BlockchainSettings) error {

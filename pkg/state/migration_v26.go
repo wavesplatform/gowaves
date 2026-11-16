@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
+	"slices"
 
 	"github.com/pkg/errors"
 
@@ -23,8 +24,9 @@ import (
 //
 // The formats were changed without the version increment, so a database of version 26 may contain records of both
 // formats: records written by the node before the change and records written after it. The format of each record
-// is detected, and only the records of the old format are converted. The format of a legacy state hash is detected
-// by recalculating its SumHash from the SumHash of the previous height using both orders of fields.
+// is detected, and only the records of the old format are converted. A balance history, which is valid in both
+// formats, can't be converted reliably, the migration fails in this case. The format of a legacy state hash is
+// detected by recalculating its SumHash from the SumHash of the previous height using both orders of fields.
 const (
 	stateVersionV26 = 26
 
@@ -59,7 +61,8 @@ func migrationStepsFromV26(db *keyvalue.KeyVal) []migrationStep {
 }
 
 // convertV26FixedSizeHistory converts the history of fixed size records of version 26 into the history of
-// variable size records, converting each record with the given function.
+// variable size records, converting each record with the given function. Block numbers of the history entries
+// must strictly increase.
 func convertV26FixedSizeHistory(
 	data []byte, entity blockchainEntity, recordSize int, convert func([]byte) ([]byte, error),
 ) ([]byte, error) {
@@ -68,7 +71,7 @@ func convertV26FixedSizeHistory(
 	}
 	entrySize := recordSize + historyBlockNumSize
 	body := data[1:]
-	if len(body)%entrySize != 0 {
+	if len(body) == 0 || len(body)%entrySize != 0 {
 		return nil, errors.Errorf("invalid history record size %d for entries of size %d", len(body), entrySize)
 	}
 	hr := newHistoryRecord(entity)
@@ -77,6 +80,10 @@ func convertV26FixedSizeHistory(
 		var entry historyEntry
 		if err := entry.unmarshalBinary(body[i : i+entrySize]); err != nil {
 			return nil, err
+		}
+		if n := len(hr.entries); n > 0 && hr.entries[n-1].blockNum >= entry.blockNum {
+			return nil, errors.Errorf("block numbers of history entries are not increasing: %d after %d",
+				entry.blockNum, hr.entries[n-1].blockNum)
 		}
 		converted, err := convert(entry.data)
 		if err != nil {
@@ -87,10 +94,11 @@ func convertV26FixedSizeHistory(
 	return hr.marshalBinary()
 }
 
-// isV27BalanceHistory reports whether the data is a valid history of variable size records of the given entity,
-// and each record is successfully decoded with the given function. The check is strict: the sizes of records must
-// match the size of data exactly, so the history of fixed size records of version 26 is not mistaken for it.
-func isV27BalanceHistory(data []byte, entity blockchainEntity, decode func([]byte) error) bool {
+// isV27BalanceHistory reports whether the data is a valid history of variable size records of the given entity.
+// The check is strict: the sizes of records must match the size of data exactly, block numbers must strictly
+// increase, and each record must be in the canonical form, i.e. it is decoded and encoded back by the given
+// function to the same bytes.
+func isV27BalanceHistory(data []byte, entity blockchainEntity, recode func([]byte) ([]byte, error)) bool {
 	if len(data) < 1 || blockchainEntity(data[0]) != entity {
 		return false
 	}
@@ -99,7 +107,8 @@ func isV27BalanceHistory(data []byte, entity blockchainEntity, decode func([]byt
 		return false
 	}
 	const sizeLen = 4
-	for len(body) > 0 {
+	var prevBlockNum uint32
+	for first := true; len(body) > 0; first = false {
 		if len(body) < sizeLen {
 			return false
 		}
@@ -108,7 +117,14 @@ func isV27BalanceHistory(data []byte, entity blockchainEntity, decode func([]byt
 		if size <= historyBlockNumSize || size > uint64(len(body)) {
 			return false
 		}
-		if err := decode(body[:size-historyBlockNumSize]); err != nil {
+		record := body[:size-historyBlockNumSize]
+		blockNum := binary.BigEndian.Uint32(body[size-historyBlockNumSize : size])
+		if !first && blockNum <= prevBlockNum {
+			return false
+		}
+		prevBlockNum = blockNum
+		recoded, err := recode(record)
+		if err != nil || !bytes.Equal(recoded, record) {
 			return false
 		}
 		body = body[size:]
@@ -116,12 +132,38 @@ func isV27BalanceHistory(data []byte, entity blockchainEntity, decode func([]byt
 	return true
 }
 
-func convertV26WavesBalanceHistory(data []byte) ([]byte, error) {
-	decode := func(b []byte) error { var r wavesBalanceRecord; return r.unmarshalBinary(b) }
-	if isV27BalanceHistory(data, wavesBalance, decode) {
+// convertV26BalanceHistory detects the format of the balance history and converts it to the format of version 27.
+// The data can be a valid history in both formats, for example, the asset balance history
+// 0x0600000008a100182a00000001 is either the history of balance 37060876330 at block 1 in the format of version 26
+// or the history of balance 42 at block 1 in the format of version 27. There is no way to choose the right
+// interpretation, so an error is returned in this case.
+func convertV26BalanceHistory(
+	data []byte, entity blockchainEntity, recordSize int,
+	recode func([]byte) ([]byte, error), convert func([]byte) ([]byte, error),
+) ([]byte, error) {
+	isV27 := isV27BalanceHistory(data, entity, recode)
+	converted, err := convertV26FixedSizeHistory(data, entity, recordSize, convert)
+	switch {
+	case isV27 && err == nil:
+		return nil, errors.New("ambiguous history, it is valid in formats of both versions 26 and 27, " +
+			"the state has to be re-imported")
+	case isV27:
 		return data, nil
+	default:
+		return converted, err
 	}
-	return convertV26FixedSizeHistory(data, wavesBalance, v26WavesBalanceRecordSize, convertV26WavesBalanceRecord)
+}
+
+func convertV26WavesBalanceHistory(data []byte) ([]byte, error) {
+	recode := func(b []byte) ([]byte, error) {
+		var r wavesBalanceRecord
+		if err := r.unmarshalBinary(b); err != nil {
+			return nil, err
+		}
+		return r.marshalBinary()
+	}
+	return convertV26BalanceHistory(data, wavesBalance, v26WavesBalanceRecordSize, recode,
+		convertV26WavesBalanceRecord)
 }
 
 func convertV26WavesBalanceRecord(data []byte) ([]byte, error) {
@@ -138,11 +180,15 @@ func convertV26WavesBalanceRecord(data []byte) ([]byte, error) {
 }
 
 func convertV26AssetBalanceHistory(data []byte) ([]byte, error) {
-	decode := func(b []byte) error { var r assetBalanceRecord; return r.unmarshalBinary(b) }
-	if isV27BalanceHistory(data, assetBalance, decode) {
-		return data, nil
+	recode := func(b []byte) ([]byte, error) {
+		var r assetBalanceRecord
+		if err := r.unmarshalBinary(b); err != nil {
+			return nil, err
+		}
+		return r.marshalBinary()
 	}
-	return convertV26FixedSizeHistory(data, assetBalance, v26AssetBalanceRecordSize, convertV26AssetBalanceRecord)
+	return convertV26BalanceHistory(data, assetBalance, v26AssetBalanceRecordSize, recode,
+		convertV26AssetBalanceRecord)
 }
 
 func convertV26AssetBalanceRecord(data []byte) ([]byte, error) {
@@ -153,16 +199,23 @@ func convertV26AssetBalanceRecord(data []byte) ([]byte, error) {
 	return r.marshalBinary()
 }
 
+// convertV26LegacyStateHashHistory converts entries of the legacy state hash history. Entries of the blocks removed
+// by rollbacks are discarded the same way as historyFormatter.filter does, because they can't be validated against
+// the SumHashes of the previous height: the previous history could be already rewritten by another chain.
+// The history without valid entries is removed, the previous height is not checked in this case.
 func convertV26LegacyStateHashHistory(db *keyvalue.KeyVal, key, data []byte) ([]byte, error) {
 	if len(key) != legacyStateHashKeySize {
 		return nil, errors.Errorf("invalid legacy state hash key size %d", len(key))
 	}
 	height := binary.BigEndian.Uint64(key[1:])
-	prevSums, err := legacyStateHashSums(db, height-1)
+	hr, err := readValidLegacyStateHashHistory(db, data)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "legacy state hash at height %d", height)
 	}
-	hr, err := readLegacyStateHashHistory(data)
+	if len(hr.entries) == 0 {
+		return nil, nil // all entries belong to the removed blocks, remove the history
+	}
+	prevSums, err := legacyStateHashSums(db, height-1)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +241,27 @@ func readLegacyStateHashHistory(data []byte) (*historyRecord, error) {
 	return hr, nil
 }
 
-// legacyStateHashSums returns SumHashes of all entries of the legacy state hash history at the given height.
+// readValidLegacyStateHashHistory reads the legacy state hash history and removes the entries of the blocks
+// removed by rollbacks from the end of the history, like historyFormatter.filter does.
+func readValidLegacyStateHashHistory(db *keyvalue.KeyVal, data []byte) (*historyRecord, error) {
+	hr, err := readLegacyStateHashHistory(data)
+	if err != nil {
+		return nil, err
+	}
+	for i, e := range slices.Backward(hr.entries) {
+		valid, vErr := db.Has((&validBlockNumKey{blockNum: e.blockNum}).bytes())
+		if vErr != nil {
+			return nil, errors.Wrap(vErr, "failed to check validity of block")
+		}
+		if valid {
+			break
+		}
+		hr.entries = hr.entries[:i]
+	}
+	return hr, nil
+}
+
+// legacyStateHashSums returns SumHashes of all valid entries of the legacy state hash history at the given height.
 // The position of SumHash is the same in both formats, so the history can be already converted.
 // For the zero height the nil SumHash is returned, it is used to calculate the SumHash of the genesis block.
 func legacyStateHashSums(db *keyvalue.KeyVal, height uint64) ([][]byte, error) {
@@ -199,9 +272,12 @@ func legacyStateHashSums(db *keyvalue.KeyVal, height uint64) ([][]byte, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to read legacy state hash at height %d", height)
 	}
-	hr, err := readLegacyStateHashHistory(data)
+	hr, err := readValidLegacyStateHashHistory(db, data)
 	if err != nil {
 		return nil, errors.Wrapf(err, "legacy state hash at height %d", height)
+	}
+	if len(hr.entries) == 0 {
+		return nil, errors.Errorf("no valid legacy state hash at height %d", height)
 	}
 	sums := make([][]byte, 0, len(hr.entries))
 	for _, e := range hr.entries {
