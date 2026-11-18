@@ -1,0 +1,167 @@
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+# Synthetic expression with deeply nested let blocks and conditions.
+
+let v0 = {
+  let t0 = height
+  let v1 = {
+    let t1 = t0 + 1
+    let v2 = {
+      let t2 = t1 + 2
+      let v3 = {
+        let t3 = t2 + 3
+        let v4 = {
+          let t4 = t3 + 4
+          let v5 = {
+            let t5 = t4 + 5
+            let v6 = {
+              let t6 = t5 + 6
+              let v7 = {
+                let t7 = t6 + 7
+                let v8 = {
+                  let t8 = t7 + 8
+                  let v9 = {
+                    let t9 = t8 + 9
+                    let v10 = {
+                      let t10 = t9 + 10
+                      let v11 = {
+                        let t11 = t10 + 11
+                        let v12 = {
+                          let t12 = t11 + 12
+                          let v13 = {
+                            let t13 = t12 + 13
+                            let v14 = {
+                              let t14 = t13 + 14
+                              let v15 = {
+                                let t15 = t14 + 15
+                                let v16 = {
+                                  let t16 = t15 + 16
+                                  let v17 = {
+                                    let t17 = t16 + 17
+                                    let v18 = {
+                                      let t18 = t17 + 18
+                                      let v19 = {
+                                        let t19 = t18 + 19
+                                        let v20 = {
+                                          let t20 = t19 + 20
+                                          let v21 = {
+                                            let t21 = t20 + 21
+                                            let v22 = {
+                                              let t22 = t21 + 22
+                                              let v23 = {
+                                                let t23 = t22 + 23
+                                                let v24 = {
+                                                  let t24 = t23 + 24
+                                                  let v25 = {
+                                                    let t25 = t24 + 25
+                                                    let v26 = {
+                                                      let t26 = t25 + 26
+                                                      let v27 = {
+                                                        let t27 = t26 + 27
+                                                        let v28 = {
+                                                          let t28 = t27 + 28
+                                                          let v29 = {
+                                                            let t29 = t28 + 29
+                                                            let v30 = {
+                                                              let t30 = t29 + 30
+                                                              let v31 = {
+                                                                let t31 = t30 + 31
+                                                                let v32 = {
+                                                                  let t32 = t31 + 32
+                                                                  let v33 = {
+                                                                    let t33 = t32 + 33
+                                                                    let v34 = {
+                                                                      let t34 = t33 + 34
+                                                                      let v35 = {
+                                                                        let t35 = t34 + 35
+                                                                        let v36 = {
+                                                                          let t36 = t35 + 36
+                                                                          let v37 = {
+                                                                            let t37 = t36 + 37
+                                                                            let v38 = {
+                                                                              let t38 = t37 + 38
+                                                                              let v39 = {
+                                                                                let t39 = t38 + 39
+                                                                                t39
+                                                                              }
+                                                                              if (v39 > t38) then v39 - t38 else t38 + v39
+                                                                            }
+                                                                            if (v38 > t37) then v38 - t37 else t37 + v38
+                                                                          }
+                                                                          if (v37 > t36) then v37 - t36 else t36 + v37
+                                                                        }
+                                                                        if (v36 > t35) then v36 - t35 else t35 + v36
+                                                                      }
+                                                                      if (v35 > t34) then v35 - t34 else t34 + v35
+                                                                    }
+                                                                    if (v34 > t33) then v34 - t33 else t33 + v34
+                                                                  }
+                                                                  if (v33 > t32) then v33 - t32 else t32 + v33
+                                                                }
+                                                                if (v32 > t31) then v32 - t31 else t31 + v32
+                                                              }
+                                                              if (v31 > t30) then v31 - t30 else t30 + v31
+                                                            }
+                                                            if (v30 > t29) then v30 - t29 else t29 + v30
+                                                          }
+                                                          if (v29 > t28) then v29 - t28 else t28 + v29
+                                                        }
+                                                        if (v28 > t27) then v28 - t27 else t27 + v28
+                                                      }
+                                                      if (v27 > t26) then v27 - t26 else t26 + v27
+                                                    }
+                                                    if (v26 > t25) then v26 - t25 else t25 + v26
+                                                  }
+                                                  if (v25 > t24) then v25 - t24 else t24 + v25
+                                                }
+                                                if (v24 > t23) then v24 - t23 else t23 + v24
+                                              }
+                                              if (v23 > t22) then v23 - t22 else t22 + v23
+                                            }
+                                            if (v22 > t21) then v22 - t21 else t21 + v22
+                                          }
+                                          if (v21 > t20) then v21 - t20 else t20 + v21
+                                        }
+                                        if (v20 > t19) then v20 - t19 else t19 + v20
+                                      }
+                                      if (v19 > t18) then v19 - t18 else t18 + v19
+                                    }
+                                    if (v18 > t17) then v18 - t17 else t17 + v18
+                                  }
+                                  if (v17 > t16) then v17 - t16 else t16 + v17
+                                }
+                                if (v16 > t15) then v16 - t15 else t15 + v16
+                              }
+                              if (v15 > t14) then v15 - t14 else t14 + v15
+                            }
+                            if (v14 > t13) then v14 - t13 else t13 + v14
+                          }
+                          if (v13 > t12) then v13 - t12 else t12 + v13
+                        }
+                        if (v12 > t11) then v12 - t11 else t11 + v12
+                      }
+                      if (v11 > t10) then v11 - t10 else t10 + v11
+                    }
+                    if (v10 > t9) then v10 - t9 else t9 + v10
+                  }
+                  if (v9 > t8) then v9 - t8 else t8 + v9
+                }
+                if (v8 > t7) then v8 - t7 else t7 + v8
+              }
+              if (v7 > t6) then v7 - t6 else t6 + v7
+            }
+            if (v6 > t5) then v6 - t5 else t5 + v6
+          }
+          if (v5 > t4) then v5 - t4 else t4 + v5
+        }
+        if (v4 > t3) then v4 - t3 else t3 + v4
+      }
+      if (v3 > t2) then v3 - t2 else t2 + v3
+    }
+    if (v2 > t1) then v2 - t1 else t1 + v2
+  }
+  if (v1 > t0) then v1 - t0 else t0 + v1
+}
+if (v0 > 39) then (if (v0 > 38) then (if (v0 > 37) then (if (v0 > 36) then (if (v0 > 35) then (if (v0 > 34) then (if (v0 > 33) then (if (v0 > 32) then (if (v0 > 31) then (if (v0 > 30) then (if (v0 > 29) then (if (v0 > 28) then (if (v0 > 27) then (if (v0 > 26) then (if (v0 > 25) then (if (v0 > 24) then (if (v0 > 23) then (if (v0 > 22) then (if (v0 > 21) then (if (v0 > 20) then (if (v0 > 19) then (if (v0 > 18) then (if (v0 > 17) then (if (v0 > 16) then (if (v0 > 15) then (if (v0 > 14) then (if (v0 > 13) then (if (v0 > 12) then (if (v0 > 11) then (if (v0 > 10) then (if (v0 > 9) then (if (v0 > 8) then (if (v0 > 7) then (if (v0 > 6) then (if (v0 > 5) then (if (v0 > 4) then (if (v0 > 3) then (if (v0 > 2) then (if (v0 > 1) then (if (v0 > 0) then (true) else (v0 < 0)) else (v0 < -1)) else (v0 < -2)) else (v0 < -3)) else (v0 < -4)) else (v0 < -5)) else (v0 < -6)) else (v0 < -7)) else (v0 < -8)) else (v0 < -9)) else (v0 < -10)) else (v0 < -11)) else (v0 < -12)) else (v0 < -13)) else (v0 < -14)) else (v0 < -15)) else (v0 < -16)) else (v0 < -17)) else (v0 < -18)) else (v0 < -19)) else (v0 < -20)) else (v0 < -21)) else (v0 < -22)) else (v0 < -23)) else (v0 < -24)) else (v0 < -25)) else (v0 < -26)) else (v0 < -27)) else (v0 < -28)) else (v0 < -29)) else (v0 < -30)) else (v0 < -31)) else (v0 < -32)) else (v0 < -33)) else (v0 < -34)) else (v0 < -35)) else (v0 < -36)) else (v0 < -37)) else (v0 < -38)) else (v0 < -39)
