@@ -591,13 +591,8 @@ func (b *BlockHeader) MarshalHeaderToBinary() ([]byte, error) {
 		}
 		res = append(res, fb...)
 		if b.Version >= RewardBlockVersion {
-			rvb := make([]byte, 8)
-			rv, rvErr := safecast.Convert[uint64](b.RewardVote)
-			if rvErr != nil {
-				return nil, fmt.Errorf("failed to convert RewardVote to uint64: %w", rvErr)
-			}
-			binary.BigEndian.PutUint64(rvb, rv)
-			res = append(res, rvb...)
+			// Negative vote (-1 means no vote) is encoded as two's complement, as in the Scala node.
+			res = binary.BigEndian.AppendUint64(res, uint64(b.RewardVote)) //nolint:gosec // bit-preserving conversion
 		}
 	} else {
 		txCount, err := safecast.Convert[byte](b.TransactionCount)
