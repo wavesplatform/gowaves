@@ -1,8 +1,6 @@
 package ride
 
 import (
-	"slices"
-
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
@@ -49,7 +47,7 @@ func (e *treeEstimatorV4) estimate() (int, int, map[string]int, error) {
 		if inv {
 			return 0, 0, nil, errors.New("usage of invocation functions is prohibited in expressions")
 		}
-		e.scope.emerge()
+		e.scope.drop()
 		return c, c, nil, nil
 	}
 	max := 0
@@ -61,11 +59,11 @@ func (e *treeEstimatorV4) estimate() (int, int, map[string]int, error) {
 			return 0, 0, nil, errors.New("invalid callable declaration")
 		}
 		e.scope.submerge()
-		c, _, err := e.walk(e.wrapFunction(function))
+		c, _, err := e.walk(wrapCallable(e.tree.Declarations, function))
 		if err != nil {
 			return 0, 0, nil, err
 		}
-		e.scope.emerge()
+		e.scope.drop()
 		m[function.Name] = c
 		if c > max {
 			max = c
@@ -79,36 +77,20 @@ func (e *treeEstimatorV4) estimate() (int, int, map[string]int, error) {
 			return 0, 0, nil, errors.New("invalid verifier declaration")
 		}
 		e.scope.submerge()
-		c, inv, err := e.walk(e.wrapFunction(verifier))
+		c, inv, err := e.walk(wrapCallable(e.tree.Declarations, verifier))
 		if err != nil {
 			return 0, 0, nil, err
 		}
 		if inv {
 			return 0, 0, nil, errors.New("usage of invocation functions is prohibited in verifier")
 		}
-		e.scope.emerge()
+		e.scope.drop()
 		vc = c
 		if c > max {
 			max = c
 		}
 	}
 	return max, vc, m, nil
-}
-
-func (e *treeEstimatorV4) wrapFunction(node *ast.FunctionDeclarationNode) ast.Node {
-	args := make([]ast.Node, len(node.Arguments))
-	for i := range node.Arguments {
-		args[i] = ast.NewBooleanNode(true)
-	}
-	// It's definitely user function as node is sent from FunctionDeclarationNode
-	node.SetBlock(ast.NewFunctionCallNode(ast.UserFunction(node.Name), args))
-	var block ast.Node
-	block = ast.NewAssignmentNode(node.InvocationParameter, ast.NewBooleanNode(true), node)
-	for i := range slices.Backward(e.tree.Declarations) {
-		e.tree.Declarations[i].SetBlock(block)
-		block = e.tree.Declarations[i]
-	}
-	return block
 }
 
 // walk function iterates over AST and calculates an estimation of every node.
@@ -151,8 +133,7 @@ func (e *treeEstimatorV4) walk(node ast.Node) (int, bool, error) {
 
 	case *ast.AssignmentNode:
 		id := n.Name
-		overlapped := e.scope.used(id)
-		e.scope.remove(id)
+		overlapped := e.scope.remove(id)
 		c, inv, err := e.walk(n.Block)
 		if err != nil {
 			return 0, false, errors.Wrapf(err, "failed to estimate block after declaration of variable '%s'", id)

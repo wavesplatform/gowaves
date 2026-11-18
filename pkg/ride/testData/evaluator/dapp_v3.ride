@@ -1,0 +1,40 @@
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+# Synthetic legacy dApp for the evaluator benchmarks, covers the old library constants and WriteSet results.
+
+let base = 3
+
+func g0(x: Int) = x * base + 1
+func g1(x: Int) = { let a = g0(x); a % 1000 + g0(x + 1) }
+func g2(x: Int) = { let a = g1(x); a % 1000 + g1(x + 1) }
+func g3(x: Int) = { let a = g2(x); a % 1000 + g2(x + 1) }
+func g4(x: Int) = { let a = g3(x); a % 1000 + g3(x + 1) }
+
+func grade(i: Int) =
+  if (i < 0) then 0
+  else if (i < 10) then 1
+  else if (i < 100) then 2
+  else if (i < 1000) then 3
+  else 4
+
+@Callable(i)
+func store(x: Int, s: String) = {
+  let a = g4(x)
+  let b = grade(a) + grade(x) + grade(-x)
+  let c = match getInteger(i.caller, "counter") {
+    case n: Int => n + b
+    case _ => b
+  }
+  WriteSet([
+    DataEntry("a", a), DataEntry("b", b), DataEntry("c", c), DataEntry("s", s),
+    DataEntry("flag", x > 10), DataEntry("caller", i.caller.bytes)
+  ])
+}
+
+@Verifier(tx)
+func verify() = match tx {
+  case t: TransferTransaction => t.amount > 0 && grade(t.amount) > 0 && g3(size(t.id)) > 0
+  case _ => false
+}

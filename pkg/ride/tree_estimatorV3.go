@@ -14,50 +14,59 @@ type functionDescriptor struct {
 	usages          []string
 	callsInvocation bool
 }
+
+// fsV3 is a scope of user function declarations. Scopes form a chain: a lookup that misses in the scope
+// continues in its parent. The map of a scope is allocated lazily on the first set, because most of the scopes
+// created by save never get a declaration.
 type fsV3 struct {
 	parent    *fsV3
 	functions map[string]functionDescriptor
 }
 
 func newFsV3() *fsV3 {
-	return &fsV3{parent: nil, functions: make(map[string]functionDescriptor)}
+	return &fsV3{}
 }
 
 func (f *fsV3) spawn() *fsV3 {
-	return &fsV3{
-		parent:    f,
-		functions: make(map[string]functionDescriptor),
-	}
+	return &fsV3{parent: f}
 }
 
 // set adds new function descriptor to context, returns true if new function overwrite old one.
 func (f *fsV3) set(key string, cost int, usages []string, callsInvocation bool) bool {
+	if f.functions == nil {
+		f.functions = make(map[string]functionDescriptor)
+	}
 	_, ok := f.functions[key]
 	f.functions[key] = functionDescriptor{cost: cost, usages: usages, callsInvocation: callsInvocation}
 	return ok
 }
 
 func (f *fsV3) get(key string) (functionDescriptor, bool) {
-	fd, ok := f.functions[key]
-	if !ok {
-		if f.parent == nil {
-			return functionDescriptor{}, false
+	for c := f; c != nil; c = c.parent {
+		if fd, ok := c.functions[key]; ok {
+			return fd, true
 		}
-		return f.parent.get(key)
 	}
-	return fd, true
+	return functionDescriptor{}, false
 }
 
+// estimationScopeV3 is the scope shared by the estimators V3 and V4.
+// The usages field is a stack of the names referenced in the nested function bodies. The slices above the top
+// of the stack (between len and cap) are kept to reuse their backing arrays on the next submerge.
 type estimationScopeV3 struct {
 	usages    [][]string
+	root      *fsV3
 	functions *fsV3
 	builtin   map[string]int
 }
 
 func newEstimationScopeV3(functions map[string]int) *estimationScopeV3 {
+	const initialUsagesCapacity = 4
+	root := newFsV3()
 	return &estimationScopeV3{
-		usages:    make([][]string, 0),
-		functions: newFsV3(),
+		usages:    make([][]string, 0, initialUsagesCapacity),
+		root:      root,
+		functions: root,
 		builtin:   functions,
 	}
 }
@@ -76,8 +85,11 @@ func (s *estimationScopeV3) setFunction(id string, cost int, usages []string, in
 	return s.functions.set(id, cost, usages, invocation)
 }
 
+// resetFunctions drops all function declarations. The root scope and its map are reused, because no scope
+// created before the reset is used after it.
 func (s *estimationScopeV3) resetFunctions() {
-	s.functions = newFsV3()
+	clear(s.root.functions)
+	s.functions = s.root
 }
 
 func (s *estimationScopeV3) nativeFunction(ut, id string) (functionDescriptor, error) {
@@ -104,8 +116,9 @@ func (s *estimationScopeV3) function(function ast.Function) (functionDescriptor,
 
 func (s *estimationScopeV3) used(id string) bool {
 	if l := len(s.usages); l > 0 {
-		for _, u := range slices.Backward(s.usages[l-1]) {
-			if u == id {
+		u := s.usages[l-1]
+		for _, v := range slices.Backward(u) {
+			if v == id {
 				return true
 			}
 		}
@@ -113,14 +126,28 @@ func (s *estimationScopeV3) used(id string) bool {
 	return false
 }
 
-func (s *estimationScopeV3) remove(id string) {
-	if l := len(s.usages); l > 0 {
-		for i := range slices.Backward(s.usages[l-1]) {
-			if s.usages[l-1][i] == id {
-				s.usages[l-1] = append(s.usages[l-1][:i], s.usages[l-1][i+1:]...)
-			}
+// remove deletes all occurrences of id from the top usages, keeping the order of the others.
+// It returns true if id was there.
+func (s *estimationScopeV3) remove(id string) bool {
+	l := len(s.usages)
+	if l == 0 {
+		return false
+	}
+	u := s.usages[l-1]
+	i := slices.Index(u, id)
+	if i < 0 {
+		return false
+	}
+	j := i
+	for k := i + 1; k < len(u); k++ {
+		if u[k] != id {
+			u[j] = u[k]
+			j++
 		}
 	}
+	clear(u[j:])
+	s.usages[l-1] = u[:j]
+	return true
 }
 
 func (s *estimationScopeV3) use(id string) {
@@ -130,16 +157,29 @@ func (s *estimationScopeV3) use(id string) {
 }
 
 func (s *estimationScopeV3) submerge() {
-	s.usages = append(s.usages, make([]string, 0))
+	if l := len(s.usages); l < cap(s.usages) {
+		s.usages = s.usages[:l+1]
+		s.usages[l] = s.usages[l][:0]
+		return
+	}
+	s.usages = append(s.usages, nil)
 }
 
+// emerge pops the top usages and returns a copy of them. The backing array stays in the stack for reuse.
 func (s *estimationScopeV3) emerge() []string {
 	if l := len(s.usages); l > 0 {
-		var r []string
-		r, s.usages = s.usages[l-1], s.usages[:l-1]
+		r := slices.Clone(s.usages[l-1])
+		s.usages = s.usages[:l-1]
 		return r
 	}
 	return nil
+}
+
+// drop pops the top usages without returning them.
+func (s *estimationScopeV3) drop() {
+	if l := len(s.usages); l > 0 {
+		s.usages = s.usages[:l-1]
+	}
 }
 
 type treeEstimatorV3 struct {
@@ -182,7 +222,7 @@ func (e *treeEstimatorV3) estimate() (int, int, map[string]int, error) {
 		if inv {
 			return 0, 0, nil, errors.New("usage of invocation functions is prohibited in expressions")
 		}
-		e.scope.emerge()
+		e.scope.drop()
 		return c, c, nil, nil
 	}
 	max := 0
@@ -193,11 +233,11 @@ func (e *treeEstimatorV3) estimate() (int, int, map[string]int, error) {
 			return 0, 0, nil, errors.New("invalid callable declaration")
 		}
 		e.scope.submerge()
-		c, _, err := e.walk(e.wrapFunction(function))
+		c, _, err := e.walk(wrapCallable(e.tree.Declarations, function))
 		if err != nil {
 			return 0, 0, nil, err
 		}
-		e.scope.emerge()
+		e.scope.drop()
 		m[function.Name] = c
 		if c > max {
 			max = c
@@ -210,36 +250,20 @@ func (e *treeEstimatorV3) estimate() (int, int, map[string]int, error) {
 			return 0, 0, nil, errors.New("invalid verifier declaration")
 		}
 		e.scope.submerge()
-		c, inv, err := e.walk(e.wrapFunction(verifier))
+		c, inv, err := e.walk(wrapCallable(e.tree.Declarations, verifier))
 		if err != nil {
 			return 0, 0, nil, err
 		}
 		if inv {
 			return 0, 0, nil, errors.New("usage of invocation functions is prohibited in verifier")
 		}
-		e.scope.emerge()
+		e.scope.drop()
 		vc = c
 		if c > max {
 			max = c
 		}
 	}
 	return max, vc, m, nil
-}
-
-func (e *treeEstimatorV3) wrapFunction(node *ast.FunctionDeclarationNode) ast.Node {
-	args := make([]ast.Node, len(node.Arguments))
-	for i := range node.Arguments {
-		args[i] = ast.NewBooleanNode(true)
-	}
-	// It's definitely user function as node is sent from FunctionDeclarationNode
-	node.SetBlock(ast.NewFunctionCallNode(ast.UserFunction(node.Name), args))
-	var block ast.Node
-	block = ast.NewAssignmentNode(node.InvocationParameter, ast.NewBooleanNode(true), node)
-	for i := range slices.Backward(e.tree.Declarations) {
-		e.tree.Declarations[i].SetBlock(block)
-		block = e.tree.Declarations[i]
-	}
-	return block
 }
 
 // walk function iterates over AST and calculates an estimation of every node.
@@ -290,8 +314,7 @@ func (e *treeEstimatorV3) walk(node ast.Node) (int, bool, error) {
 
 	case *ast.AssignmentNode:
 		id := n.Name
-		overlapped := e.scope.used(id)
-		e.scope.remove(id)
+		overlapped := e.scope.remove(id)
 		c, inv, err := e.walk(n.Block)
 		if err != nil {
 			return 0, false, errors.Wrapf(err, "failed to estimate block after declaration of variable '%s'", id)

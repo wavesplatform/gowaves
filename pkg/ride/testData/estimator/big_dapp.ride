@@ -1,0 +1,375 @@
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+# Synthetic dApp with many global declarations, user functions and callables.
+
+let g0 = "key0"
+let g1 = g0 + "_1"
+let g2 = g1 + "_2"
+let g3 = g2 + "_3"
+let g4 = g3 + "_4"
+let g5 = g4 + "_5"
+let g6 = g5 + "_6"
+let g7 = g6 + "_7"
+let g8 = g7 + "_8"
+let g9 = g8 + "_9"
+let g10 = g9 + "_10"
+let g11 = g10 + "_11"
+let g12 = g11 + "_12"
+let g13 = g12 + "_13"
+let g14 = g13 + "_14"
+let g15 = g14 + "_15"
+let g16 = g15 + "_16"
+let g17 = g16 + "_17"
+let g18 = g17 + "_18"
+let g19 = g18 + "_19"
+
+func f0(a: Int) = a + 1
+func f1(a: Int) = if (a > 1) then f0(a - 1) else a + 1
+func f2(a: Int) = if (a > 2) then f1(a - 1) else a + 2
+func f3(a: Int) = if (a > 3) then f2(a - 1) else a + 3
+func f4(a: Int) = if (a > 4) then f3(a - 1) else a + 4
+func f5(a: Int) = if (a > 5) then f4(a - 1) else a + 5
+func f6(a: Int) = if (a > 6) then f5(a - 1) else a + 6
+func f7(a: Int) = if (a > 7) then f6(a - 1) else a + 7
+func f8(a: Int) = if (a > 8) then f7(a - 1) else a + 8
+func f9(a: Int) = if (a > 9) then f8(a - 1) else a + 9
+func f10(a: Int) = if (a > 10) then f9(a - 1) else a + 10
+func f11(a: Int) = if (a > 11) then f10(a - 1) else a + 11
+func f12(a: Int) = if (a > 12) then f11(a - 1) else a + 12
+func f13(a: Int) = if (a > 13) then f12(a - 1) else a + 13
+func f14(a: Int) = if (a > 14) then f13(a - 1) else a + 14
+func f15(a: Int) = if (a > 15) then f14(a - 1) else a + 15
+func f16(a: Int) = if (a > 16) then f15(a - 1) else a + 16
+func f17(a: Int) = if (a > 17) then f16(a - 1) else a + 17
+func f18(a: Int) = if (a > 18) then f17(a - 1) else a + 18
+func f19(a: Int) = if (a > 19) then f18(a - 1) else a + 19
+
+func readInt(k: String) = getInteger(this, k).valueOrElse(0)
+
+@Callable(i)
+func call0(x: Int) = {
+  let v = readInt(g0)
+  let w = f0(x + v)
+  let s = if (w > 0) then toString(w) else g7
+  [IntegerEntry(g0, w), StringEntry(s, g3)]
+}
+
+@Callable(i)
+func call1(x: Int) = {
+  let v = readInt(g1)
+  let w = f1(x + v)
+  let s = if (w > 0) then toString(w) else g8
+  [IntegerEntry(g1, w), StringEntry(s, g4)]
+}
+
+@Callable(i)
+func call2(x: Int) = {
+  let v = readInt(g2)
+  let w = f2(x + v)
+  let s = if (w > 0) then toString(w) else g9
+  [IntegerEntry(g2, w), StringEntry(s, g5)]
+}
+
+@Callable(i)
+func call3(x: Int) = {
+  let v = readInt(g3)
+  let w = f3(x + v)
+  let s = if (w > 0) then toString(w) else g10
+  [IntegerEntry(g3, w), StringEntry(s, g6)]
+}
+
+@Callable(i)
+func call4(x: Int) = {
+  let v = readInt(g4)
+  let w = f4(x + v)
+  let s = if (w > 0) then toString(w) else g11
+  [IntegerEntry(g4, w), StringEntry(s, g7)]
+}
+
+@Callable(i)
+func call5(x: Int) = {
+  let v = readInt(g5)
+  let w = f5(x + v)
+  let s = if (w > 0) then toString(w) else g12
+  [IntegerEntry(g5, w), StringEntry(s, g8)]
+}
+
+@Callable(i)
+func call6(x: Int) = {
+  let v = readInt(g6)
+  let w = f6(x + v)
+  let s = if (w > 0) then toString(w) else g13
+  [IntegerEntry(g6, w), StringEntry(s, g9)]
+}
+
+@Callable(i)
+func call7(x: Int) = {
+  let v = readInt(g7)
+  let w = f7(x + v)
+  let s = if (w > 0) then toString(w) else g14
+  [IntegerEntry(g7, w), StringEntry(s, g10)]
+}
+
+@Callable(i)
+func call8(x: Int) = {
+  let v = readInt(g8)
+  let w = f8(x + v)
+  let s = if (w > 0) then toString(w) else g15
+  [IntegerEntry(g8, w), StringEntry(s, g11)]
+}
+
+@Callable(i)
+func call9(x: Int) = {
+  let v = readInt(g9)
+  let w = f9(x + v)
+  let s = if (w > 0) then toString(w) else g16
+  [IntegerEntry(g9, w), StringEntry(s, g12)]
+}
+
+@Callable(i)
+func call10(x: Int) = {
+  let v = readInt(g10)
+  let w = f10(x + v)
+  let s = if (w > 0) then toString(w) else g17
+  [IntegerEntry(g10, w), StringEntry(s, g13)]
+}
+
+@Callable(i)
+func call11(x: Int) = {
+  let v = readInt(g11)
+  let w = f11(x + v)
+  let s = if (w > 0) then toString(w) else g18
+  [IntegerEntry(g11, w), StringEntry(s, g14)]
+}
+
+@Callable(i)
+func call12(x: Int) = {
+  let v = readInt(g12)
+  let w = f12(x + v)
+  let s = if (w > 0) then toString(w) else g19
+  [IntegerEntry(g12, w), StringEntry(s, g15)]
+}
+
+@Callable(i)
+func call13(x: Int) = {
+  let v = readInt(g13)
+  let w = f13(x + v)
+  let s = if (w > 0) then toString(w) else g0
+  [IntegerEntry(g13, w), StringEntry(s, g16)]
+}
+
+@Callable(i)
+func call14(x: Int) = {
+  let v = readInt(g14)
+  let w = f14(x + v)
+  let s = if (w > 0) then toString(w) else g1
+  [IntegerEntry(g14, w), StringEntry(s, g17)]
+}
+
+@Callable(i)
+func call15(x: Int) = {
+  let v = readInt(g15)
+  let w = f15(x + v)
+  let s = if (w > 0) then toString(w) else g2
+  [IntegerEntry(g15, w), StringEntry(s, g18)]
+}
+
+@Callable(i)
+func call16(x: Int) = {
+  let v = readInt(g16)
+  let w = f16(x + v)
+  let s = if (w > 0) then toString(w) else g3
+  [IntegerEntry(g16, w), StringEntry(s, g19)]
+}
+
+@Callable(i)
+func call17(x: Int) = {
+  let v = readInt(g17)
+  let w = f17(x + v)
+  let s = if (w > 0) then toString(w) else g4
+  [IntegerEntry(g17, w), StringEntry(s, g0)]
+}
+
+@Callable(i)
+func call18(x: Int) = {
+  let v = readInt(g18)
+  let w = f18(x + v)
+  let s = if (w > 0) then toString(w) else g5
+  [IntegerEntry(g18, w), StringEntry(s, g1)]
+}
+
+@Callable(i)
+func call19(x: Int) = {
+  let v = readInt(g19)
+  let w = f19(x + v)
+  let s = if (w > 0) then toString(w) else g6
+  [IntegerEntry(g19, w), StringEntry(s, g2)]
+}
+
+@Callable(i)
+func call20(x: Int) = {
+  let v = readInt(g0)
+  let w = f0(x + v)
+  let s = if (w > 0) then toString(w) else g7
+  [IntegerEntry(g0, w), StringEntry(s, g3)]
+}
+
+@Callable(i)
+func call21(x: Int) = {
+  let v = readInt(g1)
+  let w = f1(x + v)
+  let s = if (w > 0) then toString(w) else g8
+  [IntegerEntry(g1, w), StringEntry(s, g4)]
+}
+
+@Callable(i)
+func call22(x: Int) = {
+  let v = readInt(g2)
+  let w = f2(x + v)
+  let s = if (w > 0) then toString(w) else g9
+  [IntegerEntry(g2, w), StringEntry(s, g5)]
+}
+
+@Callable(i)
+func call23(x: Int) = {
+  let v = readInt(g3)
+  let w = f3(x + v)
+  let s = if (w > 0) then toString(w) else g10
+  [IntegerEntry(g3, w), StringEntry(s, g6)]
+}
+
+@Callable(i)
+func call24(x: Int) = {
+  let v = readInt(g4)
+  let w = f4(x + v)
+  let s = if (w > 0) then toString(w) else g11
+  [IntegerEntry(g4, w), StringEntry(s, g7)]
+}
+
+@Callable(i)
+func call25(x: Int) = {
+  let v = readInt(g5)
+  let w = f5(x + v)
+  let s = if (w > 0) then toString(w) else g12
+  [IntegerEntry(g5, w), StringEntry(s, g8)]
+}
+
+@Callable(i)
+func call26(x: Int) = {
+  let v = readInt(g6)
+  let w = f6(x + v)
+  let s = if (w > 0) then toString(w) else g13
+  [IntegerEntry(g6, w), StringEntry(s, g9)]
+}
+
+@Callable(i)
+func call27(x: Int) = {
+  let v = readInt(g7)
+  let w = f7(x + v)
+  let s = if (w > 0) then toString(w) else g14
+  [IntegerEntry(g7, w), StringEntry(s, g10)]
+}
+
+@Callable(i)
+func call28(x: Int) = {
+  let v = readInt(g8)
+  let w = f8(x + v)
+  let s = if (w > 0) then toString(w) else g15
+  [IntegerEntry(g8, w), StringEntry(s, g11)]
+}
+
+@Callable(i)
+func call29(x: Int) = {
+  let v = readInt(g9)
+  let w = f9(x + v)
+  let s = if (w > 0) then toString(w) else g16
+  [IntegerEntry(g9, w), StringEntry(s, g12)]
+}
+
+@Callable(i)
+func call30(x: Int) = {
+  let v = readInt(g10)
+  let w = f10(x + v)
+  let s = if (w > 0) then toString(w) else g17
+  [IntegerEntry(g10, w), StringEntry(s, g13)]
+}
+
+@Callable(i)
+func call31(x: Int) = {
+  let v = readInt(g11)
+  let w = f11(x + v)
+  let s = if (w > 0) then toString(w) else g18
+  [IntegerEntry(g11, w), StringEntry(s, g14)]
+}
+
+@Callable(i)
+func call32(x: Int) = {
+  let v = readInt(g12)
+  let w = f12(x + v)
+  let s = if (w > 0) then toString(w) else g19
+  [IntegerEntry(g12, w), StringEntry(s, g15)]
+}
+
+@Callable(i)
+func call33(x: Int) = {
+  let v = readInt(g13)
+  let w = f13(x + v)
+  let s = if (w > 0) then toString(w) else g0
+  [IntegerEntry(g13, w), StringEntry(s, g16)]
+}
+
+@Callable(i)
+func call34(x: Int) = {
+  let v = readInt(g14)
+  let w = f14(x + v)
+  let s = if (w > 0) then toString(w) else g1
+  [IntegerEntry(g14, w), StringEntry(s, g17)]
+}
+
+@Callable(i)
+func call35(x: Int) = {
+  let v = readInt(g15)
+  let w = f15(x + v)
+  let s = if (w > 0) then toString(w) else g2
+  [IntegerEntry(g15, w), StringEntry(s, g18)]
+}
+
+@Callable(i)
+func call36(x: Int) = {
+  let v = readInt(g16)
+  let w = f16(x + v)
+  let s = if (w > 0) then toString(w) else g3
+  [IntegerEntry(g16, w), StringEntry(s, g19)]
+}
+
+@Callable(i)
+func call37(x: Int) = {
+  let v = readInt(g17)
+  let w = f17(x + v)
+  let s = if (w > 0) then toString(w) else g4
+  [IntegerEntry(g17, w), StringEntry(s, g0)]
+}
+
+@Callable(i)
+func call38(x: Int) = {
+  let v = readInt(g18)
+  let w = f18(x + v)
+  let s = if (w > 0) then toString(w) else g5
+  [IntegerEntry(g18, w), StringEntry(s, g1)]
+}
+
+@Callable(i)
+func call39(x: Int) = {
+  let v = readInt(g19)
+  let w = f19(x + v)
+  let s = if (w > 0) then toString(w) else g6
+  [IntegerEntry(g19, w), StringEntry(s, g2)]
+}
+
+@Verifier(tx)
+func verify() = {
+  let k = readInt(g19)
+  if (f5(k) > 10) then sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey) else false
+}
