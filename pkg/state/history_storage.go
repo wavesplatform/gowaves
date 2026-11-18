@@ -269,7 +269,7 @@ func newHistoryRecord(entityType blockchainEntity) *historyRecord {
 
 func newHistoryRecordFromBytes(data []byte) (*historyRecord, error) {
 	if len(data) < 1 {
-		return nil, errInvalidDataSize
+		return nil, errors.Wrap(errInvalidDataSize, "data too short")
 	}
 	entityType := blockchainEntity(data[0])
 	property, ok := properties[entityType]
@@ -281,12 +281,14 @@ func newHistoryRecordFromBytes(data []byte) (*historyRecord, error) {
 		dataSize := len(data)
 		recordSize := property.recordSize
 		if dataSize < 1+recordSize {
-			return nil, errors.Wrapf(errInvalidDataSize, "entity type %v", entityType)
+			return nil, errors.Wrapf(errInvalidDataSize,
+				"fixed size record too short (expected %d, actual %d), entity type %v",
+				recordSize, dataSize-1, entityType)
 		}
 		for i := 1; i <= dataSize-recordSize; i += recordSize {
 			var entry historyEntry
 			if err := entry.unmarshalBinary(data[i : i+recordSize]); err != nil { // Returns only `errInvalidDataSize`
-				return nil, err
+				return nil, errors.Wrapf(err, "failed to unmarshal binary data for entity type %v", entityType)
 			}
 			entries = append(entries, entry)
 		}
@@ -296,11 +298,13 @@ func newHistoryRecordFromBytes(data []byte) (*historyRecord, error) {
 			recordSize := binary.BigEndian.Uint32(data[i : i+4])
 			i += 4
 			if dataSize < i+recordSize {
-				return nil, errInvalidDataSize
+				return nil, errors.Wrapf(errInvalidDataSize,
+					"variable size record too short (expected %d, actual %d), entity type %v",
+					recordSize, dataSize-i, entityType)
 			}
 			var entry historyEntry
 			if err := entry.unmarshalBinary(data[i : i+recordSize]); err != nil { // Returns only `errInvalidDataSize`
-				return nil, err
+				return nil, errors.Wrapf(err, "failed to unmarshal binary data for entity type %v", entityType)
 			}
 			entries = append(entries, entry)
 			i += recordSize

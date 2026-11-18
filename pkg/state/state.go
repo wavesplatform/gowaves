@@ -5,7 +5,6 @@ import (
 	"context"
 	stderrs "errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"log/slog"
 	"math/big"
@@ -35,7 +34,6 @@ const (
 	rollbackMaxBlocks     = 2000
 	blocksStorDir         = "blocks_storage"
 	keyvalueDir           = "key_value"
-	dbMetaFileName        = ".db.meta"
 	maxScriptsRunsInBlock = 101
 )
 
@@ -533,57 +531,6 @@ func initDatabase(
 		return nil, nil, nil, false, wrapErr(stateerr.Other, errors.Wrap(err, "failed to handle amend flag"))
 	}
 	return db, dbBatch, sdb, handledAmend, nil
-}
-
-func checkAndUpdateDBMeta(dataDir string, amend bool, params StateParams) (_ stateInfo, err error) {
-	dataDir = filepath.Clean(dataDir)
-	infoFilePath := filepath.Join(dataDir, dbMetaFileName)
-	f, err := os.OpenFile(infoFilePath, os.O_RDWR|os.O_CREATE, 0600)
-	if err != nil {
-		return stateInfo{}, errors.Wrap(err, "failed to open DB meta file")
-	}
-	defer func() {
-		if cErr := f.Close(); cErr != nil {
-			err = stderrs.Join(err, errors.Wrap(cErr, "failed to close DB meta file"))
-		}
-	}()
-	fileStat, err := f.Stat()
-	if err != nil {
-		return stateInfo{}, errors.Wrap(err, "failed to stat DB meta file")
-	}
-	info := stateInfo{
-		Version:            StateVersion,
-		Amend:              amend,
-		HasExtendedAPIData: params.StoreExtendedApiData,
-		HasStateHashes:     params.BuildStateHashes,
-		DBCompressionAlgo:  params.DbParams.CompressionAlgo,
-	}
-	if fileStat.Size() != 0 { // file exists and has data
-		data, rErr := io.ReadAll(io.LimitReader(f, proto.MiB))
-		if rErr != nil {
-			return stateInfo{}, errors.Wrap(rErr, "failed to read DB meta file")
-		}
-		var i stateInfo
-		if umErr := i.unmarshalBinary(data); umErr != nil {
-			return stateInfo{}, errors.Wrap(umErr, "failed to unmarshal DB meta file")
-		}
-		info = i
-	}
-	info, err = checkAndUpdateCompatibilityV2(info, params, amend) // check and update compatibility
-	if err != nil {
-		return stateInfo{}, wrapErr(stateerr.IncompatibilityError, err)
-	}
-	data, err := info.marshalBinary()
-	if err != nil {
-		return stateInfo{}, errors.Wrap(err, "failed to marshal DB meta")
-	}
-	if _, err = f.Seek(0, io.SeekStart); err != nil { // seek to beginning
-		return stateInfo{}, errors.Wrap(err, "failed to seek DB meta file")
-	}
-	if _, err = f.Write(data); err != nil { // write updated info
-		return stateInfo{}, errors.Wrap(err, "failed to write DB meta file")
-	}
-	return info, nil
 }
 
 func initGenesis(state *stateManager, height uint64, settings *settings.BlockchainSettings) error {
@@ -1871,6 +1818,12 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 			return ubrErr
 		}
 	}
+	// The activation must be done before the reset of the block reward below, which happens at the activation height.
+	if paErr := activateFeaturesAtSponsoredInvokeFeeFixHeight(
+		s.stor.features, s.settings.SponsoredInvokeFeeFixHeight, blockchainHeight+1, lastBlock,
+	); paErr != nil {
+		return paErr
+	}
 	// The reset of the block reward must be done after the update of the block reward above, this way it
 	// overrides the reward change produced by the voting at the same height.
 	if rbrErr := resetBlockRewardOnAdjustedDistributionActivation(
@@ -1891,6 +1844,46 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 			"blockID", nextBlock.String())
 		if drErr := s.resetDeposits(nextBlock, blockchainHeight); drErr != nil {
 			return drErr
+		}
+	}
+	return nil
+}
+
+// featuresActivatedAtSponsoredInvokeFeeFixHeight returns features activated unconditionally at the sponsored invoke
+// fee fix height.
+func featuresActivatedAtSponsoredInvokeFeeFixHeight() []settings.Feature {
+	return []settings.Feature{settings.AdjustedBlockRewardDistribution}
+}
+
+// activateFeaturesAtSponsoredInvokeFeeFixHeight approves and activates features at the sponsored invoke fee fix
+// height regardless of the voting. Already activated features are skipped, already approved features keep
+// their approval height. Like the activation by voting, the records are stored with the ID of the last applied block.
+func activateFeaturesAtSponsoredInvokeFeeFixHeight(
+	feat featuresState, fixHeight, height proto.Height, lastBlockID proto.BlockID,
+) error {
+	if fixHeight == 0 || height != fixHeight { // one time action, only at the fix height
+		return nil
+	}
+	for _, f := range featuresActivatedAtSponsoredInvokeFeeFixHeight() {
+		featureID := int16(f)
+		activated, err := feat.newestIsActivated(featureID)
+		if err != nil {
+			return errors.Wrapf(err, "failed to check activation of feature %d", featureID)
+		}
+		if activated {
+			continue
+		}
+		approved, err := feat.newestIsApproved(featureID)
+		if err != nil {
+			return errors.Wrapf(err, "failed to check approval of feature %d", featureID)
+		}
+		if !approved {
+			if apErr := feat.approveFeature(featureID, &approvedFeaturesRecord{height}, lastBlockID); apErr != nil {
+				return errors.Wrapf(apErr, "failed to approve feature %d", featureID)
+			}
+		}
+		if acErr := feat.activateFeature(featureID, &activatedFeaturesRecord{height}, lastBlockID); acErr != nil {
+			return errors.Wrapf(acErr, "failed to activate feature %d", featureID)
 		}
 	}
 	return nil

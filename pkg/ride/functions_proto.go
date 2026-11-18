@@ -7,6 +7,7 @@ import (
 	sh256 "crypto/sha256"
 	"crypto/x509"
 	"fmt"
+	"math"
 	"math/big"
 	"slices"
 	"time"
@@ -1321,6 +1322,9 @@ func fullIssue(env environment, args ...rideType) (rideType, error) {
 // rebuildMerkleRoot == createMerkleRoot(proofs: List[ByteVector], leaf: ByteVector, index: Int) returns ByteVector
 // Recalculates the Merkle root hash from the Merkle proof list, leaf hash, and leaf index.
 // proofs - list of proofs in the order from leaf to root.
+// The function reproduces the behavior of Scala's Merkle.createRoot, which works with the index as a signed
+// 32-bit integer and uses the truncated division to walk the levels. Because of that the negative index -x
+// produces the same root as x, and the index must be exhausted after all proofs are processed.
 func rebuildMerkleRoot(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "rebuildMerkleRoot")
@@ -1357,12 +1361,22 @@ func rebuildMerkleRoot(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("rebuildMerkleRoot: unexpected argument type '%s'", args[2].instanceOf())
 	}
+	if index < math.MinInt32 || index > math.MaxInt32 { // Same as Math.toIntExact in Scala
+		return nil, errors.Errorf("rebuildMerkleRoot: index %d is out of int32 range", index)
+	}
+	// With the truncated division, the path of the negative index -x is the same as the path of x.
 	idx := uint64(index)
+	if index < 0 {
+		idx = uint64(-index)
+	}
 	tree, err := crypto.NewMerkleTree()
 	if err != nil {
 		return nil, errors.Wrap(err, "rebuildMerkleRoot")
 	}
-	root := tree.RebuildRoot(lf, proofsRootToLeafsOrder, idx)
+	root, err := tree.RebuildRoot(lf, proofsRootToLeafsOrder, idx)
+	if err != nil {
+		return nil, fmt.Errorf("rebuildMerkleRoot: %w", err)
+	}
 	return rideByteVector(root[:]), nil
 }
 

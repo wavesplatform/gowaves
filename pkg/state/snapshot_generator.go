@@ -533,7 +533,7 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(
 		false, // it's not an invoke tx, it's an issue tx
 	)
 	if err != nil {
-		return txSnapshot{}, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+		return txSnapshot{}, errors.Wrap(err, "failed to build a snapshot from an issue transaction")
 	}
 	for i := range balancesSnaps.wavesBalancesSnapshot {
 		snapshot.regular = append(snapshot.regular, &balancesSnaps.wavesBalancesSnapshot[i])
@@ -1032,7 +1032,7 @@ func (sg *snapshotGenerator) snapshotForInvoke(balanceChanges []balanceChanges) 
 		true, // it's an invoke tx
 	)
 	if err != nil {
-		return txSnapshot{}, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+		return txSnapshot{}, errors.Wrap(err, "failed to build a snapshot from an invoke transaction")
 	}
 	for i := range balancesSnaps.wavesBalancesSnapshot {
 		snapshot.regular = append(snapshot.regular, &balancesSnaps.wavesBalancesSnapshot[i])
@@ -1121,7 +1121,7 @@ func (sg *snapshotGenerator) createInitialBlockSnapshot(minerAndRewardChanges []
 		false, // it's not an invoke tx
 	)
 	if err != nil {
-		return txSnapshot{}, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+		return txSnapshot{}, errors.Wrap(err, "failed to build a snapshot from an atomic snapshot")
 	}
 	for i := range balancesSnaps.wavesBalancesSnapshot {
 		snapshot.regular = append(snapshot.regular, &balancesSnaps.wavesBalancesSnapshot[i])
@@ -1155,7 +1155,7 @@ func (sg *snapshotGenerator) generateBalancesSnapshot(
 		txIsSuccessfulInvoke,
 	)
 	if err != nil {
-		return txSnapshot{}, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+		return txSnapshot{}, errors.Wrap(err, "failed to build a snapshot from an atomic snapshot")
 	}
 	for i := range balancesSnaps.wavesBalancesSnapshot {
 		snapshot.regular = append(snapshot.regular, &balancesSnaps.wavesBalancesSnapshot[i])
@@ -1318,7 +1318,8 @@ func (sg *snapshotGenerator) wavesBalanceSnapshotFromBalanceDiff(
 	for wavesAddress, diffAmount := range diff {
 		fullBalance, err := sg.stor.balances.newestWavesBalance(wavesAddress.ID())
 		if err != nil {
-			return nil, nil, errors.Wrap(err, "failed to receive sender's waves balance")
+			return nil, nil, errors.Wrapf(err, "failed to receive sender's waves balance for addr %q",
+				wavesAddress.String())
 		}
 		if isAccountableBalanceChange(txIsSuccessfulInvoke, diffAmount.balance) {
 			newBalance, bErr := common.AddInt(fullBalance.BalanceAsInt64(), diffAmount.balance.Value())

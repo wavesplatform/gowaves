@@ -589,16 +589,23 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) (txS
 		return txSnapshot{}, errs.Extend(err, "get transaction id")
 	}
 
+	// Calculate tx fee before applying the transaction, because the transaction can change the sponsorship
+	// of its fee asset. This should not affect transaction execution. It only accumulates miner fee.
+	var minerFee feeDistribution
+	if !params.validatingUtx {
+		var mfErr error
+		if minerFee, mfErr = a.blockDiffer.txMinerFee(tx); mfErr != nil {
+			return txSnapshot{}, wrapErr(stateerr.TxCommitmentError, errors.Wrap(mfErr, "failed to count miner fee"))
+		}
+	}
+
 	snapshot, affectedAddressesNoMiner, err := a.doAppendTx(tx, txID, params)
 	if err != nil {
 		return txSnapshot{}, fmt.Errorf("failed to append transaction: %w", err)
 	}
 
-	// Count tx fee. This should not affect transaction execution. It only accumulates miner fee.
 	if !params.validatingUtx {
-		if mfErr := a.blockDiffer.countMinerFee(tx); mfErr != nil {
-			return txSnapshot{}, wrapErr(stateerr.TxCommitmentError, errors.Wrap(mfErr, "failed to count miner fee"))
-		}
+		a.blockDiffer.appendMinerFee(&minerFee)
 	}
 	// Store additional data for API: transaction by address.
 	if !params.validatingUtx && a.buildApiData {
@@ -735,13 +742,17 @@ func (a *txAppender) applySnapshotInLightNode(
 			)
 		}
 		stateHash = txSh
+		// Calculate tx fee before applying the snapshot, because the transaction can change the sponsorship
+		// of its fee asset.
+		minerFee, fErr := a.blockDiffer.txMinerFee(tx)
+		if fErr != nil {
+			return crypto.Digest{}, errors.Wrapf(fErr, "failed to count miner fee for tx %d", i+1)
+		}
 		regSnapshots := txSnapshot{regular: txs}
 		if err := regSnapshots.Apply(a.txHandler.sa, tx, false); err != nil {
 			return crypto.Digest{}, errors.Wrap(err, "failed to apply tx snapshot")
 		}
-		if fErr := a.blockDiffer.countMinerFee(tx); fErr != nil {
-			return crypto.Digest{}, errors.Wrapf(fErr, "failed to count miner fee for tx %d", i+1)
-		}
+		a.blockDiffer.appendMinerFee(&minerFee)
 		// TODO: In future we have to store the list of affected addresses for each transaction here.
 	}
 	return stateHash, nil

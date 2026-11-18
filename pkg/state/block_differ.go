@@ -168,10 +168,29 @@ func (d *blockDiffer) createTransactionDiff(tx proto.Transaction, block *proto.B
 	return txChanges, nil
 }
 
+// txMinerFee calculates the miner's fee distribution of the transaction without adding it to the current block.
+// It MUST be called before the transaction is applied: the transaction can change the sponsorship of its own
+// fee asset, but the sponsored fee is converted to Waves at the rate in effect before the transaction,
+// the same rate the sponsor is charged at.
+func (d *blockDiffer) txMinerFee(tx proto.Transaction) (feeDistribution, error) {
+	distr := newFeeDistribution()
+	if err := d.handler.minerFeeTx(tx, &distr); err != nil {
+		return feeDistribution{}, err
+	}
+	return distr, nil
+}
+
+// appendMinerFee adds the transaction's fee distribution, calculated by txMinerFee, to the current block.
+func (d *blockDiffer) appendMinerFee(distr *feeDistribution) {
+	d.curDistr.add(distr)
+}
+
 func (d *blockDiffer) countMinerFee(tx proto.Transaction) error {
-	if err := d.handler.minerFeeTx(tx, &d.curDistr); err != nil {
+	distr, err := d.txMinerFee(tx)
+	if err != nil {
 		return err
 	}
+	d.appendMinerFee(&distr)
 	return nil
 }
 

@@ -188,6 +188,59 @@ func TestCreateBlockDiffSponsorship(t *testing.T) {
 	assert.Equal(t, correctMinerDiff, minerDiff)
 }
 
+func TestCreateBlockDiffSponsorshipChangedByTransaction(t *testing.T) {
+	to := createBlockDiffer(t)
+
+	parent, child := genBlocks(t, to)
+	// Create asset.
+	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
+
+	// Activate NG and FeeSponsorship first of all.
+	to.stor.activateFeature(t, int16(settings.NG))
+	to.stor.activateSponsorship(t)
+
+	// Sponsor asset.
+	preTxAssetCost := uint64(100500)
+	postTxAssetCost := uint64(10)
+	to.stor.addBlock(t, blockID0)
+	to.stor.addBlock(t, parent.BlockID())
+	hp := to.stor.rw.recentHeight()
+	to.stor.addBlock(t, child.BlockID())
+	hc := to.stor.rw.recentHeight()
+	err := to.stor.entities.sponsoredAssets.sponsorAsset(testGlobal.asset0.asset.ID, preTxAssetCost, blockID0)
+	require.NoError(t, err, "sponsorAsset() failed")
+
+	// Create diff from parent block, each transaction changes the sponsorship of its fee asset.
+	txs := parent.Transactions
+	for _, tx := range txs {
+		minerFee, mfErr := to.blockDiffer.txMinerFee(tx)
+		require.NoError(t, mfErr, "txMinerFee() failed")
+		// Transaction changes the sponsorship of the asset, e.g. by SponsorFee action of an invoke.
+		to.stor.entities.sponsoredAssets.sponsorAssetUncertain(testGlobal.asset0.asset.ID, postTxAssetCost)
+		to.blockDiffer.appendMinerFee(&minerFee)
+		to.stor.entities.sponsoredAssets.dropUncertain()
+	}
+	err = to.blockDiffer.saveCurFeeDistr(&parent.BlockHeader)
+	require.NoError(t, err, "saveCurFeeDistr() failed")
+	_, err = to.blockDiffer.createMinerAndRewardDiff(&parent.BlockHeader, hp, false, parent.Transactions)
+	require.NoError(t, err, "createMinerAndRewardDiff() failed")
+	// Fee is converted to Waves at the rate in effect before the transaction.
+	parentFeeTotal := int64(txs[0].GetFee() * FeeUnit / preTxAssetCost)
+	parentFeePrevBlock := parentFeeTotal / 5 * 2
+	parentFeeNextBlock := parentFeeTotal - parentFeePrevBlock
+
+	// Create diff from child block.
+	minerDiff, err := to.blockDiffer.createMinerAndRewardDiff(&child.BlockHeader, hc, true, child.Transactions)
+	require.NoError(t, err, "createMinerAndRewardDiff() failed")
+	// Verify child block miner's diff.
+	correctMinerWavesBalanceDiff := newBalanceDiff(parentFeeNextBlock, 0, 0, 0, false)
+	correctMinerWavesBalanceDiff.blockID = child.BlockID()
+	correctMinerDiff := txDiff{
+		testGlobal.minerInfo.wavesKey: correctMinerWavesBalanceDiff,
+	}
+	assert.Equal(t, correctMinerDiff, minerDiff)
+}
+
 func genTransferWithWavesFee(t *testing.T) *proto.TransferWithProofs {
 	waves := proto.NewOptionalAssetWaves()
 	tx := proto.NewUnsignedTransferWithProofs(2, testGlobal.senderInfo.pk, waves, waves, defaultTimestamp, defaultAmount, defaultFee, proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), []byte("attachment"))

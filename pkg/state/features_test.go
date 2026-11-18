@@ -206,3 +206,39 @@ func TestRollbackActivation(t *testing.T) {
 	assert.NoError(t, err, "isActivated failed")
 	assert.Equal(t, false, activated)
 }
+
+func TestActivateFeaturesAtSponsoredInvokeFeeFixHeight(t *testing.T) {
+	const fixHeight = proto.Height(100)
+	id := genRandBlockIds(t, 1)[0]
+	feature26 := int16(settings.AdjustedBlockRewardDistribution)
+
+	t.Run("nothing happens before and after the fix height", func(t *testing.T) {
+		mf := NewMockFeaturesState(t) // no calls expected
+		require.NoError(t, activateFeaturesAtSponsoredInvokeFeeFixHeight(mf, fixHeight, fixHeight-1, id))
+		require.NoError(t, activateFeaturesAtSponsoredInvokeFeeFixHeight(mf, fixHeight, fixHeight+1, id))
+	})
+	t.Run("nothing happens if the fix height is not set", func(t *testing.T) {
+		mf := NewMockFeaturesState(t) // no calls expected
+		require.NoError(t, activateFeaturesAtSponsoredInvokeFeeFixHeight(mf, 0, 0, id))
+	})
+	t.Run("feature is approved and activated at the fix height", func(t *testing.T) {
+		mf := NewMockFeaturesState(t)
+		mf.EXPECT().newestIsActivated(feature26).Return(false, nil).Once()
+		mf.EXPECT().newestIsApproved(feature26).Return(false, nil).Once()
+		mf.EXPECT().approveFeature(feature26, &approvedFeaturesRecord{fixHeight}, id).Return(nil).Once()
+		mf.EXPECT().activateFeature(feature26, &activatedFeaturesRecord{fixHeight}, id).Return(nil).Once()
+		require.NoError(t, activateFeaturesAtSponsoredInvokeFeeFixHeight(mf, fixHeight, fixHeight, id))
+	})
+	t.Run("approved feature keeps its approval and is activated at the fix height", func(t *testing.T) {
+		mf := NewMockFeaturesState(t)
+		mf.EXPECT().newestIsActivated(feature26).Return(false, nil).Once()
+		mf.EXPECT().newestIsApproved(feature26).Return(true, nil).Once()
+		mf.EXPECT().activateFeature(feature26, &activatedFeaturesRecord{fixHeight}, id).Return(nil).Once()
+		require.NoError(t, activateFeaturesAtSponsoredInvokeFeeFixHeight(mf, fixHeight, fixHeight, id))
+	})
+	t.Run("already activated feature is skipped", func(t *testing.T) {
+		mf := NewMockFeaturesState(t)
+		mf.EXPECT().newestIsActivated(feature26).Return(true, nil).Once()
+		require.NoError(t, activateFeaturesAtSponsoredInvokeFeeFixHeight(mf, fixHeight, fixHeight, id))
+	})
+}

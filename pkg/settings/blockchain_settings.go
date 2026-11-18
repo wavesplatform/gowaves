@@ -73,6 +73,7 @@ type FunctionalitySettings struct {
 	InternalInvokePaymentsValidationAfterHeight         uint64 `json:"internal_invoke_payments_validation_after_height"`
 	InternalInvokeCorrectFailRejectBehaviourAfterHeight uint64 `json:"internal_invoke_correct_fail_reject_behaviour_after_height"`
 	InvokeNoZeroPaymentsAfterHeight                     uint64 `json:"invoke_no_zero_payments_after_height"`
+	SponsoredInvokeFeeFixHeight                         uint64 `json:"sponsored_invoke_fee_fix_height"`
 
 	// Diff in milliseconds.
 	MaxTxTimeBackOffset    uint64 `json:"max_tx_time_back_offset"`

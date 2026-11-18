@@ -1463,6 +1463,43 @@ func TestRebuildMerkleRoot(t *testing.T) {
 		assert.Equal(t, "ByteVector", r.instanceOf())
 		assert.Equal(t, rideType(rideByteVector(root)), r)
 	})
+	// Test cases taken from testnet transactions of dApp 3MwcM6Zj2VK5rX1AQ2Fd4R5Tj2dZXT5SNcL,
+	// for example, "Dbc24jecws75zaMpyHkvtd3jJh95HWnkELYX82KNSCUB" at height 4338375.
+	t.Run("testnet_negative_and_out_of_range_indices", func(t *testing.T) {
+		b64 := func(t *testing.T, s string) rideByteVector {
+			b, err := base64.StdEncoding.DecodeString(s)
+			require.NoError(t, err)
+			return b
+		}
+		proofs := rideList{
+			b64(t, "TVqVhNmF6PtEAVqK/6m3bx/xb2XmHfcVbY6BWeFEiXg="),
+			b64(t, "h+0Yo3iGz8KrVUxtI7siG5FzwkIr6wk/C7fKcV40FWU="),
+		}
+		leaf := b64(t, "0QPPteSZxWaQR4dTOvvexW+VSS1n/ADiwNAWG6mWU/E=")
+		for _, tc := range []struct {
+			index int64
+			root  string
+		}{
+			{0, "WmR9qvKqM42W0Gk+uB5W82xx+KZ9gpO0ZWB+drHZYp4="},
+			{1, "NHI3FtOvOtNbZbj/MDglKtls9PJg/V92twZjLUfCThM="},
+			{-1, "NHI3FtOvOtNbZbj/MDglKtls9PJg/V92twZjLUfCThM="},
+			{-2, "/N+08bGkRCSGmrSuXoosx5bBhF5zKvKJuyW0Hm4feBQ="},
+			{-3, "2otz/0J2cy+mlGjKvZUHoEp9h5PwJOi/7AE0gj1SCWg="},
+			{4, ""},
+			{-4, ""},
+			{math.MaxInt32 + 1, ""},
+			{math.MinInt32 - 1, ""},
+			{-1 << 40, ""},
+		} {
+			r, err := rebuildMerkleRoot(nil, proofs, leaf, rideInt(tc.index))
+			if tc.root == "" {
+				assert.Error(t, err, "index %d", tc.index)
+				continue
+			}
+			require.NoError(t, err, "index %d", tc.index)
+			assert.Equal(t, rideType(b64(t, tc.root)), r, "index %d", tc.index)
+		}
+	})
 }
 
 func TestBLS12Groth16Verify(t *testing.T) {
