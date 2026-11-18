@@ -1444,314 +1444,224 @@ func balanceDetailsToObject(fwb *proto.FullWavesBalance) rideType {
 }
 
 func objectToActions(env environment, obj rideType) ([]proto.ScriptAction, error) {
-	switch obj.instanceOf() { //TODO: remake with type switch
-	case writeSetTypeName:
-		data, err := obj.get(dataField)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert WriteSet to actions")
-		}
-		list, ok := data.(rideList)
-		if !ok {
-			return nil, EvaluationFailure.Errorf("data is not a list")
-		}
-		res := make([]proto.ScriptAction, len(list))
-		for i, entry := range list {
-			action, err := convertToAction(env, entry)
-			if err != nil {
-				return nil, EvaluationFailure.Wrapf(err, "failed to convert item %d of type '%s'", i+1, entry.instanceOf())
-			}
-			res[i] = action
-		}
-		return res, nil
-
-	case transferSetTypeName:
-		transfers, err := obj.get(transfersField)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert TransferSet to actions")
-		}
-		list, ok := transfers.(rideList)
-		if !ok {
-			return nil, EvaluationFailure.Errorf("transfers is not a list")
-		}
-		res := make([]proto.ScriptAction, len(list))
-		for i, transfer := range list {
-			action, err := convertToAction(env, transfer)
-			if err != nil {
-				return nil, EvaluationFailure.Wrapf(err, "failed to convert transfer %d of type '%s'", i+1, transfer.instanceOf())
-			}
-			res[i] = action
-		}
-		return res, nil
-
-	case scriptResultTypeName:
-		actions := make([]proto.ScriptAction, 0)
-		writes, err := obj.get(writeSetField)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "ScriptResult has no writes")
-		}
-		transfers, err := obj.get(transferSetField)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "ScriptResult has no transfers")
-		}
-		wa, err := objectToActions(env, writes)
+	switch o := obj.(type) {
+	case rideWriteSet:
+		return writeSetToActions(env, o, 0)
+	case rideTransferSet:
+		return appendTransferSetActions(env, make([]proto.ScriptAction, 0, len(o.transfers)), o)
+	case rideScriptResult:
+		n := len(o.writeSet.data) + len(o.transferSet.transfers)
+		actions, err := writeSetToActions(env, o.writeSet, n)
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert writes to ScriptActions")
 		}
-		actions = append(actions, wa...)
-		ta, err := objectToActions(env, transfers)
+		actions, err = appendTransferSetActions(env, actions, o.transferSet)
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert transfers to ScriptActions")
 		}
-		actions = append(actions, ta...)
 		return actions, nil
 	default:
 		return nil, EvaluationFailure.Errorf("unexpected type '%s'", obj.instanceOf())
 	}
 }
 
-func getKeyProperty(v rideType) (string, error) {
-	k, err := v.get(keyField)
-	if err != nil {
-		return "", err
+// writeSetToActions converts the entries of the WriteSet to actions,
+// the result has the capacity of at least capacity elements.
+func writeSetToActions(env environment, ws rideWriteSet, capacity int) ([]proto.ScriptAction, error) {
+	res := make([]proto.ScriptAction, 0, max(capacity, len(ws.data)))
+	for i, entry := range ws.data {
+		action, err := convertToAction(env, entry)
+		if err != nil {
+			return nil, EvaluationFailure.Wrapf(err, "failed to convert item %d of type '%s'", i+1, entry.instanceOf())
+		}
+		res = append(res, action)
 	}
-	key, ok := k.(rideString)
-	if !ok {
-		return "", EvaluationFailure.Errorf("property is not a String")
-	}
-	return string(key), nil
+	return res, nil
 }
 
+// appendTransferSetActions appends the actions converted from the transfers of the TransferSet to res.
+func appendTransferSetActions(
+	env environment, res []proto.ScriptAction, ts rideTransferSet,
+) ([]proto.ScriptAction, error) {
+	for i, transfer := range ts.transfers {
+		action, err := convertToAction(env, transfer)
+		if err != nil {
+			return nil, EvaluationFailure.Wrapf(err, "failed to convert transfer %d of type '%s'", i+1, transfer.instanceOf())
+		}
+		res = append(res, action)
+	}
+	return res, nil
+}
+
+// listToActions converts the list of actions returned by a callable of library version 4 or later.
+// The result stays nil for an empty list.
+func listToActions(env environment, list rideList) ([]proto.ScriptAction, error) {
+	if len(list) == 0 {
+		return nil, nil
+	}
+	actions := make([]proto.ScriptAction, 0, len(list))
+	for _, item := range list {
+		a, err := convertToAction(env, item)
+		if err != nil {
+			return nil, err
+		}
+		actions = append(actions, a)
+	}
+	return actions, nil
+}
+
+// convertToAction converts the action object to the script action.
+// The fields of the generated objects are read directly, only the fields of interface type are checked
+// for the expected types with the error message "unexpected type '<type>' of property '<name>'".
 func convertToAction(env environment, obj rideType) (proto.ScriptAction, error) {
-	switch obj.instanceOf() {
-	case burnTypeName:
-		id, err := digestProperty(obj, assetIDField)
+	switch o := obj.(type) {
+	case rideBurn:
+		id, err := crypto.NewDigestFromBytes(o.assetId)
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert Burn to ScriptAction")
 		}
-		quantity, err := intProperty(obj, quantityField)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert Burn to ScriptAction")
-		}
-		return &proto.BurnScriptAction{AssetID: id, Quantity: int64(quantity)}, nil
-	case binaryEntryTypeName:
-		key, err := getKeyProperty(obj)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert BinaryEntry to ScriptAction")
-		}
-		b, err := bytesProperty(obj, valueField)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert BinaryEntry to ScriptAction")
-		}
-		return &proto.DataEntryScriptAction{Entry: &proto.BinaryDataEntry{Key: key, Value: b}}, nil
-	case booleanEntryTypeName:
-		key, err := getKeyProperty(obj)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert BooleanEntry to ScriptAction")
-		}
-		b, err := booleanProperty(obj, valueField)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert BooleanEntry to ScriptAction")
-		}
-		return &proto.DataEntryScriptAction{Entry: &proto.BooleanDataEntry{Key: key, Value: bool(b)}}, nil
-	case deleteEntryTypeName:
-		key, err := getKeyProperty(obj)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert DeleteEntry to ScriptAction")
-		}
-		return &proto.DataEntryScriptAction{Entry: &proto.DeleteDataEntry{Key: key}}, nil
-	case integerEntryTypeName:
-		key, err := getKeyProperty(obj)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert IntegerEntry to ScriptAction")
-		}
-		i, err := intProperty(obj, valueField)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert IntegerEntry to ScriptAction")
-		}
-		return &proto.DataEntryScriptAction{Entry: &proto.IntegerDataEntry{Key: key, Value: int64(i)}}, nil
-	case stringEntryTypeName:
-		key, err := getKeyProperty(obj)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert StringEntry to ScriptAction")
-		}
-		s, err := stringProperty(obj, valueField)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert StringEntry to ScriptAction")
-		}
-		return &proto.DataEntryScriptAction{Entry: &proto.StringDataEntry{Key: key, Value: string(s)}}, nil
-	case dataEntryTypeName:
-		key, err := getKeyProperty(obj)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert DataEntry to ScriptAction")
-		}
-		v, err := obj.get(valueField)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert DataEntry to ScriptAction")
-		}
-		switch tv := v.(type) {
-		case rideInt:
-			return &proto.DataEntryScriptAction{Entry: &proto.IntegerDataEntry{Key: key, Value: int64(tv)}}, nil
-		case rideBoolean:
-			return &proto.DataEntryScriptAction{Entry: &proto.BooleanDataEntry{Key: key, Value: bool(tv)}}, nil
-		case rideString:
-			return &proto.DataEntryScriptAction{Entry: &proto.StringDataEntry{Key: key, Value: string(tv)}}, nil
-		case rideByteVector:
-			return &proto.DataEntryScriptAction{Entry: &proto.BinaryDataEntry{Key: key, Value: tv}}, nil
-		default:
-			return nil, EvaluationFailure.Errorf("unexpected type of DataEntry '%s'", v.instanceOf())
-		}
-	case issueTypeName:
-		parent := env.txID()
-		if parent.instanceOf() == unitTypeName {
-			return nil, EvaluationFailure.New("empty parent for IssueExpr")
-		}
-		name, err := stringProperty(obj, nameField)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert Issue to ScriptAction")
-		}
-		description, err := stringProperty(obj, descriptionField)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert Issue to ScriptAction")
-		}
-		decimals, err := intProperty(obj, decimalsField)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert Issue to ScriptAction")
-		}
-		quantity, err := intProperty(obj, quantityField)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert Issue to ScriptAction")
-		}
-		reissuable, err := booleanProperty(obj, isReissuableField)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert Issue to ScriptAction")
-		}
-		nonce, err := intProperty(obj, nonceField)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert Issue to ScriptAction")
-		}
-		id, err := calcAssetID(env, name, description, decimals, quantity, reissuable, nonce)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert Issue to ScriptAction")
-		}
-		d, err := crypto.NewDigestFromBytes(id)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert Issue to ScriptAction")
-		}
-		return &proto.IssueScriptAction{
-			ID:          d,
-			Name:        string(name),
-			Description: string(description),
-			Quantity:    int64(quantity),
-			Decimals:    int32(decimals),
-			Reissuable:  bool(reissuable),
-			Script:      nil,
-			Nonce:       int64(nonce),
-		}, nil
-	case reissueTypeName:
-		id, err := digestProperty(obj, assetIDField)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert Reissue to ScriptAction")
-		}
-		quantity, err := intProperty(obj, quantityField)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert Reissue to ScriptAction")
-		}
-		reissuable, err := booleanProperty(obj, isReissuableField)
+		return &proto.BurnScriptAction{AssetID: id, Quantity: int64(o.quantity)}, nil
+	case rideBinaryEntry:
+		return &proto.DataEntryScriptAction{Entry: &proto.BinaryDataEntry{Key: string(o.key), Value: o.value}}, nil
+	case rideBooleanEntry:
+		return &proto.DataEntryScriptAction{Entry: &proto.BooleanDataEntry{Key: string(o.key), Value: bool(o.value)}}, nil
+	case rideDeleteEntry:
+		return &proto.DataEntryScriptAction{Entry: &proto.DeleteDataEntry{Key: string(o.key)}}, nil
+	case rideIntegerEntry:
+		return &proto.DataEntryScriptAction{Entry: &proto.IntegerDataEntry{Key: string(o.key), Value: int64(o.value)}}, nil
+	case rideStringEntry:
+		return &proto.DataEntryScriptAction{Entry: &proto.StringDataEntry{Key: string(o.key), Value: string(o.value)}}, nil
+	case rideDataEntry:
+		return dataEntryToAction(o)
+	case rideIssue:
+		return issueToAction(env, o)
+	case rideReissue:
+		id, err := crypto.NewDigestFromBytes(o.assetId)
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert Reissue to ScriptAction")
 		}
 		return &proto.ReissueScriptAction{
 			AssetID:    id,
-			Quantity:   int64(quantity),
-			Reissuable: bool(reissuable),
+			Quantity:   int64(o.quantity),
+			Reissuable: bool(o.isReissuable),
 		}, nil
-	case scriptTransferTypeName:
-		recipient, err := recipientProperty(obj, recipientField)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert ScriptTransfer to ScriptAction")
-		}
-		recipient, err = ensureRecipientAddress(env, recipient)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert ScriptTransfer to ScriptAction")
-		}
-		amount, err := intProperty(obj, amountField)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert ScriptTransfer to ScriptAction")
-		}
-		asset, err := optionalAssetProperty(obj, assetField)
-		// On asset ID conversion error we return empty action as in Scala
-		// See example on MainNet: transaction (https://wavesexplorer.com/tx/AUpiEr49Jo43Q9zXKkNN23rstiq87hguvhfQqV8ov9uQ)
-		// and script (https://wavesexplorer.com/tx/Bp1oieWHWpLz8vBFZui9tY1oDTAKUPTrBAGcwfRe9q5K)
-		if err != nil {
-			return &proto.TransferScriptAction{
-				Recipient: recipient,
-				Amount:    0,
-				Asset:     proto.NewOptionalAssetWaves(),
-			}, nil
-		}
-		return &proto.TransferScriptAction{
-			Recipient: recipient,
-			Amount:    int64(amount),
-			Asset:     asset,
-		}, nil
-	case sponsorFeeTypeName:
-		id, err := digestProperty(obj, assetIDField)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert SponsorFee to ScriptAction")
-		}
-		fee, err := intProperty(obj, minSponsoredAssetFeeField)
+	case rideScriptTransfer:
+		return scriptTransferToAction(env, o)
+	case rideSponsorFee:
+		id, err := crypto.NewDigestFromBytes(o.assetId)
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert SponsorFee to ScriptAction")
 		}
 		return &proto.SponsorshipScriptAction{
 			AssetID: id,
-			MinFee:  int64(fee),
+			MinFee:  int64(o.minSponsoredAssetFee),
 		}, nil
-
-	case leaseTypeName:
-		recipient, err := recipientProperty(obj, recipientField)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert Lease to LeaseScriptAction")
-		}
-		amount, err := intProperty(obj, amountField)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert Lease to LeaseScriptAction")
-		}
-		nonce, err := intProperty(obj, nonceField)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert Lease to LeaseScriptAction")
-		}
-		leaseID, err := calcLeaseID(env, recipient, amount, nonce)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert Lease to LeaseScriptAction")
-		}
-		leaseIDDigest, err := crypto.NewDigestFromBytes(leaseID)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert Lease to LeaseScriptAction")
-		}
-		recipient, err = ensureRecipientAddress(env, recipient)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert Lease to LeaseScriptAction")
-		}
-		return &proto.LeaseScriptAction{
-			ID:        leaseIDDigest,
-			Recipient: recipient,
-			Amount:    int64(amount),
-			Nonce:     int64(nonce),
-		}, nil
-
-	case leaseCancelTypeName:
-		id, err := digestProperty(obj, leaseIDField)
+	case rideLease:
+		return leaseToAction(env, o)
+	case rideLeaseCancel:
+		id, err := crypto.NewDigestFromBytes(o.leaseId)
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert LeaseCancel to LeaseCancelScriptAction")
 		}
 		return &proto.LeaseCancelScriptAction{
 			LeaseID: id,
 		}, nil
-
 	default:
 		return nil, EvaluationFailure.Errorf("unexpected type '%s'", obj.instanceOf())
 	}
+}
+
+func dataEntryToAction(o rideDataEntry) (proto.ScriptAction, error) {
+	key := string(o.key)
+	switch tv := o.value.(type) {
+	case rideInt:
+		return &proto.DataEntryScriptAction{Entry: &proto.IntegerDataEntry{Key: key, Value: int64(tv)}}, nil
+	case rideBoolean:
+		return &proto.DataEntryScriptAction{Entry: &proto.BooleanDataEntry{Key: key, Value: bool(tv)}}, nil
+	case rideString:
+		return &proto.DataEntryScriptAction{Entry: &proto.StringDataEntry{Key: key, Value: string(tv)}}, nil
+	case rideByteVector:
+		return &proto.DataEntryScriptAction{Entry: &proto.BinaryDataEntry{Key: key, Value: tv}}, nil
+	default:
+		return nil, EvaluationFailure.Errorf("unexpected type of DataEntry '%s'", o.value.instanceOf())
+	}
+}
+
+func issueToAction(env environment, o rideIssue) (proto.ScriptAction, error) {
+	parent := env.txID()
+	if parent.instanceOf() == unitTypeName {
+		return nil, EvaluationFailure.New("empty parent for IssueExpr")
+	}
+	id, err := calcAssetID(env, o.name, o.description, o.decimals, o.quantity, o.isReissuable, o.nonce)
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "failed to convert Issue to ScriptAction")
+	}
+	d, err := crypto.NewDigestFromBytes(id)
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "failed to convert Issue to ScriptAction")
+	}
+	return &proto.IssueScriptAction{
+		ID:          d,
+		Name:        string(o.name),
+		Description: string(o.description),
+		Quantity:    int64(o.quantity),
+		Decimals:    int32(o.decimals), //nolint:gosec // Unchanged conversion, decimals are validated with the action.
+		Reissuable:  bool(o.isReissuable),
+		Script:      nil,
+		Nonce:       int64(o.nonce),
+	}, nil
+}
+
+func scriptTransferToAction(env environment, o rideScriptTransfer) (proto.ScriptAction, error) {
+	recipient, err := recipientValue(o.recipient, recipientField)
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "failed to convert ScriptTransfer to ScriptAction")
+	}
+	recipient, err = ensureRecipientAddress(env, recipient)
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "failed to convert ScriptTransfer to ScriptAction")
+	}
+	asset, err := optionalAssetValue(o.asset, assetField)
+	// On asset ID conversion error we return empty action as in Scala
+	// See example on MainNet: transaction (https://wavesexplorer.com/tx/AUpiEr49Jo43Q9zXKkNN23rstiq87hguvhfQqV8ov9uQ)
+	// and script (https://wavesexplorer.com/tx/Bp1oieWHWpLz8vBFZui9tY1oDTAKUPTrBAGcwfRe9q5K)
+	if err != nil {
+		return &proto.TransferScriptAction{ //nolint:nilerr // The empty action is the expected result, see above.
+			Recipient: recipient,
+			Amount:    0,
+			Asset:     proto.NewOptionalAssetWaves(),
+		}, nil
+	}
+	return &proto.TransferScriptAction{
+		Recipient: recipient,
+		Amount:    int64(o.amount),
+		Asset:     asset,
+	}, nil
+}
+
+func leaseToAction(env environment, o rideLease) (proto.ScriptAction, error) {
+	recipient, err := recipientValue(o.recipient, recipientField)
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "failed to convert Lease to LeaseScriptAction")
+	}
+	leaseID, err := calcLeaseID(env, recipient, o.amount, o.nonce)
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "failed to convert Lease to LeaseScriptAction")
+	}
+	leaseIDDigest, err := crypto.NewDigestFromBytes(leaseID)
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "failed to convert Lease to LeaseScriptAction")
+	}
+	recipient, err = ensureRecipientAddress(env, recipient)
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "failed to convert Lease to LeaseScriptAction")
+	}
+	return &proto.LeaseScriptAction{
+		ID:        leaseIDDigest,
+		Recipient: recipient,
+		Amount:    int64(o.amount),
+		Nonce:     int64(o.nonce),
+	}, nil
 }
 
 func scriptActionToObject(scheme byte, action proto.ScriptAction, pk crypto.PublicKey, id crypto.Digest, timestamp uint64) (rideType, error) {
@@ -1761,12 +1671,13 @@ func scriptActionToObject(scheme byte, action proto.ScriptAction, pk crypto.Publ
 	}
 	switch a := action.(type) {
 	case *proto.ReissueScriptAction:
+		pkBytes, assetID, txID := scriptActionIDs(pk, a.AssetID, id)
 		return newRideReissueTransaction(
 			rideByteVector{},
 			rideList{},
-			common.Dup(pk.Bytes()),
-			a.AssetID.Bytes(),
-			id.Bytes(),
+			pkBytes,
+			assetID,
+			txID,
 			rideInt(timestamp),
 			rideInt(0),
 			rideInt(a.Quantity),
@@ -1775,12 +1686,13 @@ func scriptActionToObject(scheme byte, action proto.ScriptAction, pk crypto.Publ
 			rideBoolean(a.Reissuable),
 		), nil
 	case *proto.BurnScriptAction:
+		pkBytes, assetID, txID := scriptActionIDs(pk, a.AssetID, id)
 		return newRideBurnTransaction(
 			rideByteVector{},
 			rideList{},
-			common.Dup(pk.Bytes()),
-			a.AssetID.Bytes(),
-			id.Bytes(),
+			pkBytes,
+			assetID,
+			txID,
 			rideInt(timestamp),
 			rideInt(0),
 			rideInt(a.Quantity),
@@ -1790,6 +1702,21 @@ func scriptActionToObject(scheme byte, action proto.ScriptAction, pk crypto.Publ
 	default:
 		return nil, EvaluationFailure.Errorf("unsupported script action '%T'", action)
 	}
+}
+
+// scriptActionIDs copies the public key, the asset ID and the transaction ID into a single allocation.
+// The returned slices have capacities limited to their lengths, so appending to one of them never overwrites another.
+func scriptActionIDs(pk crypto.PublicKey, assetID, id crypto.Digest) (rideByteVector, rideByteVector, rideByteVector) {
+	const (
+		pkEnd = crypto.PublicKeySize
+		aEnd  = pkEnd + crypto.DigestSize
+		idEnd = aEnd + crypto.DigestSize
+	)
+	buf := make([]byte, idEnd)
+	copy(buf[:pkEnd], pk[:])
+	copy(buf[pkEnd:aEnd], assetID[:])
+	copy(buf[aEnd:], id[:])
+	return buf[:pkEnd:pkEnd], buf[pkEnd:aEnd:aEnd], buf[aEnd:idEnd:idEnd]
 }
 
 func optionalAsset(o proto.OptionalAsset) rideType {

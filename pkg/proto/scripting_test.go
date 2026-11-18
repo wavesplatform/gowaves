@@ -1,6 +1,7 @@
 package proto
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math"
 	"strings"
@@ -516,6 +517,41 @@ func TestNegativePaymentsValidation(t *testing.T) {
 			require.NoError(t, err, fmt.Sprintf("#%d", i))
 		} else {
 			require.Error(t, err, fmt.Sprintf("#%d", i))
+		}
+	}
+}
+
+func TestGenerateIssueScriptActionIDBufferSizes(t *testing.T) {
+	// referenceID is the implementation used before the stack buffer optimization.
+	referenceID := func(name, description string, decimals, quantity int64, reissuable bool, nonce int64,
+		txID crypto.Digest) crypto.Digest {
+		buf := make([]byte, 0, 4+len(name)+4+len(description)+4+8+2+8+crypto.DigestSize)
+		buf = binary.BigEndian.AppendUint32(buf, uint32(len(name)))
+		buf = append(buf, name...)
+		buf = binary.BigEndian.AppendUint32(buf, uint32(len(description)))
+		buf = append(buf, description...)
+		buf = binary.BigEndian.AppendUint32(buf, uint32(decimals))
+		buf = binary.BigEndian.AppendUint64(buf, uint64(quantity))
+		if reissuable {
+			buf = binary.BigEndian.AppendUint16(buf, 1)
+		} else {
+			buf = binary.BigEndian.AppendUint16(buf, 0)
+		}
+		buf = binary.BigEndian.AppendUint64(buf, uint64(nonce))
+		buf = append(buf, txID[:]...)
+		return crypto.MustFastHash(buf)
+	}
+	txID := crypto.MustFastHash([]byte("tx"))
+	const fixedSize = 4 + 4 + 4 + 8 + 2 + 8 + crypto.DigestSize
+	for _, total := range []int{0, 10, 256 - fixedSize - 1, 256 - fixedSize, 256 - fixedSize + 1, 1000} {
+		for _, split := range []int{0, total / 2, total} {
+			name := strings.Repeat("n", split)
+			description := strings.Repeat("d", total-split)
+			for _, reissuable := range []bool{false, true} {
+				expected := referenceID(name, description, 8, math.MaxInt64, reissuable, -1, txID)
+				actual := GenerateIssueScriptActionID(name, description, 8, math.MaxInt64, reissuable, -1, txID)
+				assert.Equal(t, expected, actual, "total=%d split=%d", total, split)
+			}
 		}
 	}
 }

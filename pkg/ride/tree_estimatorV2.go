@@ -8,35 +8,56 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
+// estimationScopeV2 keeps the declared values, the user functions and the overlapped values as stacks, so
+// save and restore are plain truncations and the last declaration wins on lookup.
 type estimationScopeV2 struct {
+	// constants are the predefined values of the library version. They lie below all declared values, never
+	// change and have no expression, so they are not copied into values.
+	constants []string
 	values    []scopeValue
 	stash     []scopeValue
 	functions []*ast.FunctionDeclarationNode
 	builtin   map[string]int
+	// args holds the values overlapped by the arguments of the user function calls in progress.
+	args []scopeValue
+	// seen is the reusable set of the names re-stacked from the stash.
+	seen map[string]struct{}
+	// trueNode is the shared constant expression of the function arguments, the estimator only reads it.
+	trueNode ast.BooleanNode
 }
 
 func newEstimationScopeV2(values []string, functions map[string]int) *estimationScopeV2 {
-	initial := make([]scopeValue, len(values))
-	for i, id := range values {
-		initial[i] = scopeValue{id: id}
-	}
 	return &estimationScopeV2{
-		values:    initial,
-		stash:     make([]scopeValue, 0),
-		functions: make([]*ast.FunctionDeclarationNode, 0),
+		constants: values,
 		builtin:   functions,
+		trueNode:  ast.BooleanNode{Value: true},
 	}
 }
 
 func (s *estimationScopeV2) setValue(id string, n ast.Node) {
+	if s.values == nil {
+		const initialValuesCapacity = 16
+		s.values = make([]scopeValue, 0, initialValuesCapacity)
+	}
 	s.values = append(s.values, scopeValue{id: id, n: n})
 }
 
-func (s *estimationScopeV2) value(id string) (ast.Node, error) {
+// lookup returns the expression of the last declared value with the given name.
+func (s *estimationScopeV2) lookup(id string) (ast.Node, bool) {
 	for _, v := range slices.Backward(s.values) {
 		if v.id == id {
-			return v.n, nil
+			return v.n, true
 		}
+	}
+	if slices.Contains(s.constants, id) {
+		return nil, true
+	}
+	return nil, false
+}
+
+func (s *estimationScopeV2) value(id string) (ast.Node, error) {
+	if n, ok := s.lookup(id); ok {
+		return n, nil
 	}
 	return nil, errors.Errorf("value '%s' not found", id)
 }
@@ -62,12 +83,28 @@ func (s *estimationScopeV2) function(id string) (*ast.FunctionDeclarationNode, e
 	return nil, errors.Errorf("function '%s' not found", id)
 }
 
-func (s *estimationScopeV2) overlaps() map[string]ast.Node {
-	r := make(map[string]ast.Node)
-	for i := 0; i < len(s.stash); i++ {
-		r[s.stash[i].id] = s.stash[i].n
+// restackOverlaps declares again the last stashed value of every overlapped name. The names are distinct, so
+// the order in which they are declared does not change the result of any lookup.
+func (s *estimationScopeV2) restackOverlaps() {
+	switch len(s.stash) {
+	case 0:
+		return
+	case 1:
+		s.setValue(s.stash[0].id, s.stash[0].n)
+		return
 	}
-	return r
+	if s.seen == nil {
+		s.seen = make(map[string]struct{}, len(s.stash))
+	} else {
+		clear(s.seen)
+	}
+	for _, o := range slices.Backward(s.stash) {
+		if _, ok := s.seen[o.id]; ok {
+			continue
+		}
+		s.seen[o.id] = struct{}{}
+		s.setValue(o.id, o.n)
+	}
 }
 
 func (s *estimationScopeV2) addOverlaps(overlaps []scopeValue) {
@@ -86,6 +123,16 @@ func (s *estimationScopeV2) restore(pv, pf, po int) {
 	s.values = s.values[:pv]
 	s.functions = s.functions[:pf]
 	s.stash = s.stash[:po]
+}
+
+// isOverlapped reports whether the name is among the overlapped values.
+func isOverlapped(overlapped []scopeValue, id string) bool {
+	for _, o := range overlapped {
+		if o.id == id {
+			return true
+		}
+	}
+	return false
 }
 
 type treeEstimatorV2 struct {
@@ -136,7 +183,7 @@ func (e *treeEstimatorV2) estimate() (int, int, map[string]int, error) {
 		if !ok {
 			return 0, 0, nil, errors.New("invalid callable declaration")
 		}
-		c, err := e.walk(e.wrapFunction(function))
+		c, err := e.walk(wrapCallable(e.tree.Declarations, function))
 		if err != nil {
 			return 0, 0, nil, err
 		}
@@ -152,7 +199,7 @@ func (e *treeEstimatorV2) estimate() (int, int, map[string]int, error) {
 		if !ok {
 			return 0, 0, nil, errors.New("invalid verifier declaration")
 		}
-		c, err := e.walk(e.wrapFunction(verifier))
+		c, err := e.walk(wrapCallable(e.tree.Declarations, verifier))
 		if err != nil {
 			return 0, 0, nil, err
 		}
@@ -162,21 +209,6 @@ func (e *treeEstimatorV2) estimate() (int, int, map[string]int, error) {
 		}
 	}
 	return max, vc, m, nil
-}
-
-func (e *treeEstimatorV2) wrapFunction(node *ast.FunctionDeclarationNode) ast.Node {
-	args := make([]ast.Node, len(node.Arguments))
-	for i := range node.Arguments {
-		args[i] = ast.NewBooleanNode(true)
-	}
-	node.SetBlock(ast.NewFunctionCallNode(ast.UserFunction(node.Name), args))
-	var block ast.Node
-	block = ast.NewAssignmentNode(node.InvocationParameter, ast.NewBooleanNode(true), node)
-	for i := range slices.Backward(e.tree.Declarations) {
-		e.tree.Declarations[i].SetBlock(block)
-		block = e.tree.Declarations[i]
-	}
-	return block
 }
 
 func (e *treeEstimatorV2) walk(node ast.Node) (int, error) {
@@ -259,45 +291,47 @@ func (e *treeEstimatorV2) walk(node ast.Node) (int, error) {
 		}
 
 		// User function call
-		overlapped := make([]scopeValue, 0) // Temporary storage for the values that was overlapped by function arguments
-		newArguments := make([]string, 0)   // Names of function arguments that overlaps nothing
+		// Values overlapped by function arguments are kept in s.args[ab:] until the body is estimated.
+		// The arguments that overlap nothing are deleted after the body is estimated.
+		s := e.scope
+		ab := len(s.args)
 		for _, a := range fn.Arguments {
-			if vn, err := e.scope.value(a); err == nil {
-				overlapped = append(overlapped, scopeValue{id: a, n: vn})
-			} else {
-				newArguments = append(newArguments, a)
+			if vn, found := s.lookup(a); found {
+				s.args = append(s.args, scopeValue{id: a, n: vn})
 			}
 		}
 
 		// Re stack previous overlaps
-		for id, n := range e.scope.overlaps() {
-			e.scope.setValue(id, n)
-		}
+		s.restackOverlaps()
 
-		l := len(e.scope.values)
+		l := len(s.values)
 		// Stack arguments
 		for _, a := range fn.Arguments {
-			e.scope.setValue(a, ast.NewBooleanNode(true))
+			s.setValue(a, &s.trueNode)
 		}
 
 		// Stash current overlaps
-		e.scope.addOverlaps(overlapped)
+		s.addOverlaps(s.args[ab:])
 
 		fc, err = e.walk(fn.Body)
 		if err != nil {
 			return 0, errors.Wrapf(err, "failed to estimate cost of function '%s'", id)
 		}
 
+		overlapped := s.args[ab:]
 		for _, o := range overlapped {
-			if vn, err := e.scope.value(o.id); err == nil {
-				e.scope.setOverlap(o.id, vn)
+			if vn, found := s.lookup(o.id); found {
+				s.setOverlap(o.id, vn)
 			}
-			e.scope.setValue(o.id, o.n)
+			s.setValue(o.id, o.n)
 		}
 
-		for _, a := range newArguments {
-			e.scope.deleteValue(a, l)
+		for _, a := range fn.Arguments {
+			if !isOverlapped(overlapped, a) {
+				s.deleteValue(a, l)
+			}
 		}
+		s.args = s.args[:ab]
 
 		ac += len(fn.Arguments) * 5
 		return fc + ac, nil

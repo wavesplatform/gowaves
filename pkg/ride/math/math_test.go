@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"math/rand/v2"
 	"testing"
 
 	"github.com/ericlagergren/decimal"
@@ -446,5 +447,62 @@ func TestSqrtBigInt(t *testing.T) {
 		}
 		assert.NoError(t, err, i)
 		assert.Equal(t, tc.expected, r, i)
+	}
+}
+
+func TestFractionFastPathMatchesDecimal(t *testing.T) {
+	edges := []int64{
+		0, 1, -1, 2, -2, 3, -3, 7, -7, 100, -100, 6301369, math.MaxInt32, math.MinInt32,
+		3037000499, -3037000499, 3037000500, -3037000500,
+		math.MaxInt64 / 2, math.MinInt64 / 2, math.MaxInt64 - 1, math.MinInt64 + 1, math.MaxInt64, math.MinInt64,
+	}
+	check := func(v, n, d int64) {
+		expected, expErr := fractionDecimal(v, n, d)
+		actual, err := Fraction(v, n, d)
+		if expErr != nil {
+			require.Error(t, err, "%d * %d / %d", v, n, d)
+			return
+		}
+		require.NoError(t, err, "%d * %d / %d", v, n, d)
+		require.Equal(t, expected, actual, "%d * %d / %d", v, n, d)
+	}
+	for _, v := range edges {
+		for _, n := range edges {
+			for _, d := range edges {
+				check(v, n, d)
+			}
+		}
+	}
+	rnd := rand.New(rand.NewPCG(3, 4))
+	random := func() int64 {
+		x := int64(rnd.Uint64() >> rnd.UintN(64))
+		if rnd.IntN(2) == 0 {
+			return -x
+		}
+		return x
+	}
+	for range 100000 {
+		check(random(), random(), random())
+	}
+}
+
+func TestMulInt64(t *testing.T) {
+	for _, test := range []struct {
+		a, b int64
+		r    int64
+		ok   bool
+	}{
+		{0, math.MinInt64, 0, true},
+		{-1, math.MinInt64, 0, false},
+		{math.MinInt64, -1, 0, false},
+		{math.MinInt64, 1, math.MinInt64, true},
+		{3037000499, 3037000499, 3037000499 * 3037000499, true},
+		{3037000500, 3037000500, 0, false},
+		{-3037000500, 3037000500, 0, false},
+		{math.MaxInt64, -1, -math.MaxInt64, true},
+	} {
+		r, ok := MulInt64(test.a, test.b)
+		assert.Equal(t, test.ok, ok, "%d * %d", test.a, test.b)
+		assert.Equal(t, test.r, r, "%d * %d", test.a, test.b)
 	}
 }

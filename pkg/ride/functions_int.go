@@ -2,6 +2,7 @@ package ride
 
 import (
 	"encoding/binary"
+	stdmath "math"
 	"math/big"
 	"strconv"
 
@@ -47,22 +48,23 @@ func twoIntArgs(args []rideType) (rideInt, rideInt, error) {
 	return l1, l2, nil
 }
 
-func intArgs(args []rideType, count int) ([]rideInt, error) {
+func threeIntArgs(args []rideType) (rideInt, rideInt, rideInt, error) {
+	const count = 3
 	if len(args) != count {
-		return nil, errors.Errorf("%d is invalid number of arguments, expected %d", len(args), count)
+		return 0, 0, 0, errors.Errorf("%d is invalid number of arguments, expected %d", len(args), count)
 	}
-	r := make([]rideInt, len(args))
+	var r [count]rideInt
 	for n, arg := range args {
 		if arg == nil {
-			return nil, errors.Errorf("argument %d is empty", n+1)
+			return 0, 0, 0, errors.Errorf("argument %d is empty", n+1)
 		}
 		l, ok := arg.(rideInt)
 		if !ok {
-			return nil, errors.Errorf("argument %d is not of type 'Int' but '%s'", n+1, arg.instanceOf())
+			return 0, 0, 0, errors.Errorf("argument %d is not of type 'Int' but '%s'", n+1, arg.instanceOf())
 		}
 		r[n] = l
 	}
-	return r, nil
+	return r[0], r[1], r[2], nil
 }
 
 func ge(_ environment, args ...rideType) (rideType, error) {
@@ -144,11 +146,11 @@ func mod(_ environment, args ...rideType) (rideType, error) {
 }
 
 func fraction(_ environment, args ...rideType) (rideType, error) {
-	values, err := intArgs(args, 3)
+	value, numerator, denominator, err := threeIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "fraction")
 	}
-	res, err := math.Fraction(int64(values[0]), int64(values[1]), int64(values[2]))
+	res, err := math.Fraction(int64(value), int64(numerator), int64(denominator))
 	if err != nil {
 		return nil, errors.Wrap(err, "fraction")
 	}
@@ -163,21 +165,24 @@ func fractionIntRounds(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("fraction: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	v := big.NewInt(int64(value))
 	numerator, ok := args[1].(rideInt)
 	if !ok {
 		return nil, errors.Errorf("fraction: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	n := big.NewInt(int64(numerator))
 	denominator, ok := args[2].(rideInt)
 	if !ok {
 		return nil, errors.Errorf("fraction: unexpected argument type '%s'", args[2].instanceOf())
 	}
-	d := big.NewInt(int64(denominator))
 	round, err := roundingMode(args[3])
 	if err != nil {
 		return nil, errors.Wrap(err, "fraction")
 	}
+	if r, fits := fractionInt64LikeInScala(int64(value), int64(numerator), int64(denominator), round); fits {
+		return rideInt(r), nil
+	}
+	v := big.NewInt(int64(value))
+	n := big.NewInt(int64(numerator))
+	d := big.NewInt(int64(denominator))
 	r, err := fractionBigIntLikeInScala(v, n, d, round)
 	if err != nil {
 		return nil, errors.Wrap(err, "fraction")
@@ -186,6 +191,69 @@ func fractionIntRounds(_ environment, args ...rideType) (rideType, error) {
 		return nil, errors.New("fraction: result is out of int64 range")
 	}
 	return rideInt(r.Int64()), nil
+}
+
+// fractionInt64LikeInScala is the int64 version of fractionBigIntLikeInScala.
+// It returns false if the product of v and n or the result doesn't fit in int64,
+// or the rounding mode is not supported, in this case fractionBigIntLikeInScala should be used.
+func fractionInt64LikeInScala(v, n, d int64, roundingMode decimal.RoundingMode) (int64, bool) {
+	p, ok := math.MulInt64(v, n)
+	if !ok || d == 0 {
+		return 0, false
+	}
+	s := sign(p) * sign(d) // Sign of the result.
+	pa, da := absUint64(p), absUint64(d)
+	r, m := pa/da, pa%da
+	var inc bool
+	switch roundingMode {
+	case decimal.ToZero: // Down
+	case decimal.AwayFromZero: // Up
+		inc = m > 0
+	case decimal.ToNearestAway: // HalfUp
+		inc = 2*m >= da // No overflow, because m < da <= 2^63.
+	case decimal.ToNearestTowardZero: // RoundHalfDown
+		inc = 2*m > da
+	case decimal.ToPositiveInf: // Ceiling
+		inc = s > 0 && m > 0
+	case decimal.ToNegativeInf: // Floor
+		inc = s < 0 && m > 0
+	case decimal.ToNearestEven: // HalfEven
+		inc = 2*m > da || (2*m == da && r%2 == 1)
+	default:
+		return 0, false
+	}
+	if inc {
+		r++
+	}
+	switch {
+	case s > 0 && r <= stdmath.MaxInt64:
+		return int64(r), true
+	case s < 0 && r <= 1<<63:
+		// For r == 2^63 the conversion gives MinInt64 and negation keeps it.
+		return -int64(r), true //nolint:gosec // r <= 2^63 is checked above.
+	case s == 0:
+		return 0, true
+	default:
+		return 0, false
+	}
+}
+
+func sign(x int64) int {
+	switch {
+	case x > 0:
+		return 1
+	case x < 0:
+		return -1
+	default:
+		return 0
+	}
+}
+
+func absUint64(x int64) uint64 {
+	if x < 0 {
+		return uint64(-x) // For MinInt64 the result is 2^63 as expected.
+	}
+	return uint64(x)
 }
 
 func intToBytes(_ environment, args ...rideType) (rideType, error) {

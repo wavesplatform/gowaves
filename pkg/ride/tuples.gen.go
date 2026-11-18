@@ -3,7 +3,6 @@
 package ride
 
 import (
-	"fmt"
 	"github.com/pkg/errors"
 	"strconv"
 	"strings"
@@ -48,15 +47,16 @@ func (a tuple2) get(name string) (rideType, error) {
 }
 
 func (a tuple2) instanceOf() string {
-	return fmt.Sprintf("(%s, %s)", a.el1.instanceOf(), a.el2.instanceOf())
+	return "(" + a.el1.instanceOf() + ", " + a.el2.instanceOf() + ")"
 }
 
 func (a tuple2) eq(other rideType) bool {
-	if a.instanceOf() != other.instanceOf() {
-		return false
-	}
 	o, ok := other.(tuple2)
 	if !ok {
+		return false
+	}
+	// Same as comparing the tuple type names, but without building them.
+	if a.el1.instanceOf() != o.el1.instanceOf() || a.el2.instanceOf() != o.el2.instanceOf() {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2)
@@ -119,15 +119,16 @@ func (a tuple3) get(name string) (rideType, error) {
 }
 
 func (a tuple3) instanceOf() string {
-	return fmt.Sprintf("(%s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf())
+	return "(" + a.el1.instanceOf() + ", " + a.el2.instanceOf() + ", " + a.el3.instanceOf() + ")"
 }
 
 func (a tuple3) eq(other rideType) bool {
-	if a.instanceOf() != other.instanceOf() {
-		return false
-	}
 	o, ok := other.(tuple3)
 	if !ok {
+		return false
+	}
+	// Same as comparing the tuple type names, but without building them.
+	if a.el1.instanceOf() != o.el1.instanceOf() || a.el2.instanceOf() != o.el2.instanceOf() || a.el3.instanceOf() != o.el3.instanceOf() {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3)
@@ -197,15 +198,16 @@ func (a tuple4) get(name string) (rideType, error) {
 }
 
 func (a tuple4) instanceOf() string {
-	return fmt.Sprintf("(%s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf())
+	return "(" + a.el1.instanceOf() + ", " + a.el2.instanceOf() + ", " + a.el3.instanceOf() + ", " + a.el4.instanceOf() + ")"
 }
 
 func (a tuple4) eq(other rideType) bool {
-	if a.instanceOf() != other.instanceOf() {
-		return false
-	}
 	o, ok := other.(tuple4)
 	if !ok {
+		return false
+	}
+	// Same as comparing the tuple type names, but without building them.
+	if a.el1.instanceOf() != o.el1.instanceOf() || a.el2.instanceOf() != o.el2.instanceOf() || a.el3.instanceOf() != o.el3.instanceOf() || a.el4.instanceOf() != o.el4.instanceOf() {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4)
@@ -282,15 +284,16 @@ func (a tuple5) get(name string) (rideType, error) {
 }
 
 func (a tuple5) instanceOf() string {
-	return fmt.Sprintf("(%s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf())
+	return "(" + a.el1.instanceOf() + ", " + a.el2.instanceOf() + ", " + a.el3.instanceOf() + ", " + a.el4.instanceOf() + ", " + a.el5.instanceOf() + ")"
 }
 
 func (a tuple5) eq(other rideType) bool {
-	if a.instanceOf() != other.instanceOf() {
-		return false
-	}
 	o, ok := other.(tuple5)
 	if !ok {
+		return false
+	}
+	// Same as comparing the tuple type names, but without building them.
+	if a.el1.instanceOf() != o.el1.instanceOf() || a.el2.instanceOf() != o.el2.instanceOf() || a.el3.instanceOf() != o.el3.instanceOf() || a.el4.instanceOf() != o.el4.instanceOf() || a.el5.instanceOf() != o.el5.instanceOf() {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5)
@@ -374,15 +377,16 @@ func (a tuple6) get(name string) (rideType, error) {
 }
 
 func (a tuple6) instanceOf() string {
-	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf())
+	return "(" + a.el1.instanceOf() + ", " + a.el2.instanceOf() + ", " + a.el3.instanceOf() + ", " + a.el4.instanceOf() + ", " + a.el5.instanceOf() + ", " + a.el6.instanceOf() + ")"
 }
 
 func (a tuple6) eq(other rideType) bool {
-	if a.instanceOf() != other.instanceOf() {
-		return false
-	}
 	o, ok := other.(tuple6)
 	if !ok {
+		return false
+	}
+	// Same as comparing the tuple type names, but without building them.
+	if a.el1.instanceOf() != o.el1.instanceOf() || a.el2.instanceOf() != o.el2.instanceOf() || a.el3.instanceOf() != o.el3.instanceOf() || a.el4.instanceOf() != o.el4.instanceOf() || a.el5.instanceOf() != o.el5.instanceOf() || a.el6.instanceOf() != o.el6.instanceOf() {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6)
@@ -473,15 +477,16 @@ func (a tuple7) get(name string) (rideType, error) {
 }
 
 func (a tuple7) instanceOf() string {
-	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf())
+	return "(" + a.el1.instanceOf() + ", " + a.el2.instanceOf() + ", " + a.el3.instanceOf() + ", " + a.el4.instanceOf() + ", " + a.el5.instanceOf() + ", " + a.el6.instanceOf() + ", " + a.el7.instanceOf() + ")"
 }
 
 func (a tuple7) eq(other rideType) bool {
-	if a.instanceOf() != other.instanceOf() {
-		return false
-	}
 	o, ok := other.(tuple7)
 	if !ok {
+		return false
+	}
+	// Same as comparing the tuple type names, but without building them.
+	if a.el1.instanceOf() != o.el1.instanceOf() || a.el2.instanceOf() != o.el2.instanceOf() || a.el3.instanceOf() != o.el3.instanceOf() || a.el4.instanceOf() != o.el4.instanceOf() || a.el5.instanceOf() != o.el5.instanceOf() || a.el6.instanceOf() != o.el6.instanceOf() || a.el7.instanceOf() != o.el7.instanceOf() {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7)
@@ -579,15 +584,16 @@ func (a tuple8) get(name string) (rideType, error) {
 }
 
 func (a tuple8) instanceOf() string {
-	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf())
+	return "(" + a.el1.instanceOf() + ", " + a.el2.instanceOf() + ", " + a.el3.instanceOf() + ", " + a.el4.instanceOf() + ", " + a.el5.instanceOf() + ", " + a.el6.instanceOf() + ", " + a.el7.instanceOf() + ", " + a.el8.instanceOf() + ")"
 }
 
 func (a tuple8) eq(other rideType) bool {
-	if a.instanceOf() != other.instanceOf() {
-		return false
-	}
 	o, ok := other.(tuple8)
 	if !ok {
+		return false
+	}
+	// Same as comparing the tuple type names, but without building them.
+	if a.el1.instanceOf() != o.el1.instanceOf() || a.el2.instanceOf() != o.el2.instanceOf() || a.el3.instanceOf() != o.el3.instanceOf() || a.el4.instanceOf() != o.el4.instanceOf() || a.el5.instanceOf() != o.el5.instanceOf() || a.el6.instanceOf() != o.el6.instanceOf() || a.el7.instanceOf() != o.el7.instanceOf() || a.el8.instanceOf() != o.el8.instanceOf() {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8)
@@ -692,15 +698,16 @@ func (a tuple9) get(name string) (rideType, error) {
 }
 
 func (a tuple9) instanceOf() string {
-	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf())
+	return "(" + a.el1.instanceOf() + ", " + a.el2.instanceOf() + ", " + a.el3.instanceOf() + ", " + a.el4.instanceOf() + ", " + a.el5.instanceOf() + ", " + a.el6.instanceOf() + ", " + a.el7.instanceOf() + ", " + a.el8.instanceOf() + ", " + a.el9.instanceOf() + ")"
 }
 
 func (a tuple9) eq(other rideType) bool {
-	if a.instanceOf() != other.instanceOf() {
-		return false
-	}
 	o, ok := other.(tuple9)
 	if !ok {
+		return false
+	}
+	// Same as comparing the tuple type names, but without building them.
+	if a.el1.instanceOf() != o.el1.instanceOf() || a.el2.instanceOf() != o.el2.instanceOf() || a.el3.instanceOf() != o.el3.instanceOf() || a.el4.instanceOf() != o.el4.instanceOf() || a.el5.instanceOf() != o.el5.instanceOf() || a.el6.instanceOf() != o.el6.instanceOf() || a.el7.instanceOf() != o.el7.instanceOf() || a.el8.instanceOf() != o.el8.instanceOf() || a.el9.instanceOf() != o.el9.instanceOf() {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9)
@@ -812,15 +819,16 @@ func (a tuple10) get(name string) (rideType, error) {
 }
 
 func (a tuple10) instanceOf() string {
-	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf())
+	return "(" + a.el1.instanceOf() + ", " + a.el2.instanceOf() + ", " + a.el3.instanceOf() + ", " + a.el4.instanceOf() + ", " + a.el5.instanceOf() + ", " + a.el6.instanceOf() + ", " + a.el7.instanceOf() + ", " + a.el8.instanceOf() + ", " + a.el9.instanceOf() + ", " + a.el10.instanceOf() + ")"
 }
 
 func (a tuple10) eq(other rideType) bool {
-	if a.instanceOf() != other.instanceOf() {
-		return false
-	}
 	o, ok := other.(tuple10)
 	if !ok {
+		return false
+	}
+	// Same as comparing the tuple type names, but without building them.
+	if a.el1.instanceOf() != o.el1.instanceOf() || a.el2.instanceOf() != o.el2.instanceOf() || a.el3.instanceOf() != o.el3.instanceOf() || a.el4.instanceOf() != o.el4.instanceOf() || a.el5.instanceOf() != o.el5.instanceOf() || a.el6.instanceOf() != o.el6.instanceOf() || a.el7.instanceOf() != o.el7.instanceOf() || a.el8.instanceOf() != o.el8.instanceOf() || a.el9.instanceOf() != o.el9.instanceOf() || a.el10.instanceOf() != o.el10.instanceOf() {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10)
@@ -939,15 +947,16 @@ func (a tuple11) get(name string) (rideType, error) {
 }
 
 func (a tuple11) instanceOf() string {
-	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf(), a.el11.instanceOf())
+	return "(" + a.el1.instanceOf() + ", " + a.el2.instanceOf() + ", " + a.el3.instanceOf() + ", " + a.el4.instanceOf() + ", " + a.el5.instanceOf() + ", " + a.el6.instanceOf() + ", " + a.el7.instanceOf() + ", " + a.el8.instanceOf() + ", " + a.el9.instanceOf() + ", " + a.el10.instanceOf() + ", " + a.el11.instanceOf() + ")"
 }
 
 func (a tuple11) eq(other rideType) bool {
-	if a.instanceOf() != other.instanceOf() {
-		return false
-	}
 	o, ok := other.(tuple11)
 	if !ok {
+		return false
+	}
+	// Same as comparing the tuple type names, but without building them.
+	if a.el1.instanceOf() != o.el1.instanceOf() || a.el2.instanceOf() != o.el2.instanceOf() || a.el3.instanceOf() != o.el3.instanceOf() || a.el4.instanceOf() != o.el4.instanceOf() || a.el5.instanceOf() != o.el5.instanceOf() || a.el6.instanceOf() != o.el6.instanceOf() || a.el7.instanceOf() != o.el7.instanceOf() || a.el8.instanceOf() != o.el8.instanceOf() || a.el9.instanceOf() != o.el9.instanceOf() || a.el10.instanceOf() != o.el10.instanceOf() || a.el11.instanceOf() != o.el11.instanceOf() {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11)
@@ -1073,15 +1082,16 @@ func (a tuple12) get(name string) (rideType, error) {
 }
 
 func (a tuple12) instanceOf() string {
-	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf(), a.el11.instanceOf(), a.el12.instanceOf())
+	return "(" + a.el1.instanceOf() + ", " + a.el2.instanceOf() + ", " + a.el3.instanceOf() + ", " + a.el4.instanceOf() + ", " + a.el5.instanceOf() + ", " + a.el6.instanceOf() + ", " + a.el7.instanceOf() + ", " + a.el8.instanceOf() + ", " + a.el9.instanceOf() + ", " + a.el10.instanceOf() + ", " + a.el11.instanceOf() + ", " + a.el12.instanceOf() + ")"
 }
 
 func (a tuple12) eq(other rideType) bool {
-	if a.instanceOf() != other.instanceOf() {
-		return false
-	}
 	o, ok := other.(tuple12)
 	if !ok {
+		return false
+	}
+	// Same as comparing the tuple type names, but without building them.
+	if a.el1.instanceOf() != o.el1.instanceOf() || a.el2.instanceOf() != o.el2.instanceOf() || a.el3.instanceOf() != o.el3.instanceOf() || a.el4.instanceOf() != o.el4.instanceOf() || a.el5.instanceOf() != o.el5.instanceOf() || a.el6.instanceOf() != o.el6.instanceOf() || a.el7.instanceOf() != o.el7.instanceOf() || a.el8.instanceOf() != o.el8.instanceOf() || a.el9.instanceOf() != o.el9.instanceOf() || a.el10.instanceOf() != o.el10.instanceOf() || a.el11.instanceOf() != o.el11.instanceOf() || a.el12.instanceOf() != o.el12.instanceOf() {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12)
@@ -1214,15 +1224,16 @@ func (a tuple13) get(name string) (rideType, error) {
 }
 
 func (a tuple13) instanceOf() string {
-	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf(), a.el11.instanceOf(), a.el12.instanceOf(), a.el13.instanceOf())
+	return "(" + a.el1.instanceOf() + ", " + a.el2.instanceOf() + ", " + a.el3.instanceOf() + ", " + a.el4.instanceOf() + ", " + a.el5.instanceOf() + ", " + a.el6.instanceOf() + ", " + a.el7.instanceOf() + ", " + a.el8.instanceOf() + ", " + a.el9.instanceOf() + ", " + a.el10.instanceOf() + ", " + a.el11.instanceOf() + ", " + a.el12.instanceOf() + ", " + a.el13.instanceOf() + ")"
 }
 
 func (a tuple13) eq(other rideType) bool {
-	if a.instanceOf() != other.instanceOf() {
-		return false
-	}
 	o, ok := other.(tuple13)
 	if !ok {
+		return false
+	}
+	// Same as comparing the tuple type names, but without building them.
+	if a.el1.instanceOf() != o.el1.instanceOf() || a.el2.instanceOf() != o.el2.instanceOf() || a.el3.instanceOf() != o.el3.instanceOf() || a.el4.instanceOf() != o.el4.instanceOf() || a.el5.instanceOf() != o.el5.instanceOf() || a.el6.instanceOf() != o.el6.instanceOf() || a.el7.instanceOf() != o.el7.instanceOf() || a.el8.instanceOf() != o.el8.instanceOf() || a.el9.instanceOf() != o.el9.instanceOf() || a.el10.instanceOf() != o.el10.instanceOf() || a.el11.instanceOf() != o.el11.instanceOf() || a.el12.instanceOf() != o.el12.instanceOf() || a.el13.instanceOf() != o.el13.instanceOf() {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13)
@@ -1362,15 +1373,16 @@ func (a tuple14) get(name string) (rideType, error) {
 }
 
 func (a tuple14) instanceOf() string {
-	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf(), a.el11.instanceOf(), a.el12.instanceOf(), a.el13.instanceOf(), a.el14.instanceOf())
+	return "(" + a.el1.instanceOf() + ", " + a.el2.instanceOf() + ", " + a.el3.instanceOf() + ", " + a.el4.instanceOf() + ", " + a.el5.instanceOf() + ", " + a.el6.instanceOf() + ", " + a.el7.instanceOf() + ", " + a.el8.instanceOf() + ", " + a.el9.instanceOf() + ", " + a.el10.instanceOf() + ", " + a.el11.instanceOf() + ", " + a.el12.instanceOf() + ", " + a.el13.instanceOf() + ", " + a.el14.instanceOf() + ")"
 }
 
 func (a tuple14) eq(other rideType) bool {
-	if a.instanceOf() != other.instanceOf() {
-		return false
-	}
 	o, ok := other.(tuple14)
 	if !ok {
+		return false
+	}
+	// Same as comparing the tuple type names, but without building them.
+	if a.el1.instanceOf() != o.el1.instanceOf() || a.el2.instanceOf() != o.el2.instanceOf() || a.el3.instanceOf() != o.el3.instanceOf() || a.el4.instanceOf() != o.el4.instanceOf() || a.el5.instanceOf() != o.el5.instanceOf() || a.el6.instanceOf() != o.el6.instanceOf() || a.el7.instanceOf() != o.el7.instanceOf() || a.el8.instanceOf() != o.el8.instanceOf() || a.el9.instanceOf() != o.el9.instanceOf() || a.el10.instanceOf() != o.el10.instanceOf() || a.el11.instanceOf() != o.el11.instanceOf() || a.el12.instanceOf() != o.el12.instanceOf() || a.el13.instanceOf() != o.el13.instanceOf() || a.el14.instanceOf() != o.el14.instanceOf() {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14)
@@ -1517,15 +1529,16 @@ func (a tuple15) get(name string) (rideType, error) {
 }
 
 func (a tuple15) instanceOf() string {
-	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf(), a.el11.instanceOf(), a.el12.instanceOf(), a.el13.instanceOf(), a.el14.instanceOf(), a.el15.instanceOf())
+	return "(" + a.el1.instanceOf() + ", " + a.el2.instanceOf() + ", " + a.el3.instanceOf() + ", " + a.el4.instanceOf() + ", " + a.el5.instanceOf() + ", " + a.el6.instanceOf() + ", " + a.el7.instanceOf() + ", " + a.el8.instanceOf() + ", " + a.el9.instanceOf() + ", " + a.el10.instanceOf() + ", " + a.el11.instanceOf() + ", " + a.el12.instanceOf() + ", " + a.el13.instanceOf() + ", " + a.el14.instanceOf() + ", " + a.el15.instanceOf() + ")"
 }
 
 func (a tuple15) eq(other rideType) bool {
-	if a.instanceOf() != other.instanceOf() {
-		return false
-	}
 	o, ok := other.(tuple15)
 	if !ok {
+		return false
+	}
+	// Same as comparing the tuple type names, but without building them.
+	if a.el1.instanceOf() != o.el1.instanceOf() || a.el2.instanceOf() != o.el2.instanceOf() || a.el3.instanceOf() != o.el3.instanceOf() || a.el4.instanceOf() != o.el4.instanceOf() || a.el5.instanceOf() != o.el5.instanceOf() || a.el6.instanceOf() != o.el6.instanceOf() || a.el7.instanceOf() != o.el7.instanceOf() || a.el8.instanceOf() != o.el8.instanceOf() || a.el9.instanceOf() != o.el9.instanceOf() || a.el10.instanceOf() != o.el10.instanceOf() || a.el11.instanceOf() != o.el11.instanceOf() || a.el12.instanceOf() != o.el12.instanceOf() || a.el13.instanceOf() != o.el13.instanceOf() || a.el14.instanceOf() != o.el14.instanceOf() || a.el15.instanceOf() != o.el15.instanceOf() {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14) && a.el15.eq(o.el15)
@@ -1679,15 +1692,16 @@ func (a tuple16) get(name string) (rideType, error) {
 }
 
 func (a tuple16) instanceOf() string {
-	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf(), a.el11.instanceOf(), a.el12.instanceOf(), a.el13.instanceOf(), a.el14.instanceOf(), a.el15.instanceOf(), a.el16.instanceOf())
+	return "(" + a.el1.instanceOf() + ", " + a.el2.instanceOf() + ", " + a.el3.instanceOf() + ", " + a.el4.instanceOf() + ", " + a.el5.instanceOf() + ", " + a.el6.instanceOf() + ", " + a.el7.instanceOf() + ", " + a.el8.instanceOf() + ", " + a.el9.instanceOf() + ", " + a.el10.instanceOf() + ", " + a.el11.instanceOf() + ", " + a.el12.instanceOf() + ", " + a.el13.instanceOf() + ", " + a.el14.instanceOf() + ", " + a.el15.instanceOf() + ", " + a.el16.instanceOf() + ")"
 }
 
 func (a tuple16) eq(other rideType) bool {
-	if a.instanceOf() != other.instanceOf() {
-		return false
-	}
 	o, ok := other.(tuple16)
 	if !ok {
+		return false
+	}
+	// Same as comparing the tuple type names, but without building them.
+	if a.el1.instanceOf() != o.el1.instanceOf() || a.el2.instanceOf() != o.el2.instanceOf() || a.el3.instanceOf() != o.el3.instanceOf() || a.el4.instanceOf() != o.el4.instanceOf() || a.el5.instanceOf() != o.el5.instanceOf() || a.el6.instanceOf() != o.el6.instanceOf() || a.el7.instanceOf() != o.el7.instanceOf() || a.el8.instanceOf() != o.el8.instanceOf() || a.el9.instanceOf() != o.el9.instanceOf() || a.el10.instanceOf() != o.el10.instanceOf() || a.el11.instanceOf() != o.el11.instanceOf() || a.el12.instanceOf() != o.el12.instanceOf() || a.el13.instanceOf() != o.el13.instanceOf() || a.el14.instanceOf() != o.el14.instanceOf() || a.el15.instanceOf() != o.el15.instanceOf() || a.el16.instanceOf() != o.el16.instanceOf() {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14) && a.el15.eq(o.el15) && a.el16.eq(o.el16)
@@ -1848,15 +1862,16 @@ func (a tuple17) get(name string) (rideType, error) {
 }
 
 func (a tuple17) instanceOf() string {
-	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf(), a.el11.instanceOf(), a.el12.instanceOf(), a.el13.instanceOf(), a.el14.instanceOf(), a.el15.instanceOf(), a.el16.instanceOf(), a.el17.instanceOf())
+	return "(" + a.el1.instanceOf() + ", " + a.el2.instanceOf() + ", " + a.el3.instanceOf() + ", " + a.el4.instanceOf() + ", " + a.el5.instanceOf() + ", " + a.el6.instanceOf() + ", " + a.el7.instanceOf() + ", " + a.el8.instanceOf() + ", " + a.el9.instanceOf() + ", " + a.el10.instanceOf() + ", " + a.el11.instanceOf() + ", " + a.el12.instanceOf() + ", " + a.el13.instanceOf() + ", " + a.el14.instanceOf() + ", " + a.el15.instanceOf() + ", " + a.el16.instanceOf() + ", " + a.el17.instanceOf() + ")"
 }
 
 func (a tuple17) eq(other rideType) bool {
-	if a.instanceOf() != other.instanceOf() {
-		return false
-	}
 	o, ok := other.(tuple17)
 	if !ok {
+		return false
+	}
+	// Same as comparing the tuple type names, but without building them.
+	if a.el1.instanceOf() != o.el1.instanceOf() || a.el2.instanceOf() != o.el2.instanceOf() || a.el3.instanceOf() != o.el3.instanceOf() || a.el4.instanceOf() != o.el4.instanceOf() || a.el5.instanceOf() != o.el5.instanceOf() || a.el6.instanceOf() != o.el6.instanceOf() || a.el7.instanceOf() != o.el7.instanceOf() || a.el8.instanceOf() != o.el8.instanceOf() || a.el9.instanceOf() != o.el9.instanceOf() || a.el10.instanceOf() != o.el10.instanceOf() || a.el11.instanceOf() != o.el11.instanceOf() || a.el12.instanceOf() != o.el12.instanceOf() || a.el13.instanceOf() != o.el13.instanceOf() || a.el14.instanceOf() != o.el14.instanceOf() || a.el15.instanceOf() != o.el15.instanceOf() || a.el16.instanceOf() != o.el16.instanceOf() || a.el17.instanceOf() != o.el17.instanceOf() {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14) && a.el15.eq(o.el15) && a.el16.eq(o.el16) && a.el17.eq(o.el17)
@@ -2024,15 +2039,16 @@ func (a tuple18) get(name string) (rideType, error) {
 }
 
 func (a tuple18) instanceOf() string {
-	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf(), a.el11.instanceOf(), a.el12.instanceOf(), a.el13.instanceOf(), a.el14.instanceOf(), a.el15.instanceOf(), a.el16.instanceOf(), a.el17.instanceOf(), a.el18.instanceOf())
+	return "(" + a.el1.instanceOf() + ", " + a.el2.instanceOf() + ", " + a.el3.instanceOf() + ", " + a.el4.instanceOf() + ", " + a.el5.instanceOf() + ", " + a.el6.instanceOf() + ", " + a.el7.instanceOf() + ", " + a.el8.instanceOf() + ", " + a.el9.instanceOf() + ", " + a.el10.instanceOf() + ", " + a.el11.instanceOf() + ", " + a.el12.instanceOf() + ", " + a.el13.instanceOf() + ", " + a.el14.instanceOf() + ", " + a.el15.instanceOf() + ", " + a.el16.instanceOf() + ", " + a.el17.instanceOf() + ", " + a.el18.instanceOf() + ")"
 }
 
 func (a tuple18) eq(other rideType) bool {
-	if a.instanceOf() != other.instanceOf() {
-		return false
-	}
 	o, ok := other.(tuple18)
 	if !ok {
+		return false
+	}
+	// Same as comparing the tuple type names, but without building them.
+	if a.el1.instanceOf() != o.el1.instanceOf() || a.el2.instanceOf() != o.el2.instanceOf() || a.el3.instanceOf() != o.el3.instanceOf() || a.el4.instanceOf() != o.el4.instanceOf() || a.el5.instanceOf() != o.el5.instanceOf() || a.el6.instanceOf() != o.el6.instanceOf() || a.el7.instanceOf() != o.el7.instanceOf() || a.el8.instanceOf() != o.el8.instanceOf() || a.el9.instanceOf() != o.el9.instanceOf() || a.el10.instanceOf() != o.el10.instanceOf() || a.el11.instanceOf() != o.el11.instanceOf() || a.el12.instanceOf() != o.el12.instanceOf() || a.el13.instanceOf() != o.el13.instanceOf() || a.el14.instanceOf() != o.el14.instanceOf() || a.el15.instanceOf() != o.el15.instanceOf() || a.el16.instanceOf() != o.el16.instanceOf() || a.el17.instanceOf() != o.el17.instanceOf() || a.el18.instanceOf() != o.el18.instanceOf() {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14) && a.el15.eq(o.el15) && a.el16.eq(o.el16) && a.el17.eq(o.el17) && a.el18.eq(o.el18)
@@ -2207,15 +2223,16 @@ func (a tuple19) get(name string) (rideType, error) {
 }
 
 func (a tuple19) instanceOf() string {
-	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf(), a.el11.instanceOf(), a.el12.instanceOf(), a.el13.instanceOf(), a.el14.instanceOf(), a.el15.instanceOf(), a.el16.instanceOf(), a.el17.instanceOf(), a.el18.instanceOf(), a.el19.instanceOf())
+	return "(" + a.el1.instanceOf() + ", " + a.el2.instanceOf() + ", " + a.el3.instanceOf() + ", " + a.el4.instanceOf() + ", " + a.el5.instanceOf() + ", " + a.el6.instanceOf() + ", " + a.el7.instanceOf() + ", " + a.el8.instanceOf() + ", " + a.el9.instanceOf() + ", " + a.el10.instanceOf() + ", " + a.el11.instanceOf() + ", " + a.el12.instanceOf() + ", " + a.el13.instanceOf() + ", " + a.el14.instanceOf() + ", " + a.el15.instanceOf() + ", " + a.el16.instanceOf() + ", " + a.el17.instanceOf() + ", " + a.el18.instanceOf() + ", " + a.el19.instanceOf() + ")"
 }
 
 func (a tuple19) eq(other rideType) bool {
-	if a.instanceOf() != other.instanceOf() {
-		return false
-	}
 	o, ok := other.(tuple19)
 	if !ok {
+		return false
+	}
+	// Same as comparing the tuple type names, but without building them.
+	if a.el1.instanceOf() != o.el1.instanceOf() || a.el2.instanceOf() != o.el2.instanceOf() || a.el3.instanceOf() != o.el3.instanceOf() || a.el4.instanceOf() != o.el4.instanceOf() || a.el5.instanceOf() != o.el5.instanceOf() || a.el6.instanceOf() != o.el6.instanceOf() || a.el7.instanceOf() != o.el7.instanceOf() || a.el8.instanceOf() != o.el8.instanceOf() || a.el9.instanceOf() != o.el9.instanceOf() || a.el10.instanceOf() != o.el10.instanceOf() || a.el11.instanceOf() != o.el11.instanceOf() || a.el12.instanceOf() != o.el12.instanceOf() || a.el13.instanceOf() != o.el13.instanceOf() || a.el14.instanceOf() != o.el14.instanceOf() || a.el15.instanceOf() != o.el15.instanceOf() || a.el16.instanceOf() != o.el16.instanceOf() || a.el17.instanceOf() != o.el17.instanceOf() || a.el18.instanceOf() != o.el18.instanceOf() || a.el19.instanceOf() != o.el19.instanceOf() {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14) && a.el15.eq(o.el15) && a.el16.eq(o.el16) && a.el17.eq(o.el17) && a.el18.eq(o.el18) && a.el19.eq(o.el19)
@@ -2397,15 +2414,16 @@ func (a tuple20) get(name string) (rideType, error) {
 }
 
 func (a tuple20) instanceOf() string {
-	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf(), a.el11.instanceOf(), a.el12.instanceOf(), a.el13.instanceOf(), a.el14.instanceOf(), a.el15.instanceOf(), a.el16.instanceOf(), a.el17.instanceOf(), a.el18.instanceOf(), a.el19.instanceOf(), a.el20.instanceOf())
+	return "(" + a.el1.instanceOf() + ", " + a.el2.instanceOf() + ", " + a.el3.instanceOf() + ", " + a.el4.instanceOf() + ", " + a.el5.instanceOf() + ", " + a.el6.instanceOf() + ", " + a.el7.instanceOf() + ", " + a.el8.instanceOf() + ", " + a.el9.instanceOf() + ", " + a.el10.instanceOf() + ", " + a.el11.instanceOf() + ", " + a.el12.instanceOf() + ", " + a.el13.instanceOf() + ", " + a.el14.instanceOf() + ", " + a.el15.instanceOf() + ", " + a.el16.instanceOf() + ", " + a.el17.instanceOf() + ", " + a.el18.instanceOf() + ", " + a.el19.instanceOf() + ", " + a.el20.instanceOf() + ")"
 }
 
 func (a tuple20) eq(other rideType) bool {
-	if a.instanceOf() != other.instanceOf() {
-		return false
-	}
 	o, ok := other.(tuple20)
 	if !ok {
+		return false
+	}
+	// Same as comparing the tuple type names, but without building them.
+	if a.el1.instanceOf() != o.el1.instanceOf() || a.el2.instanceOf() != o.el2.instanceOf() || a.el3.instanceOf() != o.el3.instanceOf() || a.el4.instanceOf() != o.el4.instanceOf() || a.el5.instanceOf() != o.el5.instanceOf() || a.el6.instanceOf() != o.el6.instanceOf() || a.el7.instanceOf() != o.el7.instanceOf() || a.el8.instanceOf() != o.el8.instanceOf() || a.el9.instanceOf() != o.el9.instanceOf() || a.el10.instanceOf() != o.el10.instanceOf() || a.el11.instanceOf() != o.el11.instanceOf() || a.el12.instanceOf() != o.el12.instanceOf() || a.el13.instanceOf() != o.el13.instanceOf() || a.el14.instanceOf() != o.el14.instanceOf() || a.el15.instanceOf() != o.el15.instanceOf() || a.el16.instanceOf() != o.el16.instanceOf() || a.el17.instanceOf() != o.el17.instanceOf() || a.el18.instanceOf() != o.el18.instanceOf() || a.el19.instanceOf() != o.el19.instanceOf() || a.el20.instanceOf() != o.el20.instanceOf() {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14) && a.el15.eq(o.el15) && a.el16.eq(o.el16) && a.el17.eq(o.el17) && a.el18.eq(o.el18) && a.el19.eq(o.el19) && a.el20.eq(o.el20)
@@ -2594,15 +2612,16 @@ func (a tuple21) get(name string) (rideType, error) {
 }
 
 func (a tuple21) instanceOf() string {
-	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf(), a.el11.instanceOf(), a.el12.instanceOf(), a.el13.instanceOf(), a.el14.instanceOf(), a.el15.instanceOf(), a.el16.instanceOf(), a.el17.instanceOf(), a.el18.instanceOf(), a.el19.instanceOf(), a.el20.instanceOf(), a.el21.instanceOf())
+	return "(" + a.el1.instanceOf() + ", " + a.el2.instanceOf() + ", " + a.el3.instanceOf() + ", " + a.el4.instanceOf() + ", " + a.el5.instanceOf() + ", " + a.el6.instanceOf() + ", " + a.el7.instanceOf() + ", " + a.el8.instanceOf() + ", " + a.el9.instanceOf() + ", " + a.el10.instanceOf() + ", " + a.el11.instanceOf() + ", " + a.el12.instanceOf() + ", " + a.el13.instanceOf() + ", " + a.el14.instanceOf() + ", " + a.el15.instanceOf() + ", " + a.el16.instanceOf() + ", " + a.el17.instanceOf() + ", " + a.el18.instanceOf() + ", " + a.el19.instanceOf() + ", " + a.el20.instanceOf() + ", " + a.el21.instanceOf() + ")"
 }
 
 func (a tuple21) eq(other rideType) bool {
-	if a.instanceOf() != other.instanceOf() {
-		return false
-	}
 	o, ok := other.(tuple21)
 	if !ok {
+		return false
+	}
+	// Same as comparing the tuple type names, but without building them.
+	if a.el1.instanceOf() != o.el1.instanceOf() || a.el2.instanceOf() != o.el2.instanceOf() || a.el3.instanceOf() != o.el3.instanceOf() || a.el4.instanceOf() != o.el4.instanceOf() || a.el5.instanceOf() != o.el5.instanceOf() || a.el6.instanceOf() != o.el6.instanceOf() || a.el7.instanceOf() != o.el7.instanceOf() || a.el8.instanceOf() != o.el8.instanceOf() || a.el9.instanceOf() != o.el9.instanceOf() || a.el10.instanceOf() != o.el10.instanceOf() || a.el11.instanceOf() != o.el11.instanceOf() || a.el12.instanceOf() != o.el12.instanceOf() || a.el13.instanceOf() != o.el13.instanceOf() || a.el14.instanceOf() != o.el14.instanceOf() || a.el15.instanceOf() != o.el15.instanceOf() || a.el16.instanceOf() != o.el16.instanceOf() || a.el17.instanceOf() != o.el17.instanceOf() || a.el18.instanceOf() != o.el18.instanceOf() || a.el19.instanceOf() != o.el19.instanceOf() || a.el20.instanceOf() != o.el20.instanceOf() || a.el21.instanceOf() != o.el21.instanceOf() {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14) && a.el15.eq(o.el15) && a.el16.eq(o.el16) && a.el17.eq(o.el17) && a.el18.eq(o.el18) && a.el19.eq(o.el19) && a.el20.eq(o.el20) && a.el21.eq(o.el21)
@@ -2798,15 +2817,16 @@ func (a tuple22) get(name string) (rideType, error) {
 }
 
 func (a tuple22) instanceOf() string {
-	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf(), a.el11.instanceOf(), a.el12.instanceOf(), a.el13.instanceOf(), a.el14.instanceOf(), a.el15.instanceOf(), a.el16.instanceOf(), a.el17.instanceOf(), a.el18.instanceOf(), a.el19.instanceOf(), a.el20.instanceOf(), a.el21.instanceOf(), a.el22.instanceOf())
+	return "(" + a.el1.instanceOf() + ", " + a.el2.instanceOf() + ", " + a.el3.instanceOf() + ", " + a.el4.instanceOf() + ", " + a.el5.instanceOf() + ", " + a.el6.instanceOf() + ", " + a.el7.instanceOf() + ", " + a.el8.instanceOf() + ", " + a.el9.instanceOf() + ", " + a.el10.instanceOf() + ", " + a.el11.instanceOf() + ", " + a.el12.instanceOf() + ", " + a.el13.instanceOf() + ", " + a.el14.instanceOf() + ", " + a.el15.instanceOf() + ", " + a.el16.instanceOf() + ", " + a.el17.instanceOf() + ", " + a.el18.instanceOf() + ", " + a.el19.instanceOf() + ", " + a.el20.instanceOf() + ", " + a.el21.instanceOf() + ", " + a.el22.instanceOf() + ")"
 }
 
 func (a tuple22) eq(other rideType) bool {
-	if a.instanceOf() != other.instanceOf() {
-		return false
-	}
 	o, ok := other.(tuple22)
 	if !ok {
+		return false
+	}
+	// Same as comparing the tuple type names, but without building them.
+	if a.el1.instanceOf() != o.el1.instanceOf() || a.el2.instanceOf() != o.el2.instanceOf() || a.el3.instanceOf() != o.el3.instanceOf() || a.el4.instanceOf() != o.el4.instanceOf() || a.el5.instanceOf() != o.el5.instanceOf() || a.el6.instanceOf() != o.el6.instanceOf() || a.el7.instanceOf() != o.el7.instanceOf() || a.el8.instanceOf() != o.el8.instanceOf() || a.el9.instanceOf() != o.el9.instanceOf() || a.el10.instanceOf() != o.el10.instanceOf() || a.el11.instanceOf() != o.el11.instanceOf() || a.el12.instanceOf() != o.el12.instanceOf() || a.el13.instanceOf() != o.el13.instanceOf() || a.el14.instanceOf() != o.el14.instanceOf() || a.el15.instanceOf() != o.el15.instanceOf() || a.el16.instanceOf() != o.el16.instanceOf() || a.el17.instanceOf() != o.el17.instanceOf() || a.el18.instanceOf() != o.el18.instanceOf() || a.el19.instanceOf() != o.el19.instanceOf() || a.el20.instanceOf() != o.el20.instanceOf() || a.el21.instanceOf() != o.el21.instanceOf() || a.el22.instanceOf() != o.el22.instanceOf() {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14) && a.el15.eq(o.el15) && a.el16.eq(o.el16) && a.el17.eq(o.el17) && a.el18.eq(o.el18) && a.el19.eq(o.el19) && a.el20.eq(o.el20) && a.el21.eq(o.el21) && a.el22.eq(o.el22)

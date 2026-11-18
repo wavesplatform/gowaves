@@ -208,7 +208,28 @@ func PowBigInt(base, exponent *big.Int, baseScale, exponentScale, resultScale in
 	return r.RoundToInt().Int(nil), nil
 }
 
+// MulInt64 returns the product of a and b and true if it fits in int64, otherwise it returns false.
+func MulInt64(a, b int64) (int64, bool) {
+	if a == 0 || b == 0 {
+		return 0, true
+	}
+	c := a * b
+	if (c < 0) != ((a < 0) != (b < 0)) || c/b != a {
+		return 0, false
+	}
+	return c, true
+}
+
 func Fraction(value, numerator, denominator int64) (int64, error) {
+	// Fast path: if the product fits in int64 it's exactly representable within the precision of Context128,
+	// and the quotient truncated toward zero is equal to the one calculated with decimals.
+	if p, ok := MulInt64(value, numerator); ok && denominator != 0 && (p != math0.MinInt64 || denominator != -1) {
+		return p / denominator, nil
+	}
+	return fractionDecimal(value, numerator, denominator)
+}
+
+func fractionDecimal(value, numerator, denominator int64) (int64, error) {
 	v := decimal.WithContext(decimal.Context128).SetMantScale(value, 0)
 	n := decimal.WithContext(decimal.Context128).SetMantScale(numerator, 0)
 	d := decimal.WithContext(decimal.Context128).SetMantScale(denominator, 0)

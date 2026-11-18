@@ -135,7 +135,15 @@ func (a *IssueScriptAction) ToProtobuf() *g.InvokeScriptResult_Issue {
 func GenerateIssueScriptActionID(name, description string, decimals, quantity int64, reissuable bool, nonce int64, txID crypto.Digest) crypto.Digest {
 	nl := len(name)
 	dl := len(description)
-	buf := make([]byte, 4+nl+4+dl+4+8+2+8+crypto.DigestSize)
+	// Short names and descriptions fit in the stack buffer, otherwise the buffer is allocated.
+	var stack [256]byte
+	var buf []byte
+	const fixedSize = 4 + 4 + 4 + 8 + 2 + 8 + crypto.DigestSize // Lengths of strings, decimals, quantity, etc.
+	if size := fixedSize + nl + dl; size <= len(stack) {
+		buf = stack[:size]
+	} else {
+		buf = make([]byte, size)
+	}
 	pos := 0
 	PutStringWithUInt32Len(buf[pos:], name)
 	pos += 4 + nl

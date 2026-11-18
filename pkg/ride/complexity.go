@@ -114,6 +114,38 @@ func (z zeroComplexityError) Error() string {
 	return fmt.Sprintf("node '%s' has zero complexity", z.name)
 }
 
+// addComplexity is an inlinable non-generic equivalent of common.AddInt for complexity values.
+// It returns the same sum as common.AddInt, including zero in case of overflow, and false instead of an error.
+func addComplexity(a, b int) (int, bool) {
+	c := a + b
+	if (c > a) == (b > 0) {
+		return c, true
+	}
+	return 0, false
+}
+
+// testComplexity checks that complexity fc can be added to the current complexity c without overflow and
+// without exceeding the limit l. Error values are built only on the failure paths.
+func testComplexity(name string, fc, c, l int) error {
+	nc, ok := addComplexity(c, fc)
+	if !ok {
+		return overflowError(name, fc, c)
+	}
+	if nc > l {
+		return newComplexityLimitOverflowError(name, fc, nc, l)
+	}
+	return nil
+}
+
+// overflowError builds the error of overflowed addition of fc to c. The inner error is taken from common.AddInt,
+// so the message is exactly the same as before.
+//
+//go:noinline
+func overflowError(name string, fc, c int) complexityCalculatorError {
+	_, err := common.AddInt(c, fc)
+	return newIntegerOverflowError(name, fc, c, err)
+}
+
 func newComplexityCalculatorByRideV6Activation(rideV6 bool) complexityCalculator {
 	if rideV6 {
 		return &complexityCalculatorV2{}
@@ -148,20 +180,13 @@ func (cc *complexityCalculatorV1) clone() complexityCalculator {
 }
 
 func (cc *complexityCalculatorV1) testNativeFunctionComplexity(name string, fc int) error {
-	nc, err := common.AddInt(cc.c, fc)
-	if err != nil {
-		return newIntegerOverflowError(name, fc, cc.complexity(), err)
-	}
-	if nc > cc.l {
-		return newComplexityLimitOverflowError(name, fc, nc, cc.limit())
-	}
-	return nil
+	return testComplexity(name, fc, cc.c, cc.l)
 }
 
 func (cc *complexityCalculatorV1) addNativeFunctionComplexity(name string, fc int) {
-	nc, err := common.AddInt(cc.c, fc)
-	if err != nil {
-		cc.err = newIntegerOverflowError(name, fc, cc.complexity(), err)
+	nc, ok := addComplexity(cc.c, fc)
+	if !ok {
+		cc.err = overflowError(name, fc, cc.c)
 	}
 	cc.c = nc
 }
@@ -174,21 +199,14 @@ func (cc *complexityCalculatorV1) addAdditionalUserFunctionComplexity(string, in
 
 func (cc *complexityCalculatorV1) testOne(name string) error {
 	const complexity = 1
-	nc, err := common.AddInt(cc.c, complexity)
-	if err != nil {
-		return newIntegerOverflowError(name, complexity, cc.complexity(), err)
-	}
-	if nc > cc.l {
-		return newComplexityLimitOverflowError(name, complexity, nc, cc.limit())
-	}
-	return nil
+	return testComplexity(name, complexity, cc.c, cc.l)
 }
 
 func (cc *complexityCalculatorV1) addOne(name string) {
 	const complexity = 1
-	nc, err := common.AddInt(cc.c, complexity)
-	if err != nil {
-		cc.err = newIntegerOverflowError(name, complexity, cc.complexity(), err)
+	nc, ok := addComplexity(cc.c, complexity)
+	if !ok {
+		cc.err = overflowError(name, complexity, cc.c)
 	}
 	cc.c = nc
 }
@@ -257,14 +275,7 @@ func (cc *complexityCalculatorV2) testNativeFunctionComplexity(name string, fc i
 	if fc == 0 { // sanity check: zero complexity for functions is not allowed since Ride V6
 		return newZeroComplexityError(name)
 	}
-	nc, err := common.AddInt(cc.c, fc)
-	if err != nil {
-		return newIntegerOverflowError(name, fc, cc.complexity(), err)
-	}
-	if nc > cc.l {
-		return newComplexityLimitOverflowError(name, fc, nc, cc.limit())
-	}
-	return nil
+	return testComplexity(name, fc, cc.c, cc.l)
 }
 
 func (cc *complexityCalculatorV2) addNativeFunctionComplexity(name string, fc int) {
@@ -272,9 +283,9 @@ func (cc *complexityCalculatorV2) addNativeFunctionComplexity(name string, fc in
 		cc.err = newZeroComplexityError(name)
 		return // don't add zero complexity
 	}
-	nc, err := common.AddInt(cc.c, fc)
-	if err != nil {
-		cc.err = newIntegerOverflowError(name, fc, cc.complexity(), err)
+	nc, ok := addComplexity(cc.c, fc)
+	if !ok {
+		cc.err = overflowError(name, fc, cc.c)
 	}
 	cc.c = nc
 }
@@ -287,14 +298,7 @@ func (cc *complexityCalculatorV2) testAdditionalUserFunctionComplexity(name stri
 		return nil
 	}
 	const additionalComplexity = 1
-	nc, err := common.AddInt(cc.c, additionalComplexity)
-	if err != nil {
-		return newIntegerOverflowError(name, additionalComplexity, cc.complexity(), err)
-	}
-	if nc > cc.l {
-		return newComplexityLimitOverflowError(name, additionalComplexity, nc, cc.limit())
-	}
-	return nil
+	return testComplexity(name, additionalComplexity, cc.c, cc.l)
 }
 
 func (cc *complexityCalculatorV2) addAdditionalUserFunctionComplexity(name string, ic int) {
@@ -304,9 +308,9 @@ func (cc *complexityCalculatorV2) addAdditionalUserFunctionComplexity(name strin
 		return
 	}
 	const additionalComplexity = 1
-	nc, err := common.AddInt(cc.c, additionalComplexity)
-	if err != nil {
-		cc.err = newIntegerOverflowError(name, additionalComplexity, cc.complexity(), err)
+	nc, ok := addComplexity(cc.c, additionalComplexity)
+	if !ok {
+		cc.err = overflowError(name, additionalComplexity, cc.c)
 	}
 	cc.c = nc
 }

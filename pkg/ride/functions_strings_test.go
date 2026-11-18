@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -802,4 +803,20 @@ func TestDigitsStringNormalization(t *testing.T) {
 			require.Equal(t, test.e, n)
 		})
 	}
+}
+
+// strictStringList is the reference implementation of the list check of mkStringStrict.
+func strictStringList(list []rideType) ([]string, int, error) {
+	parts := make([]string, len(list))
+	pl := 0
+	for i, item := range list {
+		rs, ok := item.(rideString)
+		if !ok {
+			return nil, 0, errors.Errorf("unexpected list item type '%s'", item.instanceOf())
+		}
+		str := string(rs)
+		parts[i] = str
+		pl += len(str)
+	}
+	return parts, pl, nil
 }
