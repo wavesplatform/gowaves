@@ -2,7 +2,7 @@ package ride //nolint:testpackage // White-box tests of the unexported native fu
 
 import (
 	"math/big"
-	"math/rand/v2"
+	"math/rand/v2" // nosemgrep: go.lang.security.audit.crypto.math_random.math-random-used
 	"slices"
 	"testing"
 

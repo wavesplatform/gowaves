@@ -3,7 +3,7 @@ package ride //nolint:testpackage // White-box tests of the unexported list and 
 import (
 	"fmt"
 	stdmath "math"
-	"math/rand/v2"
+	"math/rand/v2" // nosemgrep: go.lang.security.audit.crypto.math_random.math-random-used
 	"slices"
 	"sort"
 	"strings"

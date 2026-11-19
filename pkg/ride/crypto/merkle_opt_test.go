@@ -1,7 +1,7 @@
 package crypto_test
 
 import (
-	"math/rand/v2"
+	"math/rand/v2" // nosemgrep: go.lang.security.audit.crypto.math_random.math-random-used
 	"testing"
 
 	"github.com/pkg/errors"

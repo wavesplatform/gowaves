@@ -1621,20 +1621,18 @@ func scriptTransferToAction(env environment, o rideScriptTransfer) (proto.Script
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "failed to convert ScriptTransfer to ScriptAction")
 	}
+	amount := int64(o.amount)
 	asset, err := optionalAssetValue(o.asset, assetField)
 	// On asset ID conversion error we return empty action as in Scala
 	// See example on MainNet: transaction (https://wavesexplorer.com/tx/AUpiEr49Jo43Q9zXKkNN23rstiq87hguvhfQqV8ov9uQ)
 	// and script (https://wavesexplorer.com/tx/Bp1oieWHWpLz8vBFZui9tY1oDTAKUPTrBAGcwfRe9q5K)
 	if err != nil {
-		return &proto.TransferScriptAction{ //nolint:nilerr // The empty action is the expected result, see above.
-			Recipient: recipient,
-			Amount:    0,
-			Asset:     proto.NewOptionalAssetWaves(),
-		}, nil
+		amount = 0
+		asset = proto.NewOptionalAssetWaves()
 	}
 	return &proto.TransferScriptAction{
 		Recipient: recipient,
-		Amount:    int64(o.amount),
+		Amount:    amount,
 		Asset:     asset,
 	}, nil
 }
