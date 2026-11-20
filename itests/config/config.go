@@ -11,7 +11,10 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/ory/dockertest/v3"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/ory/dockertest/v4"
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -32,7 +35,7 @@ const (
 	goContainerName    = "go-node"
 
 	ScalaImageRepository = "wavesplatform/wavesnode"
-	ScalaImageTag        = "1.6.4"
+	ScalaImageTag        = "1.6.5"
 	goImageRepository    = "go-node"
 )
 
@@ -101,7 +104,8 @@ func (c *TestConfig) GenesisSH() crypto.Digest {
 }
 
 type DockerConfigurator interface {
-	DockerRunOptions() *dockertest.RunOptions
+	// DockerRunOptions returns the image repository and the options to run a container from it.
+	DockerRunOptions() (string, []dockertest.RunOption)
 	WithImageRepository(repository string) DockerConfigurator
 	WithImageTag(tag string) DockerConfigurator
 }
@@ -138,7 +142,7 @@ func (c *ScalaConfigurator) WithGoNode(goNodeIP string) *ScalaConfigurator {
 	return c
 }
 
-func (c *ScalaConfigurator) DockerRunOptions() *dockertest.RunOptions {
+func (c *ScalaConfigurator) DockerRunOptions() (string, []dockertest.RunOption) {
 	if c.imageRepository == "" {
 		c.imageRepository = ScalaImageRepository
 	}
@@ -153,16 +157,14 @@ func (c *ScalaConfigurator) DockerRunOptions() *dockertest.RunOptions {
 			panic(err)
 		}
 	}
-	opt := &dockertest.RunOptions{
-		Repository: c.imageRepository,
-		Name:       c.suite + "-" + scalaContainerName,
-		Tag:        c.imageTag,
-		Platform:   Platform(),
-		Hostname:   "scala-node",
-		Mounts: []string{
+	opts := []dockertest.RunOption{
+		dockertest.WithName(c.suite + "-" + scalaContainerName),
+		dockertest.WithTag(c.imageTag),
+		dockertest.WithHostname("scala-node"),
+		dockertest.WithMounts([]string{
 			c.configFolder + ":/etc/waves",
-		},
-		Env: []string{
+		}),
+		dockertest.WithEnv([]string{
 			"WAVES_LOG_LEVEL=TRACE",
 			"WAVES_NETWORK=custom",
 			"JAVA_OPTS=" +
@@ -172,14 +174,11 @@ func (c *ScalaConfigurator) DockerRunOptions() *dockertest.RunOptions {
 				"-Dwaves.rest-api.port=" + RESTAPIPort + " " +
 				"-Dwaves.grpc.port=" + GRPCAPIPort + " " +
 				"-Dwaves.network.enable-blacklisting=no",
-		},
-		ExposedPorts: []string{
-			GRPCAPIPort + NetTCP,
-			RESTAPIPort + NetTCP,
-			BindPort + NetTCP,
-		},
+		}),
+		withExposedPorts(),
+		dockertest.WithoutReuse(),
 	}
-	return opt
+	return c.imageRepository, opts
 }
 
 func (c *ScalaConfigurator) createNodeConfig() (err error) {
@@ -244,15 +243,13 @@ func (c *GoConfigurator) WithImageTag(_ string) DockerConfigurator {
 	return c
 }
 
-func (c *GoConfigurator) DockerRunOptions() *dockertest.RunOptions {
-	opt := &dockertest.RunOptions{
-		Repository: goImageRepository,
-		Name:       c.suite + "-" + goContainerName,
-		Tag:        "latest",
-		User:       "gowaves",
-		Hostname:   "go-node",
-		Platform:   Platform(),
-		Env: []string{
+func (c *GoConfigurator) DockerRunOptions() (string, []dockertest.RunOption) {
+	opts := []dockertest.RunOption{
+		dockertest.WithName(c.suite + "-" + goContainerName),
+		dockertest.WithTag("latest"),
+		dockertest.WithUser("gowaves"),
+		dockertest.WithHostname("go-node"),
+		dockertest.WithEnv([]string{
 			"GRPC_ADDR=" + DefaultIP + ":" + GRPCAPIPort,
 			"API_ADDR=" + DefaultIP + ":" + RESTAPIPort,
 			"BIND_ADDR=" + DefaultIP + ":" + BindPort,
@@ -263,18 +260,27 @@ func (c *GoConfigurator) DockerRunOptions() *dockertest.RunOptions {
 			"SUPPORTED_FEATURES=" + c.cfg.SupportedFeaturesString(),
 			"QUORUM=" + c.cfg.QuorumString(),
 			"DISABLE_MINER=" + c.cfg.DisableGoMiningString(),
-		},
-		ExposedPorts: []string{
-			GRPCAPIPort + NetTCP,
-			RESTAPIPort + NetTCP,
-			BindPort + NetTCP,
-		},
-		Mounts: []string{
+		}),
+		withExposedPorts(),
+		dockertest.WithMounts([]string{
 			c.configFolder + ":/home/gowaves/config",
 			c.walletFolder + ":/home/gowaves/wallet",
-		},
+		}),
+		dockertest.WithoutReuse(),
 	}
-	return opt
+	return goImageRepository, opts
+}
+
+// withExposedPorts exposes node's gRPC, REST API and bind ports.
+// Dockertest v4 has no dedicated option for exposed ports, so they are set directly in container config.
+func withExposedPorts() dockertest.RunOption {
+	return dockertest.WithContainerConfig(func(cfg *container.Config) {
+		cfg.ExposedPorts = network.PortSet{
+			network.MustParsePort(GRPCAPIPort + NetTCP): {},
+			network.MustParsePort(RESTAPIPort + NetTCP): {},
+			network.MustParsePort(BindPort + NetTCP):    {},
+		}
+	})
 }
 
 func (c *GoConfigurator) setAndVerifyWalletFolder() error {
@@ -333,7 +339,6 @@ func createConfigDir(suiteName string) (string, error) {
 	return configDir, nil
 }
 
-func Platform() string {
-	const prefix = "linux/"
-	return prefix + runtime.GOARCH
+func Platform() ocispec.Platform {
+	return ocispec.Platform{OS: "linux", Architecture: runtime.GOARCH}
 }

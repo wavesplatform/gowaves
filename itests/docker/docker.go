@@ -11,8 +11,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/ory/dockertest/v3"
-	dc "github.com/ory/dockertest/v3/docker"
+	"github.com/moby/moby/api/types/container"
+	mobyclient "github.com/moby/moby/client"
+	"github.com/ory/dockertest/v4"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 
@@ -40,11 +41,11 @@ type PortConfig struct {
 }
 
 type NodeContainer struct {
-	container *dockertest.Resource
+	container dockertest.ClosableResource
 	logs      *os.File
 	errors    *os.File
 	ports     *PortConfig
-	network   *dockertest.Network
+	network   dockertest.Network
 	ip        string // IP address of the container in the network.
 }
 
@@ -83,17 +84,14 @@ func (c *NodeContainer) closeFiles() error {
 }
 
 // Close purges container and closes log files.
-func (c *NodeContainer) Close() error {
+func (c *NodeContainer) Close(ctx context.Context) error {
 	if c.container == nil {
 		return nil
 	}
-	if dcErr := c.container.DisconnectFromNetwork(c.network); dcErr != nil {
-		return errors.Wrapf(dcErr, "failed to disconnect container %q from network %q",
-			c.container.Container.ID, c.network.Network.Name)
-	}
-	// Close purges the container. If it is not stopped, it will be killed with SIGKILL.
-	if clErr := c.container.Close(); clErr != nil {
-		return errors.Wrapf(clErr, "failed to close container %q", c.container.Container.ID)
+	// Close removes the container. If it is not stopped, it will be killed with SIGKILL.
+	// Removed container is disconnected from the network automatically.
+	if clErr := c.container.Close(ctx); clErr != nil {
+		return errors.Wrapf(clErr, "failed to close container %q", c.container.ID())
 	}
 	if err := c.closeFiles(); err != nil {
 		return err
@@ -104,8 +102,9 @@ func (c *NodeContainer) Close() error {
 type Docker struct {
 	suite string
 
-	pool    *dockertest.Pool
-	network *dockertest.Network
+	client  *mobyclient.Client
+	pool    dockertest.ClosablePool
+	network dockertest.ClosableNetwork
 
 	goNode    *NodeContainer
 	scalaNode *NodeContainer
@@ -115,20 +114,24 @@ type Docker struct {
 
 // NewDocker creates a new Docker handler for a given suite name.
 // It removes any existing containers or networks for the suite and creates a new suite network.
-func NewDocker(suiteName string) (*Docker, error) {
-	pool, err := dockertest.NewPool("")
+func NewDocker(ctx context.Context, suiteName string) (*Docker, error) {
+	cl, err := NewClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	pool.MaxWait = PoolRetryTimeout
-	docker := &Docker{suite: suiteName, pool: pool}
-	if rmErr := docker.removeContainers(); rmErr != nil {
+	// The pool doesn't close a client provided with WithMobyClient option, it's closed in Finish.
+	pool, err := dockertest.NewPool(ctx, "", dockertest.WithMobyClient(cl), dockertest.WithMaxWait(PoolRetryTimeout))
+	if err != nil {
+		return nil, stderrs.Join(err, cl.Close())
+	}
+	docker := &Docker{suite: suiteName, client: cl, pool: pool}
+	if rmErr := docker.removeContainers(ctx); rmErr != nil {
 		return nil, rmErr
 	}
-	if rmErr := docker.removeNetworks(); rmErr != nil {
+	if rmErr := docker.removeNetworks(ctx); rmErr != nil {
 		return nil, rmErr
 	}
-	if netErr := docker.createNetwork(); netErr != nil {
+	if netErr := docker.createNetwork(ctx); netErr != nil {
 		return nil, netErr
 	}
 	if mkErr := docker.mkLogsDir(); mkErr != nil {
@@ -182,56 +185,70 @@ func (d *Docker) StartScalaNode(ctx context.Context, cfg config.DockerConfigurat
 	return nil
 }
 
-func (d *Docker) Finish(cancel context.CancelFunc) {
+// Finish stops and removes containers and the suite network, then cancels the suite context with the given function.
+// Cleanup is not interrupted if the given context is already canceled, but the context's values are preserved.
+func (d *Docker) Finish(ctx context.Context, cancel context.CancelFunc) {
+	ctx = context.WithoutCancel(ctx)
 	eg := errgroup.Group{}
 	if d.scalaNode != nil {
 		eg.Go(func() error {
-			stErr := d.stopContainer(d.scalaNode.container.Container.ID)
-			clErr := d.scalaNode.Close()
+			stErr := d.stopContainer(ctx, d.scalaNode.container.ID())
+			clErr := d.scalaNode.Close(ctx)
 			return stderrs.Join(stErr, clErr)
 		})
 	}
 	if d.goNode != nil {
 		eg.Go(func() error {
-			stErr := d.stopContainer(d.goNode.container.Container.ID)
-			clErr := d.goNode.Close()
+			stErr := d.stopContainer(ctx, d.goNode.container.ID())
+			clErr := d.goNode.Close(ctx)
 			return stderrs.Join(stErr, clErr)
 		})
 	}
 	if err := eg.Wait(); err != nil {
 		log.Printf("[ERR] Failed to shutdown docker containers: %v", err)
 	}
-	if err := d.pool.RemoveNetwork(d.network); err != nil {
+	if err := d.network.Close(ctx); err != nil {
 		log.Printf("[ERR] Failed to remove docker network: %s", err)
+	}
+	if err := d.pool.Close(ctx); err != nil {
+		log.Printf("[ERR] Failed to close docker pool: %s", err)
+	}
+	if err := d.client.Close(); err != nil {
+		log.Printf("[ERR] Failed to close docker client: %s", err)
 	}
 	cancel()
 }
 
-func (d *Docker) stopContainer(containerID string) error {
-	stopOpts := dc.KillContainerOptions{ID: containerID, Signal: dc.SIGINT}
-	if intErr := d.pool.Client.KillContainer(stopOpts); intErr != nil {
+func (d *Docker) stopContainer(ctx context.Context, containerID string) error {
+	const shutdownTimeout = 15 * time.Second
+	ctx, cancel := context.WithTimeout(ctx, shutdownTimeout)
+	defer cancel()
+	stopOpts := mobyclient.ContainerKillOptions{Signal: "SIGINT"}
+	if _, intErr := d.client.ContainerKill(ctx, containerID, stopOpts); intErr != nil {
 		return errors.Wrapf(intErr, "failed to interrupt container %q", containerID)
 	}
-	const shutdownTimeout = 15 * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
-	defer cancel()
-	_, wErr := d.pool.Client.WaitContainerWithContext(containerID, ctx)
-	if wErr != nil {
+	wait := d.client.ContainerWait(ctx, containerID,
+		mobyclient.ContainerWaitOptions{Condition: container.WaitConditionNotRunning})
+	select {
+	case <-wait.Result:
+		return nil
+	case wErr := <-wait.Error:
 		return errors.Wrapf(wErr, "failed to wait for container %q to stop", containerID)
 	}
-	return nil
 }
 
 func (d *Docker) startNode(
 	ctx context.Context, cfg config.DockerConfigurator, logFilename, errFilename string,
 ) (*NodeContainer, error) {
-	opts := cfg.DockerRunOptions()
-	opts.Networks = []*dockertest.Network{d.network}
-
-	res, err := d.pool.RunWithOptions(opts, func(hc *dc.HostConfig) {
+	repository, opts := cfg.DockerRunOptions()
+	opts = append(opts, dockertest.WithHostConfig(func(hc *container.HostConfig) {
 		hc.AutoRemove = false
 		hc.PublishAllPorts = true
-	})
+		// Connect the container to the suite network on creation, so it is resolvable by other containers from start.
+		hc.NetworkMode = container.NetworkMode(d.network.Inspect().Name)
+	}))
+
+	res, err := d.pool.Run(ctx, repository, opts...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to start container for suite %q", d.suite)
 	}
@@ -246,21 +263,9 @@ func (d *Docker) startNode(
 	}
 
 	go func() {
-		err = d.pool.Client.Logs(dc.LogsOptions{
-			Context:     ctx,
-			Stderr:      true,
-			Stdout:      true,
-			Follow:      true,
-			Timestamps:  false,
-			RawTerminal: false,
-
-			Container: res.Container.ID,
-
-			OutputStream: logFile,
-			ErrorStream:  errFile,
-		})
-		if err != nil && !errors.Is(err, context.Canceled) { // Do not log context.Canceled error.
-			log.Printf("Failed to get logs from container %q: %v", res.Container.ID, err)
+		if lErr := res.FollowLogs(ctx, logFile, errFile); lErr != nil &&
+			!errors.Is(lErr, context.Canceled) { // Do not log context.Canceled error.
+			log.Printf("Failed to get logs from container %q: %v", res.ID(), lErr)
 		}
 	}()
 	nc := &NodeContainer{
@@ -276,18 +281,19 @@ func (d *Docker) startNode(
 		ip:      res.GetIPInNetwork(d.network),
 	}
 
-	err = d.pool.Retry(func() error {
+	containerName := res.Container().Name
+	err = d.pool.Retry(ctx, 0, func() error { // Zero timeout means pool's MaxWait.
 		nodeClient, fErr := client.NewClient(client.Options{
 			BaseUrl: nc.RestAPIURL(),
 			Client:  &http.Client{Timeout: DefaultTimeout},
 			ApiKey:  DefaultAPIKey,
 		})
 		if fErr != nil {
-			log.Printf("Failed to create client for container %q: %v", res.Container.Name, fErr)
+			log.Printf("Failed to create client for container %q: %v", containerName, fErr)
 			return fErr
 		}
 		_, _, fErr = nodeClient.Blocks.Height(ctx)
-		log.Printf("Result requesting height from container %q: %v", res.Container.Name, fErr)
+		log.Printf("Result requesting height from container %q: %v", containerName, fErr)
 		return fErr
 	})
 	if err != nil {
@@ -296,22 +302,16 @@ func (d *Docker) startNode(
 	return nc, nil
 }
 
-func (d *Docker) removeContainers() error {
-	containers, err := d.pool.Client.ListContainers(dc.ListContainersOptions{
-		All: true,
-		Filters: map[string][]string{
-			"name": {d.suite},
-		},
+func (d *Docker) removeContainers(ctx context.Context) error {
+	containers, err := d.client.ContainerList(ctx, mobyclient.ContainerListOptions{
+		All:     true,
+		Filters: make(mobyclient.Filters).Add("name", d.suite),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to list suite %q containers: %w", d.suite, err)
 	}
-	if len(containers) == 0 {
-		return nil
-	}
-	for _, c := range containers {
-		err = d.pool.Client.RemoveContainer(dc.RemoveContainerOptions{
-			ID:            c.ID,
+	for _, c := range containers.Items {
+		_, err = d.client.ContainerRemove(ctx, c.ID, mobyclient.ContainerRemoveOptions{
 			Force:         true,
 			RemoveVolumes: true,
 		})
@@ -322,13 +322,19 @@ func (d *Docker) removeContainers() error {
 	return nil
 }
 
-func (d *Docker) removeNetworks() error {
-	nets, err := d.pool.NetworksByName(d.suite + "-" + networkName)
+func (d *Docker) removeNetworks(ctx context.Context) error {
+	name := d.suite + "-" + networkName
+	nets, err := d.client.NetworkList(ctx, mobyclient.NetworkListOptions{
+		Filters: make(mobyclient.Filters).Add("name", name),
+	})
 	if err != nil {
 		return errors.Wrapf(err, "failed to remove existing networks for suite %s", d.suite)
 	}
-	for i := range nets {
-		err = d.pool.RemoveNetwork(&nets[i])
+	for _, n := range nets.Items {
+		if n.Name != name { // Name filter matches substrings, so check for exact match.
+			continue
+		}
+		_, err = d.client.NetworkRemove(ctx, n.ID, mobyclient.NetworkRemoveOptions{})
 		if err != nil {
 			return errors.Wrapf(err, "failed to remove existing networks for suite %s", d.suite)
 		}
@@ -336,8 +342,9 @@ func (d *Docker) removeNetworks() error {
 	return nil
 }
 
-func (d *Docker) createNetwork() error {
-	n, err := d.pool.CreateNetwork(d.suite+"-"+networkName, WithIPv6Disabled)
+func (d *Docker) createNetwork(ctx context.Context) error {
+	// IPv6 is disabled by default.
+	n, err := d.pool.CreateNetwork(ctx, d.suite+"-"+networkName, nil)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create network for suite %s", d.suite)
 	}
@@ -357,6 +364,16 @@ func (d *Docker) mkLogsDir() error {
 	return nil
 }
 
-func WithIPv6Disabled(conf *dc.CreateNetworkOptions) {
-	conf.EnableIPv6 = false
+// NewClient creates a Docker client configured from the environment variables (DOCKER_HOST, DOCKER_API_VERSION,
+// DOCKER_CERT_PATH, DOCKER_TLS_VERIFY). If DOCKER_API_VERSION is not set, the API version is negotiated with
+// the Docker daemon.
+func NewClient(ctx context.Context) (*mobyclient.Client, error) {
+	cl, err := mobyclient.New(mobyclient.FromEnv)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create docker client")
+	}
+	if _, pErr := cl.Ping(ctx, mobyclient.PingOptions{NegotiateAPIVersion: true}); pErr != nil {
+		return nil, stderrs.Join(errors.Wrap(pErr, "failed to connect to docker"), cl.Close())
+	}
+	return cl, nil
 }

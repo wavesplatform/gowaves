@@ -1,6 +1,7 @@
 package itests
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -10,10 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ory/dockertest/v3"
-	dc "github.com/ory/dockertest/v3/docker"
-
 	"github.com/wavesplatform/gowaves/itests/config"
+	"github.com/wavesplatform/gowaves/itests/docker"
 	"github.com/wavesplatform/gowaves/pkg/logging"
 )
 
@@ -24,18 +23,15 @@ const (
 )
 
 const (
-	keepDanglingEnvKey      = "ITESTS_KEEP_DANGLING"
-	withRaceDetectorEnvKey  = "ITESTS_WITH_RACE_DETECTOR"
-	dockerMachineNameEnvKey = "DOCKER_MACHINE_NAME"
-	dockerAPIVersionEnvKey  = "DOCKER_API_VERSION"
-	dockerLocalMachineName  = "local"
-	dockerMinAPIVersion     = "1.45"
+	keepDanglingEnvKey     = "ITESTS_KEEP_DANGLING"
+	withRaceDetectorEnvKey = "ITESTS_WITH_RACE_DETECTOR"
 )
 
 const (
 	withRaceDetectorSuffixArgumentName  = "WITH_RACE_SUFFIX"
 	withRaceDetectorSuffixArgumentValue = "-with-race"
 	versionArgumentName                 = "VERSION"
+	itestsTmpImageLabel                 = "wavesplatform-gowaves-itests-tmp=true"
 )
 
 func TestMain(m *testing.M) {
@@ -57,35 +53,33 @@ func testsSetup() error {
 		keepDangling     = mustBoolEnv(keepDanglingEnvKey)
 		withRaceDetector = mustBoolEnv(withRaceDetectorEnvKey)
 	)
-	// Set environment variables to enforce docker client connection with a required API version.
-	// Non-empty DOCKER_MACHINE_NAME allows to create client with DOCKER_API_VERSION.
-	setIfNotPresent(dockerMachineNameEnvKey, dockerLocalMachineName)
-	setIfNotPresent(dockerAPIVersionEnvKey, dockerMinAPIVersion)
-	pool, err := dockertest.NewPool("")
+	ctx := context.Background()
+	// The API version is negotiated with Docker daemon, unless it's set with DOCKER_API_VERSION.
+	cl, err := docker.NewClient(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to connect to docker: %w", err)
+		return err
 	}
+	defer func() {
+		if clErr := cl.Close(); clErr != nil {
+			slog.Warn("Failed to close docker client", logging.Error(clErr))
+		}
+	}()
 
 	platform := config.Platform()
-	slog.Info("Pulling scala-node image", "platform", platform)
-	if plErr := pool.Client.PullImage(
-		dc.PullImageOptions{
-			Repository: config.ScalaImageRepository,
-			Tag:        config.ScalaImageTag,
-			Platform:   platform,
-		},
-		dc.AuthConfiguration{}); plErr != nil {
+	platformName := platform.OS + "/" + platform.Architecture
+	slog.Info("Pulling scala-node image", "platform", platformName)
+	scalaImage := config.ScalaImageRepository + ":" + config.ScalaImageTag
+	if plErr := docker.PullImage(ctx, cl, scalaImage, platform); plErr != nil {
 		return fmt.Errorf("failed to pull scala-node image: %w", plErr)
 	}
-	slog.Info("Building go-node image", "platform", platform, "withRaceDetector", withRaceDetector)
-	var buildArgs []dc.BuildArg
+	slog.Info("Building go-node image", "platform", platformName,
+		"withRaceDetector", withRaceDetector)
+	buildArgs := make(map[string]*string)
 	if withRaceDetector {
-		buildArgs = append(buildArgs, dc.BuildArg{
-			Name: withRaceDetectorSuffixArgumentName, Value: withRaceDetectorSuffixArgumentValue,
-		})
+		buildArgs[withRaceDetectorSuffixArgumentName] = new(withRaceDetectorSuffixArgumentValue)
 	}
 	if version := nodeVersion(); version != "" {
-		buildArgs = append(buildArgs, dc.BuildArg{Name: versionArgumentName, Value: version})
+		buildArgs[versionArgumentName] = &version
 	}
 	dir, file := filepath.Split(filepath.Join(pwd, dockerfilePath))
 
@@ -100,38 +94,22 @@ func testsSetup() error {
 	}
 	defer errCleanup()
 
-	err = pool.Client.BuildImage(dc.BuildImageOptions{
-		Name:           "go-node",
-		Dockerfile:     file,
-		ContextDir:     dir,
-		OutputStream:   logFile,
-		ErrorStream:    errFile,
-		BuildArgs:      buildArgs,
-		Platform:       platform,
-		RmTmpContainer: true,
+	err = docker.BuildImage(ctx, cl, docker.BuildOptions{
+		Name:       "go-node",
+		ContextDir: dir,
+		Dockerfile: file,
+		BuildArgs:  buildArgs,
+		Platform:   platform,
+		Output:     logFile,
+		ErrOutput:  errFile,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build go-node image: %w", err)
 	}
 
 	if !keepDangling { // remove dangling images
-		images, lsErr := pool.Client.ListImages(dc.ListImagesOptions{
-			Filters: map[string][]string{
-				"label": {"wavesplatform-gowaves-itests-tmp=true"},
-			},
-		})
-		if lsErr != nil {
-			return fmt.Errorf("failed to list images: %w", lsErr)
-		}
-		for _, i := range images {
-			rmErr := pool.Client.RemoveImageExtended(i.ID, dc.RemoveImageOptions{
-				Force:   true,
-				NoPrune: false,
-				Context: nil,
-			})
-			if rmErr != nil {
-				return fmt.Errorf("failed to remove image: %w", rmErr)
-			}
+		if rmErr := docker.RemoveImagesByLabel(ctx, cl, itestsTmpImageLabel); rmErr != nil {
+			return rmErr
 		}
 	}
 	return nil
@@ -176,19 +154,4 @@ func mustBoolEnv(key string) bool {
 			slog.Any("value", val), logging.Error(err))
 	}
 	return r
-}
-
-func setIfNotPresent(key, value string) {
-	val := os.Getenv(key)
-	if val == "" {
-		if err := os.Setenv(key, value); err != nil {
-			slog.Error("Failed to set environment variable", slog.String("variable", key), logging.Error(err))
-			return
-		}
-		slog.Info("Setting environment variable",
-			slog.String("variable", key), slog.String("value", value))
-	} else {
-		slog.Info("Environment variable already set",
-			slog.String("variable", key), slog.String("value", val))
-	}
 }
