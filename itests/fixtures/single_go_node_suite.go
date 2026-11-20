@@ -24,7 +24,7 @@ type SingleGoNodeSuite struct {
 }
 
 func (suite *SingleGoNodeSuite) BaseSetup(options ...config.BlockchainOption) {
-	suite.MainCtx, suite.Cancel = context.WithCancel(context.Background())
+	suite.MainCtx, suite.Cancel = context.WithCancel(suite.T().Context())
 	suiteName := strcase.KebabCase(suite.T().Name())
 	cfg, err := config.NewBlockchainConfig(options...)
 	suite.Require().NoError(err, "couldn't create blockchain config")
@@ -33,12 +33,12 @@ func (suite *SingleGoNodeSuite) BaseSetup(options ...config.BlockchainOption) {
 	goConfigurator, err := config.NewGoConfigurator(suiteName, cfg)
 	suite.Require().NoError(err, "couldn't create Go configurator")
 
-	docker, err := d.NewDocker(suiteName)
+	docker, err := d.NewDocker(suite.MainCtx, suiteName)
 	suite.Require().NoError(err, "couldn't create Docker pool")
 	suite.Docker = docker
 
 	if sErr := docker.StartGoNode(suite.MainCtx, goConfigurator); sErr != nil {
-		docker.Finish(suite.Cancel)
+		docker.Finish(suite.MainCtx, suite.Cancel)
 		suite.Require().NoError(sErr, "couldn't start Go node container")
 	}
 
@@ -57,7 +57,7 @@ func (suite *SingleGoNodeSuite) SetupSuite() {
 
 func (suite *SingleGoNodeSuite) TearDownSuite() {
 	suite.Client.Close(suite.T())
-	suite.Docker.Finish(suite.Cancel)
+	suite.Docker.Finish(suite.MainCtx, suite.Cancel)
 }
 
 func (suite *SingleGoNodeSuite) SetupTest() {

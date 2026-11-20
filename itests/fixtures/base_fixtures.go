@@ -31,7 +31,7 @@ func (suite *BaseSuite) BaseSetup(options ...config.BlockchainOption) {
 
 func (suite *BaseSuite) BaseSetupWithImages(scalaRepository, scalaTag string,
 	options ...config.BlockchainOption) {
-	suite.MainCtx, suite.Cancel = context.WithCancel(context.Background())
+	suite.MainCtx, suite.Cancel = context.WithCancel(suite.T().Context())
 	suiteName := strcase.KebabCase(suite.T().Name())
 	cfg, err := config.NewBlockchainConfig(options...)
 	suite.Require().NoError(err, "couldn't create blockchain config")
@@ -44,12 +44,12 @@ func (suite *BaseSuite) BaseSetupWithImages(scalaRepository, scalaTag string,
 	suite.Require().NoError(err, "couldn't create Scala configurator")
 	scalaConfigurator.WithGoNode("go-node").WithImageRepository(scalaRepository).WithImageTag(scalaTag)
 
-	docker, err := d.NewDocker(suiteName)
+	docker, err := d.NewDocker(suite.MainCtx, suiteName)
 	suite.Require().NoError(err, "couldn't create Docker pool")
 	suite.Docker = docker
 
 	if sErr := docker.StartNodes(suite.MainCtx, goConfigurator, scalaConfigurator); sErr != nil {
-		docker.Finish(suite.Cancel)
+		docker.Finish(suite.MainCtx, suite.Cancel)
 		suite.Require().NoError(sErr, "couldn't start nodes")
 	}
 
@@ -68,7 +68,7 @@ func (suite *BaseSuite) TearDownSuite() {
 	slog.Info("Closing clients")
 	suite.Clients.Close(suite.T())
 	slog.Info("Closing Docker")
-	suite.Docker.Finish(suite.Cancel)
+	suite.Docker.Finish(suite.MainCtx, suite.Cancel)
 }
 
 func (suite *BaseSuite) SetupTest() {
