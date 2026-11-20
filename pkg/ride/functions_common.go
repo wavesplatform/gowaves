@@ -3,7 +3,6 @@ package ride
 import (
 	"github.com/pkg/errors"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -129,75 +128,8 @@ func sizeTuple(_ environment, args ...rideType) (rideType, error) {
 	return nil, errors.Errorf("sizeTuple: unexpected argument type '%s'", args[0].instanceOf())
 }
 
-func bytesProperty(obj rideType, key string) (rideByteVector, error) {
-	p, err := obj.get(key)
-	if err != nil {
-		return nil, err
-	}
-	r, ok := p.(rideByteVector)
-	if !ok {
-		return nil, errors.Errorf("unexpected type '%s' of property '%s'", p.instanceOf(), key)
-	}
-	return r, nil
-}
-
-func digestProperty(obj rideType, key string) (crypto.Digest, error) {
-	p, err := obj.get(key)
-	if err != nil {
-		return crypto.Digest{}, err
-	}
-	b, ok := p.(rideByteVector)
-	if !ok {
-		return crypto.Digest{}, errors.Errorf("unexpected type '%s' of property '%s'", p.instanceOf(), key)
-	}
-	r, err := crypto.NewDigestFromBytes(b)
-	if err != nil {
-		return crypto.Digest{}, err
-	}
-	return r, nil
-}
-
-func stringProperty(obj rideType, key string) (rideString, error) {
-	p, err := obj.get(key)
-	if err != nil {
-		return "", err
-	}
-	r, ok := p.(rideString)
-	if !ok {
-		return "", errors.Errorf("unexpected type '%s' of property '%s'", p.instanceOf(), key)
-	}
-	return r, nil
-}
-
-func intProperty(obj rideType, key string) (rideInt, error) {
-	p, err := obj.get(key)
-	if err != nil {
-		return 0, err
-	}
-	r, ok := p.(rideInt)
-	if !ok {
-		return 0, errors.Errorf("unexpected type '%s' of property '%s'", p.instanceOf(), key)
-	}
-	return r, nil
-}
-
-func booleanProperty(obj rideType, key string) (rideBoolean, error) {
-	p, err := obj.get(key)
-	if err != nil {
-		return false, err
-	}
-	r, ok := p.(rideBoolean)
-	if !ok {
-		return false, errors.Errorf("unexpected type '%s' of property '%s'", p.instanceOf(), key)
-	}
-	return r, nil
-}
-
-func optionalAssetProperty(obj rideType, key string) (proto.OptionalAsset, error) {
-	p, err := obj.get(key)
-	if err != nil {
-		return proto.OptionalAsset{}, err
-	}
+// optionalAssetValue converts the value p of the property key to an optional asset.
+func optionalAssetValue(p rideType, key string) (proto.OptionalAsset, error) {
 	switch v := p.(type) {
 	case rideUnit:
 		return proto.NewOptionalAssetWaves(), nil
@@ -217,16 +149,19 @@ func recipientProperty(obj rideType, key string) (proto.Recipient, error) {
 	if err != nil {
 		return proto.Recipient{}, err
 	}
-	var recipient proto.Recipient
+	return recipientValue(p, key)
+}
+
+// recipientValue converts the value p of the property key to a recipient.
+func recipientValue(p rideType, key string) (proto.Recipient, error) {
 	switch tp := p.(type) {
 	case rideAddress:
-		recipient = proto.NewRecipientFromAddress(proto.WavesAddress(tp))
+		return proto.NewRecipientFromAddress(proto.WavesAddress(tp)), nil
 	case rideAlias:
-		recipient = proto.NewRecipientFromAlias(proto.Alias(tp))
+		return proto.NewRecipientFromAlias(proto.Alias(tp)), nil
 	default:
 		return proto.Recipient{}, errors.Errorf("unexpected type '%s' of property '%s'", p.instanceOf(), key)
 	}
-	return recipient, nil
 }
 
 func extractValue(v rideType) (rideType, error) {

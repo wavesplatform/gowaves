@@ -13,25 +13,34 @@ type scopeValue struct {
 	n  ast.Node
 }
 
+// estimationScopeV1 keeps the declared values as a stack, so save and restore are plain truncations and the last
+// declaration wins on lookup.
 type estimationScopeV1 struct {
+	// constants are the predefined values of the library version. They lie below all declared values, never
+	// change and have no expression, so they are not copied into values.
+	constants []string
 	values    []scopeValue
+	// branches holds the values declared in the true branches of the conditionals in progress.
+	branches  []scopeValue
 	functions map[string]int
 	builtin   map[string]int
+	// trueNode is the shared constant expression of the function arguments, the estimator only reads it.
+	trueNode ast.BooleanNode
 }
 
 func newEstimationScopeV1(values []string, functions map[string]int) *estimationScopeV1 {
-	initial := make([]scopeValue, len(values))
-	for i, id := range values {
-		initial[i] = scopeValue{id: id}
-	}
 	return &estimationScopeV1{
-		values:    initial,
-		functions: make(map[string]int),
+		constants: values,
 		builtin:   functions,
+		trueNode:  ast.BooleanNode{Value: true},
 	}
 }
 
 func (s *estimationScopeV1) setValue(id string, n ast.Node) {
+	if s.values == nil {
+		const initialValuesCapacity = 16
+		s.values = make([]scopeValue, 0, initialValuesCapacity)
+	}
 	s.values = append(s.values, scopeValue{id: id, n: n})
 }
 
@@ -41,6 +50,9 @@ func (s *estimationScopeV1) value(id string) (ast.Node, error) {
 			return v.n, nil
 		}
 	}
+	if slices.Contains(s.constants, id) {
+		return nil, nil //nolint:nilnil // A constant has no node, callers expect nil without an error.
+	}
 	return nil, errors.Errorf("value '%s' not found", id)
 }
 
@@ -48,18 +60,41 @@ func (s *estimationScopeV1) save() int {
 	return len(s.values)
 }
 
-func (s *estimationScopeV1) restore(p int) []scopeValue {
-	l := len(s.values)
-	if p < l {
-		r := make([]scopeValue, l-p)
-		copy(r, s.values[p:])
+func (s *estimationScopeV1) restore(p int) {
+	if p < len(s.values) {
 		s.values = s.values[:p]
-		return r
 	}
-	return nil
+}
+
+// stashBranch moves the values declared after the position p to the branches stack and returns the position of
+// the moved values there.
+func (s *estimationScopeV1) stashBranch(p int) int {
+	b := len(s.branches)
+	if p < len(s.values) {
+		s.branches = append(s.branches, s.values[p:]...)
+		s.values = s.values[:p]
+	}
+	return b
+}
+
+// dropBranch removes the values stashed at the position b from the branches stack.
+func (s *estimationScopeV1) dropBranch(b int) {
+	s.branches = s.branches[:b]
+}
+
+// unstashBranch replaces the values declared after the position p with the values stashed at the position b.
+func (s *estimationScopeV1) unstashBranch(p, b int) {
+	s.restore(p)
+	if b < len(s.branches) {
+		s.values = append(s.values, s.branches[b:]...)
+	}
+	s.dropBranch(b)
 }
 
 func (s *estimationScopeV1) setFunction(id string, cost int) {
+	if s.functions == nil {
+		s.functions = make(map[string]int)
+	}
 	s.functions[id] = cost
 }
 
@@ -132,7 +167,7 @@ func (e *treeEstimatorV1) estimate() (int, int, map[string]int, error) {
 		if !ok {
 			return 0, 0, nil, errors.New("invalid callable declaration")
 		}
-		c, err := e.walk(e.wrapFunction(function))
+		c, err := e.walk(wrapCallable(e.tree.Declarations, function))
 		if err != nil {
 			return 0, 0, nil, err
 		}
@@ -148,7 +183,7 @@ func (e *treeEstimatorV1) estimate() (int, int, map[string]int, error) {
 		if !ok {
 			return 0, 0, nil, errors.New("invalid verifier declaration")
 		}
-		c, err := e.walk(e.wrapFunction(verifier))
+		c, err := e.walk(wrapCallable(e.tree.Declarations, verifier))
 		if err != nil {
 			return 0, 0, nil, err
 		}
@@ -158,21 +193,6 @@ func (e *treeEstimatorV1) estimate() (int, int, map[string]int, error) {
 		}
 	}
 	return max, vc, m, nil
-}
-
-func (e *treeEstimatorV1) wrapFunction(node *ast.FunctionDeclarationNode) ast.Node {
-	args := make([]ast.Node, len(node.Arguments))
-	for i := range node.Arguments {
-		args[i] = ast.NewBooleanNode(true)
-	}
-	node.SetBlock(ast.NewFunctionCallNode(ast.UserFunction(node.Name), args))
-	var block ast.Node
-	block = ast.NewAssignmentNode(node.InvocationParameter, ast.NewBooleanNode(true), node)
-	for i := range slices.Backward(e.tree.Declarations) {
-		e.tree.Declarations[i].SetBlock(block)
-		block = e.tree.Declarations[i]
-	}
-	return block
 }
 
 func (e *treeEstimatorV1) walk(node ast.Node) (int, error) {
@@ -190,16 +210,16 @@ func (e *treeEstimatorV1) walk(node ast.Node) (int, error) {
 		if err != nil {
 			return 0, errors.Wrap(err, "failed to estimate the true branch of if")
 		}
-		tsi := e.scope.restore(csp)
+		tsp := e.scope.stashBranch(csp)
 		fe, err := e.walk(n.FalseExpression)
 		if err != nil {
 			return 0, errors.Wrap(err, "failed to estimate the false branch of if")
 		}
 		if te > fe {
-			e.scope.restore(csp)
-			e.scope.values = append(e.scope.values, tsi...)
+			e.scope.unstashBranch(csp, tsp)
 			return ce + te + 1, nil
 		}
+		e.scope.dropBranch(tsp)
 		return ce + fe + 1, nil
 
 	case *ast.AssignmentNode:
@@ -231,7 +251,7 @@ func (e *treeEstimatorV1) walk(node ast.Node) (int, error) {
 		id := n.Name
 		tmp := e.scope.save()
 		for _, a := range n.Arguments {
-			e.scope.setValue(a, ast.NewBooleanNode(true))
+			e.scope.setValue(a, &e.scope.trueNode)
 		}
 		fc, err := e.walk(n.Body)
 		if err != nil {

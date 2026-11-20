@@ -1,7 +1,6 @@
 package crypto
 
 import (
-	"hash"
 	"slices"
 
 	"github.com/pkg/errors"
@@ -21,17 +20,11 @@ type subTree struct {
 }
 
 type MerkleTree struct {
-	h     hash.Hash
 	stack []subTree
 }
 
 func NewMerkleTree() (*MerkleTree, error) {
-	h, err := blake2b.New256(nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "merkle tree")
-	}
 	return &MerkleTree{
-		h:     h,
 		stack: make([]subTree, 0, 16),
 	}, nil
 }
@@ -65,11 +58,16 @@ func (t *MerkleTree) Root() Digest {
 	}
 }
 
-// RebuildRoot recalculates the Merkle root hash from the leaf hash, the proofs and the leaf index.
-// Bits of the index, starting from the least significant one, select the side of the node at each level
-// from leafs to root. The index must address a leaf of the tree defined by the proofs,
-// i.e. 0 <= index < 2^len(proofs), otherwise different indices would produce the same root.
+// RebuildRoot is the same as RebuildMerkleRoot.
 func (t *MerkleTree) RebuildRoot(leaf Digest, proofsRootToLeafsOrder []Digest, index uint64) (Digest, error) {
+	return RebuildMerkleRoot(leaf, proofsRootToLeafsOrder, index)
+}
+
+// RebuildMerkleRoot recalculates the Merkle root hash from the leaf hash, the proofs and the leaf index
+// without allocations. Bits of the index, starting from the least significant one, select the side of the node
+// at each level from leafs to root. The index must address a leaf of the tree defined by the proofs,
+// i.e. 0 <= index < 2^len(proofs), otherwise different indices would produce the same root.
+func RebuildMerkleRoot(leaf Digest, proofsRootToLeafsOrder []Digest, index uint64) (Digest, error) {
 	if index>>len(proofsRootToLeafsOrder) != 0 {
 		return Digest{}, errors.Errorf("index %d is out of range for the tree of height %d",
 			index, len(proofsRootToLeafsOrder))
@@ -77,9 +75,9 @@ func (t *MerkleTree) RebuildRoot(leaf Digest, proofsRootToLeafsOrder []Digest, i
 	digest := leaf
 	for _, p := range slices.Backward(proofsRootToLeafsOrder) { // Iterate from leafs to root, i.e. in reverse order
 		if index%2 == 0 { // Left
-			digest = t.nodeDigest(digest, p)
+			digest = nodeDigest(digest, p)
 		} else { // Right
-			digest = t.nodeDigest(p, digest)
+			digest = nodeDigest(p, digest)
 		}
 		index = index / 2
 	}
@@ -87,35 +85,21 @@ func (t *MerkleTree) RebuildRoot(leaf Digest, proofsRootToLeafsOrder []Digest, i
 }
 
 func (t *MerkleTree) leafDigest(data []byte) Digest {
-	t.h.Reset()
-	_, err := t.h.Write(data)
-	if err != nil {
-		panic(err)
-	}
-	d := Digest{}
-	t.h.Sum(d[:0])
-	return d
+	return blake2b.Sum256(data)
 }
 
-func (t *MerkleTree) nodeDigest(a, b Digest) Digest {
-	t.h.Reset()
-	_, err := t.h.Write(a[:])
-	if err != nil {
-		panic(err)
-	}
-	_, err = t.h.Write(b[:])
-	if err != nil {
-		panic(err)
-	}
-	d := Digest{}
-	t.h.Sum(d[:0])
-	return d
+// nodeDigest returns the BLAKE2b-256 hash of the concatenation of the two digests.
+func nodeDigest(a, b Digest) Digest {
+	var buf [2 * DigestSize]byte
+	copy(buf[:DigestSize], a[:])
+	copy(buf[DigestSize:], b[:])
+	return blake2b.Sum256(buf[:])
 }
 
 func (t *MerkleTree) joinSubTrees(a, b subTree) subTree {
 	return subTree{
 		height: a.height + 1,
-		digest: t.nodeDigest(a.digest, b.digest),
+		digest: nodeDigest(a.digest, b.digest),
 	}
 }
 

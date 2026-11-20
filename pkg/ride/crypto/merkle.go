@@ -5,21 +5,19 @@ import (
 	"golang.org/x/crypto/blake2b"
 )
 
+const (
+	leafPrefix     = 0x00
+	internalPrefix = 0x01
+	// maxProofElementSize is the maximum size of the sibling hash in the proof, the size is encoded with one byte.
+	maxProofElementSize = 255
+)
+
 func MerkleRootHash(leaf, proof []byte) ([]byte, error) {
-	leafData := make([]byte, len(leaf)+1)
-	copy(leafData[1:], leaf)
-
-	h, err := blake2b.New256(nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "merkle")
-	}
-
-	_, err = h.Write(leafData)
-	if err != nil {
-		return nil, errors.Wrap(err, "merkle")
-	}
-
-	hash := h.Sum(nil)
+	// The buffer is big enough for a node (prefix, hash and the longest possible sibling) and for small leafs,
+	// so the hashing doesn't allocate in the common case.
+	var buf [1 + blake2b.Size256 + maxProofElementSize]byte
+	leafData := append(append(buf[:0], leafPrefix), leaf...)
+	hash := blake2b.Sum256(leafData)
 
 	for pos := 0; len(proof[pos:]) > 0; {
 		if len(proof[pos:]) < 2 {
@@ -34,34 +32,16 @@ func MerkleRootHash(leaf, proof []byte) ([]byte, error) {
 		}
 		other := proof[pos : pos+l]
 		pos += l
-		h.Reset()
-		_, err = h.Write([]byte{0x01}) // Internal prefix
-		if err != nil {
-			return nil, errors.Wrap(err, "merkle")
-		}
+		node := append(buf[:0], internalPrefix)
 		switch side {
 		case 0: // Left side
-			_, err = h.Write(hash)
-			if err != nil {
-				return nil, errors.Wrap(err, "merkle")
-			}
-			_, err = h.Write(other)
-			if err != nil {
-				return nil, errors.Wrap(err, "merkle")
-			}
+			node = append(append(node, hash[:]...), other...)
 		case 1: // Right side
-			_, err = h.Write(other)
-			if err != nil {
-				return nil, errors.Wrap(err, "merkle")
-			}
-			_, err = h.Write(hash)
-			if err != nil {
-				return nil, errors.Wrap(err, "merkle")
-			}
+			node = append(append(node, other...), hash[:]...)
 		default:
 			return nil, errors.Errorf("merkle: invalid side value %d", side)
 		}
-		hash = h.Sum(nil)
+		hash = blake2b.Sum256(node)
 	}
-	return hash, nil
+	return hash[:], nil
 }

@@ -3413,3 +3413,271 @@ func TestConvertToActionLease(t *testing.T) {
 		})
 	}
 }
+
+func TestConvertToActionAllTypes(t *testing.T) {
+	var (
+		scheme         = proto.TestNetScheme
+		txID           = crypto.MustDigestFromBase58("DHgwrRvVyqJsepd32YbBqUeDH4GJ1N984X8QoekjgH8J")
+		recipient      = newTestAccount(t, "recipient-blah-blah-blah")
+		recipientAlias = proto.NewAlias(scheme, "some-fancy-alias")
+		addrRecipient  = proto.NewRecipientFromAddress(recipient.address())
+		assetID        = _digest
+	)
+	tests := []struct {
+		name string
+		rt   rideType
+		sa   proto.ScriptAction
+	}{
+		{"Burn", newRideBurn(assetID.Bytes(), 10),
+			&proto.BurnScriptAction{AssetID: assetID, Quantity: 10}},
+		{"BinaryEntry", newRideBinaryEntry("k", rideByteVector{1, 2}),
+			&proto.DataEntryScriptAction{Entry: &proto.BinaryDataEntry{Key: "k", Value: []byte{1, 2}}}},
+		{"BooleanEntry", newRideBooleanEntry("k", true),
+			&proto.DataEntryScriptAction{Entry: &proto.BooleanDataEntry{Key: "k", Value: true}}},
+		{"DeleteEntry", newRideDeleteEntry("k"),
+			&proto.DataEntryScriptAction{Entry: &proto.DeleteDataEntry{Key: "k"}}},
+		{"IntegerEntry", newRideIntegerEntry("k", -5),
+			&proto.DataEntryScriptAction{Entry: &proto.IntegerDataEntry{Key: "k", Value: -5}}},
+		{"StringEntry", newRideStringEntry("k", "v"),
+			&proto.DataEntryScriptAction{Entry: &proto.StringDataEntry{Key: "k", Value: "v"}}},
+		{"DataEntry/integer", newRideDataEntry(rideInt(7), "k"),
+			&proto.DataEntryScriptAction{Entry: &proto.IntegerDataEntry{Key: "k", Value: 7}}},
+		{"DataEntry/boolean", newRideDataEntry(rideBoolean(true), "k"),
+			&proto.DataEntryScriptAction{Entry: &proto.BooleanDataEntry{Key: "k", Value: true}}},
+		{"DataEntry/string", newRideDataEntry(rideString("v"), "k"),
+			&proto.DataEntryScriptAction{Entry: &proto.StringDataEntry{Key: "k", Value: "v"}}},
+		{"DataEntry/binary", newRideDataEntry(rideByteVector{3}, "k"),
+			&proto.DataEntryScriptAction{Entry: &proto.BinaryDataEntry{Key: "k", Value: []byte{3}}}},
+		{"Issue", newRideIssue(rideUnit{}, "name", "description", 1, 2, 1000, true),
+			&proto.IssueScriptAction{
+				ID:          proto.GenerateIssueScriptActionID("name", "description", 2, 1000, true, 1, txID),
+				Name:        "name",
+				Description: "description",
+				Quantity:    1000,
+				Decimals:    2,
+				Reissuable:  true,
+				Nonce:       1,
+			}},
+		{"Reissue", newRideReissue(assetID.Bytes(), 20, true),
+			&proto.ReissueScriptAction{AssetID: assetID, Quantity: 20, Reissuable: true}},
+		{"ScriptTransfer/waves", newRideScriptTransfer(rideUnit{}, rideAddress(*addrRecipient.Address()), 30),
+			&proto.TransferScriptAction{Recipient: addrRecipient, Amount: 30, Asset: proto.NewOptionalAssetWaves()}},
+		{"ScriptTransfer/alias", newRideScriptTransfer(rideByteVector(assetID.Bytes()), rideAlias(*recipientAlias), 40),
+			&proto.TransferScriptAction{Recipient: addrRecipient, Amount: 40, Asset: _asset}},
+		{"ScriptTransfer/invalid asset", newRideScriptTransfer(rideByteVector{1, 2, 3}, rideAlias(*recipientAlias), 40),
+			&proto.TransferScriptAction{Recipient: addrRecipient, Amount: 0, Asset: proto.NewOptionalAssetWaves()}},
+		{"ScriptTransfer/wrong asset type", newRideScriptTransfer(rideInt(1), rideAlias(*recipientAlias), 40),
+			&proto.TransferScriptAction{Recipient: addrRecipient, Amount: 0, Asset: proto.NewOptionalAssetWaves()}},
+		{"SponsorFee", newRideSponsorFee(assetID.Bytes(), 50),
+			&proto.SponsorshipScriptAction{AssetID: assetID, MinFee: 50}},
+		{"Lease", newRideLease(rideAddress(*addrRecipient.Address()), 60, 1),
+			&proto.LeaseScriptAction{
+				ID:        proto.GenerateLeaseScriptActionID(addrRecipient, 60, 1, txID),
+				Recipient: addrRecipient,
+				Amount:    60,
+				Nonce:     1,
+			}},
+		{"LeaseCancel", newRideLeaseCancel(assetID.Bytes()),
+			&proto.LeaseCancelScriptAction{LeaseID: assetID}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			env := newTestEnv(t).withLibVersion(ast.LibV6).withScheme(scheme).withTransactionID(txID).
+				withAlias(recipient, recipientAlias).toEnv()
+			action, err := convertToAction(env, tc.rt)
+			require.NoError(t, err)
+			require.Equal(t, tc.sa, action)
+		})
+	}
+}
+
+func TestConvertToActionErrors(t *testing.T) {
+	var (
+		txID     = crypto.MustDigestFromBase58("DHgwrRvVyqJsepd32YbBqUeDH4GJ1N984X8QoekjgH8J")
+		badID    = rideByteVector{1, 2, 3}
+		unknown  = proto.NewAlias(proto.TestNetScheme, "unknown-alias")
+		address  = rideAddress(newTestAccount(t, "recipient").address())
+		noParent = func(t *testing.T) environment {
+			te := newTestEnv(t)
+			unsetMockCalls(&te.me.Mock, "txID")
+			te.me.EXPECT().txID().Return(rideUnit{}).Maybe()
+			return te.toEnv()
+		}
+		withParent = func(t *testing.T) environment {
+			return newTestEnv(t).withTransactionID(txID).toEnv()
+		}
+	)
+	tests := []struct {
+		name string
+		env  func(t *testing.T) environment
+		rt   rideType
+		err  string
+	}{
+		{"Burn/invalid asset ID", withParent, newRideBurn(badID, 1),
+			"failed to convert Burn to ScriptAction: invalid digest len"},
+		{"Reissue/invalid asset ID", withParent, newRideReissue(badID, 1, false),
+			"failed to convert Reissue to ScriptAction: invalid digest len"},
+		{"SponsorFee/invalid asset ID", withParent, newRideSponsorFee(badID, 1),
+			"failed to convert SponsorFee to ScriptAction: invalid digest len"},
+		{"LeaseCancel/invalid lease ID", withParent, newRideLeaseCancel(badID),
+			"failed to convert LeaseCancel to LeaseCancelScriptAction: invalid digest len"},
+		{"DataEntry/wrong value type", withParent, newRideDataEntry(rideUnit{}, "k"),
+			"unexpected type of DataEntry 'Unit'"},
+		{"Issue/no parent", noParent, newRideIssue(rideUnit{}, "name", "", 0, 0, 1, false),
+			"empty parent for IssueExpr"},
+		{"ScriptTransfer/wrong recipient type", withParent, newRideScriptTransfer(rideUnit{}, rideInt(1), 1),
+			"failed to convert ScriptTransfer to ScriptAction: unexpected type 'Int' of property 'recipient'"},
+		{"Lease/wrong recipient type", withParent, newRideLease(rideString("x"), 1, 1),
+			"failed to convert Lease to LeaseScriptAction: unexpected type 'String' of property 'recipient'"},
+		{"Lease/no parent", noParent, newRideLease(address, 1, 1),
+			"failed to convert Lease to LeaseScriptAction: calcLeaseID: no parent transaction ID found"},
+		{"ScriptTransfer/unknown alias", withParent, newRideScriptTransfer(rideUnit{}, rideAlias(*unknown), 1),
+			"failed to convert ScriptTransfer to ScriptAction: failed to get address by alias: " +
+				"unknown alias 'alias:T:unknown-alias'"},
+		{"unexpected type", withParent, rideInt(1), "unexpected type 'Int'"},
+		{"unexpected object", withParent, newRideTransfer(address, 1), "unexpected type 'Transfer'"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := convertToAction(tc.env(t), tc.rt)
+			require.EqualError(t, err, tc.err)
+		})
+	}
+}
+
+func TestObjectToActions(t *testing.T) {
+	var (
+		txID    = crypto.MustDigestFromBase58("DHgwrRvVyqJsepd32YbBqUeDH4GJ1N984X8QoekjgH8J")
+		address = newTestAccount(t, "recipient").address()
+		entry   = newRideIntegerEntry("k", 1)
+		bad     = newRideDataEntry(rideUnit{}, "k")
+		tr      = newRideScriptTransfer(rideUnit{}, rideAddress(address), 1)
+		badTr   = newRideScriptTransfer(rideUnit{}, rideInt(1), 1)
+	)
+	entryAction := &proto.DataEntryScriptAction{Entry: &proto.IntegerDataEntry{Key: "k", Value: 1}}
+	trAction := &proto.TransferScriptAction{
+		Recipient: proto.NewRecipientFromAddress(address), Amount: 1, Asset: proto.NewOptionalAssetWaves(),
+	}
+	env := newTestEnv(t).withTransactionID(txID).toEnv()
+	t.Run("ok", func(t *testing.T) {
+		for _, tc := range []struct {
+			name string
+			rt   rideType
+			res  []proto.ScriptAction
+		}{
+			{"WriteSet/empty", newRideWriteSet(rideList{}), []proto.ScriptAction{}},
+			{"WriteSet", newRideWriteSet(rideList{entry, entry}), []proto.ScriptAction{entryAction, entryAction}},
+			{"TransferSet/empty", newRideTransferSet(rideList{}), []proto.ScriptAction{}},
+			{"TransferSet", newRideTransferSet(rideList{tr}), []proto.ScriptAction{trAction}},
+			{"ScriptResult/empty", newRideScriptResult(newRideWriteSet(nil), newRideTransferSet(nil)),
+				[]proto.ScriptAction{}},
+			{"ScriptResult", newRideScriptResult(newRideWriteSet(rideList{entry}), newRideTransferSet(rideList{tr, tr})),
+				[]proto.ScriptAction{entryAction, trAction, trAction}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				res, err := objectToActions(env, tc.rt)
+				require.NoError(t, err)
+				require.Equal(t, tc.res, res)
+			})
+		}
+	})
+	t.Run("errors", func(t *testing.T) {
+		for _, tc := range []struct {
+			name string
+			rt   rideType
+			err  string
+		}{
+			{"WriteSet", newRideWriteSet(rideList{entry, bad}),
+				"failed to convert item 2 of type 'DataEntry': unexpected type of DataEntry 'Unit'"},
+			{"TransferSet", newRideTransferSet(rideList{badTr}),
+				"failed to convert transfer 1 of type 'ScriptTransfer': " +
+					"failed to convert ScriptTransfer to ScriptAction: unexpected type 'Int' of property 'recipient'"},
+			{"ScriptResult/writes", newRideScriptResult(newRideWriteSet(rideList{bad}), newRideTransferSet(nil)),
+				"failed to convert writes to ScriptActions: " +
+					"failed to convert item 1 of type 'DataEntry': unexpected type of DataEntry 'Unit'"},
+			{"ScriptResult/transfers",
+				newRideScriptResult(newRideWriteSet(rideList{entry}), newRideTransferSet(rideList{tr, badTr})),
+				"failed to convert transfers to ScriptActions: failed to convert transfer 2 of type 'ScriptTransfer': " +
+					"failed to convert ScriptTransfer to ScriptAction: unexpected type 'Int' of property 'recipient'"},
+			{"unexpected type", entry, "unexpected type 'IntegerEntry'"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				_, err := objectToActions(env, tc.rt)
+				require.EqualError(t, err, tc.err)
+			})
+		}
+	})
+}
+
+func TestEvaluateResultConversionErrors(t *testing.T) {
+	call := func(f string, args ...ast.Node) ast.Node { return ast.NewFunctionCallNode(ast.NativeFunction(f), args) }
+	list := func(item ast.Node) ast.Node { return call("1100", item, ast.NewReferenceNode("nil")) }
+	tuple := func(a, b ast.Node) ast.Node { return call("1300", a, b) }
+	one := ast.NewLongNode(1)
+	for _, tc := range []struct {
+		name string
+		res  ast.Node
+		err  string
+	}{
+		{"list", list(one), "failed to convert evaluation result: unexpected type 'Int'"},
+		{"tuple/not list", tuple(one, one), "unexpected result type 'ride.tuple2'"},
+		{"tuple/list", tuple(list(one), one), "failed to convert evaluation result: unexpected type 'Int'"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			env := newTestEnv(t).withLibVersion(ast.LibV5).withComplexityLimit(2000).toEnv()
+			tree := ast.NewTree(ast.ContentTypeExpression, ast.LibV5)
+			tree.Verifier = tc.res
+			e, err := treeVerifierEvaluator(env, tree)
+			require.NoError(t, err)
+			_, err = e.evaluate()
+			require.EqualError(t, err, tc.err)
+			assert.Equal(t, EvaluationFailure, GetEvaluationErrorType(err))
+		})
+	}
+}
+
+func TestScriptActionToObjectFields(t *testing.T) {
+	var (
+		acc     = newTestAccount(t, "sender")
+		assetID = crypto.MustDigestFromBase58("WmryL34P6UwwUphNbhjBRwiCWxX15Nf5D8T7AmQY7yx")
+		txID    = crypto.MustDigestFromBase58("DHgwrRvVyqJsepd32YbBqUeDH4GJ1N984X8QoekjgH8J")
+	)
+	for _, tc := range []struct {
+		name     string
+		action   proto.ScriptAction
+		typeName string
+	}{
+		{"Reissue", &proto.ReissueScriptAction{AssetID: assetID, Quantity: 100, Reissuable: true}, "ReissueTransaction"},
+		{"Burn", &proto.BurnScriptAction{AssetID: assetID, Quantity: 100}, "BurnTransaction"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			obj, err := scriptActionToObject(proto.TestNetScheme, tc.action, acc.publicKey(), txID, 12345)
+			require.NoError(t, err)
+			assert.Equal(t, tc.typeName, obj.instanceOf())
+			getAny := func(name string) rideType {
+				v, gErr := obj.get(name)
+				require.NoError(t, gErr)
+				return v
+			}
+			get := func(name string) rideByteVector {
+				v := getAny(name)
+				b, ok := v.(rideByteVector)
+				require.True(t, ok, "field '%s' has type '%T'", name, v)
+				return b
+			}
+			pk, aid, id := get(senderPublicKeyField), get(assetIDField), get(idField)
+			pkExpected := acc.publicKey()
+			assert.Equal(t, rideByteVector(pkExpected[:]), pk)
+			assert.Equal(t, rideByteVector(assetID[:]), aid)
+			assert.Equal(t, rideByteVector(txID[:]), id)
+			// Appending to one of the slices must not overwrite the others.
+			_ = append(pk, 0xff)
+			_ = append(aid, 0xff)
+			assert.Equal(t, rideByteVector(assetID[:]), get(assetIDField))
+			assert.Equal(t, rideByteVector(txID[:]), get(idField))
+			assert.Equal(t, rideInt(100), getAny(quantityField))
+			assert.Equal(t, rideInt(12345), getAny(timestampField))
+			assert.Equal(t, rideAddress(acc.address()), getAny(senderField))
+		})
+	}
+}

@@ -36,13 +36,9 @@ type layeredBalanceChanges struct {
 func newLayeredWavesBalanceChanges(origState types.EnrichedSmartState) layeredBalanceChanges {
 	return layeredBalanceChanges{
 		origState: origState,
-		changes: []changesLayer{ // init root script level
-			{
-				changedWavesBalances: make(map[proto.AddressID]struct{}),
-				changedLeaseBalances: make(map[proto.AddressID]struct{}),
-			},
-		},
-		origBalances: newDiffState(origState),
+		changes:   []changesLayer{{}}, // init root script level, maps of the layer are allocated on first change
+		// Only the Waves balances of the original state are loaded, other maps of the diff are never used.
+		origBalances: diffState{state: origState, wavesBalances: map[proto.AddressID]diffBalance{}},
 	}
 }
 
@@ -54,28 +50,31 @@ func (c *layeredBalanceChanges) lastChanges() (changesLayer, bool) {
 }
 
 func (c *layeredBalanceChanges) initNewLayeredWavesBalanceChanges() {
-	c.changes = append(c.changes, changesLayer{
-		changedWavesBalances: make(map[proto.AddressID]struct{}),
-		changedLeaseBalances: make(map[proto.AddressID]struct{}),
-	})
+	c.changes = append(c.changes, changesLayer{})
 }
 
 func (c *layeredBalanceChanges) addWavesBalanceChanges(seq iter.Seq[proto.AddressID]) {
-	last, ok := c.lastChanges()
-	if !ok { // no layers, nothing to add
+	if len(c.changes) == 0 { // no layers, nothing to add
 		return
 	}
+	last := &c.changes[len(c.changes)-1]
 	for addr := range seq {
+		if last.changedWavesBalances == nil {
+			last.changedWavesBalances = make(map[proto.AddressID]struct{})
+		}
 		last.changedWavesBalances[addr] = struct{}{}
 	}
 }
 
 func (c *layeredBalanceChanges) addLeaseBalanceChanges(seq iter.Seq[proto.AddressID]) {
-	last, ok := c.lastChanges()
-	if !ok { // no layers, nothing to add
+	if len(c.changes) == 0 { // no layers, nothing to add
 		return
 	}
+	last := &c.changes[len(c.changes)-1]
 	for addr := range seq {
+		if last.changedLeaseBalances == nil {
+			last.changedLeaseBalances = make(map[proto.AddressID]struct{})
+		}
 		last.changedLeaseBalances[addr] = struct{}{}
 	}
 }
@@ -1310,6 +1309,10 @@ func bytesSizeCheckV3V6(l int) bool {
 	return l <= proto.MaxDataWithProofsBytes
 }
 
+func takeRideStringNotInitialized(string, int) rideString {
+	panic("function 'takeStr' was not initialized")
+}
+
 func NewEnvironment(
 	scheme proto.Scheme,
 	state types.SmartState,
@@ -1325,7 +1328,7 @@ func NewEnvironment(
 		st:                                 state,
 		h:                                  rideInt(height),
 		check:                              bytesSizeCheckV1V2, // By default almost unlimited
-		takeStr:                            func(s string, n int) rideString { panic("function 'takeStr' was not initialized") },
+		takeStr:                            takeRideStringNotInitialized,
 		validatePaymentsAfter:              internalPaymentsValidationHeight,
 		paymentsFixAfter:                   paymentsFixAfterHeight,
 		isBlockV5Activated:                 blockV5,
@@ -1348,11 +1351,11 @@ func NewEnvironmentWithWrappedState(
 ) (*EvaluationEnvironment, error) {
 	recipient := proto.WavesAddress(env.th.(rideAddress))
 	st := newWrappedState(env, originalState, rootScriptLibVersion)
+	callerRcp := proto.NewRecipientFromAddress(sender)
 	for i, payment := range payments {
 		var (
 			senderBalance uint64
 			err           error
-			callerRcp     = proto.NewRecipientFromAddress(sender)
 		)
 		// TODO: Move validation after application
 		if payment.Asset.Present {

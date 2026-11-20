@@ -269,15 +269,30 @@ func split(s, sep string, stringLengthLimit, resultListSizeLimit int) (rideList,
 	if sl := len(s); sl > stringLengthLimit {
 		return nil, errors.Errorf("string length %d exceeds string length limit %d", sl, stringLengthLimit)
 	}
-	res := strings.Split(s, sep)
-	rl := len(res)
+	if sep == "" { // Splitting into UTF-8 sequences, delegate to strings.Split.
+		res := strings.Split(s, sep)
+		rl := len(res)
+		if rl > resultListSizeLimit {
+			return nil, errors.Errorf("list size %d exceeds list size limit %d", rl, resultListSizeLimit)
+		}
+		r := make(rideList, rl)
+		for i, s := range res {
+			r[i] = rideString(s)
+		}
+		return r, nil
+	}
+	// Same result as strings.Split, but without the intermediate slice of strings.
+	rl := strings.Count(s, sep) + 1
 	if rl > resultListSizeLimit {
 		return nil, errors.Errorf("list size %d exceeds list size limit %d", rl, resultListSizeLimit)
 	}
 	r := make(rideList, rl)
-	for i, s := range res {
-		r[i] = rideString(s)
+	for i := range rl - 1 {
+		before, after, _ := strings.Cut(s, sep)
+		r[i] = rideString(before)
+		s = after
 	}
+	r[rl-1] = rideString(s)
 	return r, nil
 }
 
@@ -386,7 +401,23 @@ func isMathematicalStyledDigit(r rune) bool {
 	return '\U0001D7CE' <= r && r <= '\U0001D7FF'
 }
 
+// isASCIIDecimal reports whether s consists only of ASCII digits with an optional leading sign.
+// Such strings are returned by normalizeDigits unchanged.
+func isASCIIDecimal(s string) bool {
+	for i := range len(s) {
+		c := s[i]
+		if ('0' <= c && c <= '9') || (i == 0 && (c == '+' || c == '-')) {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
 func normalizeDigits(s string) (string, error) {
+	if isASCIIDecimal(s) {
+		return s, nil
+	}
 	var b strings.Builder
 	for i, r := range s {
 		switch {
@@ -469,21 +500,6 @@ func looseStringList(list []rideType) ([]string, int, error) {
 	return parts, pl, nil
 }
 
-func strictStringList(list []rideType) ([]string, int, error) {
-	parts := make([]string, len(list))
-	pl := 0
-	for i, item := range list {
-		rs, ok := item.(rideString)
-		if !ok {
-			return nil, 0, errors.Errorf("unexpected list item type '%s'", item.instanceOf())
-		}
-		str := string(rs)
-		parts[i] = str
-		pl += len(str)
-	}
-	return parts, pl, nil
-}
-
 func mkString(list []rideType, sep string, listSizeLimit, resultLengthLimit int, checkList func([]rideType) ([]string, int, error)) (string, error) {
 	ll := len(list)
 	if ll > listSizeLimit {
@@ -493,15 +509,67 @@ func mkString(list []rideType, sep string, listSizeLimit, resultLengthLimit int,
 	if err != nil {
 		return "", err
 	}
-	var expectedLength = 0
-	if pc := len(parts); pc > 1 {
-		expectedLength = pl + (pc-1)*len(sep)
-	}
-	if expectedLength > resultLengthLimit {
-		return "", errors.Errorf("result length %d exceeds maximum allowed %d", expectedLength, resultLengthLimit)
+	if lErr := checkMkStringLength(len(parts), pl, len(sep), resultLengthLimit); lErr != nil {
+		return "", lErr
 	}
 	return strings.Join(parts, sep), nil
 }
+
+func checkMkStringLength(partsCount, partsLength, sepLength, resultLengthLimit int) error {
+	var expectedLength = 0
+	if partsCount > 1 {
+		expectedLength = partsLength + (partsCount-1)*sepLength
+	}
+	if expectedLength > resultLengthLimit {
+		return errors.Errorf("result length %d exceeds maximum allowed %d", expectedLength, resultLengthLimit)
+	}
+	return nil
+}
+
+// mkStringStrict is the equivalent of mkString that accepts only lists of strings and joins the strings directly
+// from the list without building the intermediate slice of strings.
+func mkStringStrict(list []rideType, sep string, listSizeLimit, resultLengthLimit int) (string, error) {
+	ll := len(list)
+	if ll > listSizeLimit {
+		return "", errors.Errorf("list size %d exceeds size limit %d", ll, listSizeLimit)
+	}
+	pl := 0
+	for _, item := range list {
+		rs, ok := item.(rideString)
+		if !ok {
+			return "", errors.Errorf("unexpected list item type '%s'", item.instanceOf())
+		}
+		pl += len(rs)
+	}
+	if err := checkMkStringLength(ll, pl, len(sep), resultLengthLimit); err != nil {
+		return "", err
+	}
+	if ll == 0 {
+		return "", nil
+	}
+	first, _ := list[0].(rideString) // All items were checked to be strings above.
+	if ll == 1 {
+		return string(first), nil
+	}
+	var b strings.Builder
+	b.Grow(pl + (ll-1)*len(sep))
+	b.WriteString(string(first))
+	for _, item := range list[1:] {
+		rs, _ := item.(rideString)
+		b.WriteString(sep)
+		b.WriteString(string(rs))
+	}
+	return b.String(), nil
+}
+
+const (
+	makeStringV6ListSizeLimit      = 70
+	makeStringV6ResultLengthLimit  = 500
+	makeString2CListSizeLimit      = 100
+	makeString2CResultLengthLimit  = 6000
+	makeString11CListSizeLimit     = 1000
+	makeString11CResultLengthLimit = 32767
+)
 
 func makeString(_ environment, args ...rideType) (rideType, error) {
 	list, sep, err := listAndStringArgs(args)
@@ -520,7 +588,7 @@ func makeStringV6(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "makeStringV6")
 	}
-	r, err := mkString(list, string(sep), 70, 500, strictStringList)
+	r, err := mkStringStrict(list, string(sep), makeStringV6ListSizeLimit, makeStringV6ResultLengthLimit)
 	if err != nil {
 		return nil, errors.Wrap(err, "makeStringV6")
 	}
@@ -532,7 +600,7 @@ func makeString2C(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "makeString")
 	}
-	r, err := mkString(list, string(sep), 100, 6000, strictStringList)
+	r, err := mkStringStrict(list, string(sep), makeString2CListSizeLimit, makeString2CResultLengthLimit)
 	if err != nil {
 		return nil, errors.Wrap(err, "makeString")
 	}
@@ -544,7 +612,7 @@ func makeString11C(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "makeString")
 	}
-	r, err := mkString(list, string(sep), 1000, 32767, strictStringList)
+	r, err := mkStringStrict(list, string(sep), makeString11CListSizeLimit, makeString11CResultLengthLimit)
 	if err != nil {
 		return nil, errors.Wrap(err, "makeString")
 	}
@@ -582,19 +650,37 @@ func runesIndex(s, sub string) int {
 	return -1
 }
 
+// runesOffset returns the byte offset in s after the first n runes, or len(s) if s has fewer than n runes.
+func runesOffset(s string, n int) int {
+	if n <= 0 {
+		return 0
+	}
+	for i := range s {
+		if n == 0 {
+			return i
+		}
+		n--
+	}
+	return len(s)
+}
+
+// runesDrop drops the first n runes of s, n must be in range [0, utf8.RuneCountInString(s)].
+// For valid UTF-8 strings the result is a substring of s. Invalid UTF-8 strings are converted through
+// runes, so the invalid bytes of the result are replaced with utf8.RuneError.
 func runesDrop(s string, n int) string {
-	runes := []rune(s)
-	out := make([]rune, len(runes)-n)
-	copy(out, runes[n:])
-	res := string(out)
-	return res
+	if utf8.ValidString(s) {
+		return s[runesOffset(s, n):]
+	}
+	return string([]rune(s)[n:])
 }
 
 // This is the CORRECT implementation of takeString function that handles runes in UTF-8 string correctly.
+// The argument n must be in range [0, utf8.RuneCountInString(s)], see runesDrop for invalid UTF-8 handling.
 func runesTake(s string, n int) string {
-	out := make([]rune, n)
-	copy(out, []rune(s)[:n])
-	return string(out)
+	if utf8.ValidString(s) {
+		return s[:runesOffset(s, n)]
+	}
+	return string([]rune(s)[:n])
 }
 
 func takeRideString(s string, n int) rideString {

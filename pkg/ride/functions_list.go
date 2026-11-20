@@ -2,14 +2,17 @@ package ride
 
 import (
 	"slices"
-	"sort"
 
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/ride/math"
 )
 
-const maxListSize = 1000
+const (
+	maxListSize = 1000
+	// medianStackBufferSize is the size of the list that median sorts without a heap allocation.
+	medianStackBufferSize = 64
+)
 
 func listAndStringArgs(args []rideType) (rideList, rideString, error) {
 	if err := checkArgs(args, 2); err != nil {
@@ -356,10 +359,8 @@ func indexOfList(_ environment, args ...rideType) (rideType, error) {
 	if len(list) > maxListSize {
 		return nil, errors.Errorf("indexOfList: list size exceeds %d elements", maxListSize)
 	}
-	for i := range list {
-		if e.eq(list[i]) {
-			return rideInt(i), nil
-		}
+	if i := indexOfElement(list, e); i >= 0 {
+		return rideInt(i), nil
 	}
 	return rideUnit{}, nil // not found returns Unit
 }
@@ -372,10 +373,8 @@ func lastIndexOfList(_ environment, args ...rideType) (rideType, error) {
 	if len(list) > maxListSize {
 		return nil, errors.Errorf("lastIndexOfList: list size exceeds %d elements", maxListSize)
 	}
-	for i := range slices.Backward(list) {
-		if e.eq(list[i]) {
-			return rideInt(i), nil
-		}
+	if i := lastIndexOfElement(list, e); i >= 0 {
+		return rideInt(i), nil
 	}
 	return rideUnit{}, nil // not found returns Unit
 }
@@ -389,11 +388,16 @@ func median(_ environment, args ...rideType) (rideType, error) {
 	if size > maxListSize || size < 2 {
 		return nil, errors.Errorf("median: invalid list size %d", size)
 	}
-	items, err := intSlice(list)
+	var buf [medianStackBufferSize]int
+	items := buf[:0]
+	if size > len(buf) {
+		items = make([]int, 0, size)
+	}
+	items, err = appendInts(items, list)
 	if err != nil {
 		return nil, errors.Wrap(err, "median")
 	}
-	sort.Ints(items)
+	slices.Sort(items)
 	half := size / 2
 	if size%2 == 1 {
 		return rideInt(items[half]), nil
@@ -411,11 +415,10 @@ func listMax(_ environment, args ...rideType) (rideType, error) {
 	if size > maxListSize || size == 0 {
 		return nil, errors.Errorf("listMax: invalid list size %d", size)
 	}
-	items, err := intSlice(list)
+	_, mx, err := intListMinMax(list)
 	if err != nil {
 		return nil, errors.Wrap(err, "listMax")
 	}
-	_, mx := minMax(items)
 	return rideInt(mx), nil
 }
 
@@ -428,11 +431,10 @@ func listMin(_ environment, args ...rideType) (rideType, error) {
 	if size > maxListSize || size == 0 {
 		return nil, errors.Errorf("listMin: invalid list size %d", size)
 	}
-	items, err := intSlice(list)
+	mn, _, err := intListMinMax(list)
 	if err != nil {
 		return nil, errors.Wrap(err, "listMin")
 	}
-	mn, _ := minMax(items)
 	return rideInt(mn), nil
 }
 
@@ -441,10 +443,7 @@ func containsElement(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "containsElement")
 	}
-	if slices.ContainsFunc(list, e.eq) {
-		return rideBoolean(true), nil
-	}
-	return rideBoolean(false), nil
+	return rideBoolean(indexOfElement(list, e) >= 0), nil
 }
 
 func listRemoveByIndex(_ environment, args ...rideType) (rideType, error) {
@@ -527,31 +526,64 @@ func findFirstEntry(list rideList, key rideString, expectedValueType string) rid
 	return rideUnit{}
 }
 
-func intSlice(list rideList) ([]int, error) {
-	items := make([]int, len(list))
-	for i, el := range list {
+// indexOfElement returns the index of the first list item equal to e, or -1 if there is no such item.
+// A plain loop with a direct method call is notably faster here than slices.IndexFunc(list, e.eq).
+func indexOfElement(list rideList, e rideType) int {
+	for i := range list {
+		if e.eq(list[i]) {
+			return i
+		}
+	}
+	return -1
+}
+
+// lastIndexOfElement returns the index of the last list item equal to e, or -1 if there is no such item.
+// A plain loop is about two times faster here than iterating over slices.Backward(list).
+func lastIndexOfElement(list rideList, e rideType) int {
+	for i := len(list); i > 0; i-- {
+		if e.eq(list[i-1]) {
+			return i - 1
+		}
+	}
+	return -1
+}
+
+// appendInts appends the values of the list of Int elements to items.
+// It fails on the first element that is not an Int.
+func appendInts(items []int, list rideList) ([]int, error) {
+	for _, el := range list {
 		item, ok := el.(rideInt)
 		if !ok {
-			return nil, errors.Errorf("unexpected type of list element '%s'", el.instanceOf())
+			return nil, unexpectedListElementTypeError(el)
 		}
-		items[i] = int(item)
+		items = append(items, int(item))
 	}
 	return items, nil
 }
 
-func minMax(items []int) (int, int) {
-	if len(items) == 0 {
-		panic("empty slice")
+// intListMinMax returns the minimal and maximal values of the non-empty list of Int elements.
+// It fails on the first element that is not an Int.
+func intListMinMax(list rideList) (int, int, error) {
+	if len(list) == 0 {
+		panic("empty list")
 	}
-	mx := items[0]
-	mn := items[0]
-	for _, i := range items {
-		if mx < i {
-			mx = i
+	var mn, mx int
+	for i, el := range list {
+		item, ok := el.(rideInt)
+		if !ok {
+			return 0, 0, unexpectedListElementTypeError(el)
 		}
-		if mn > i {
-			mn = i
+		v := int(item)
+		if i == 0 {
+			mn, mx = v, v
+			continue
 		}
+		mn = min(mn, v)
+		mx = max(mx, v)
 	}
-	return mn, mx
+	return mn, mx, nil
+}
+
+func unexpectedListElementTypeError(el rideType) error {
+	return errors.Errorf("unexpected type of list element '%s'", el.instanceOf())
 }

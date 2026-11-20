@@ -182,3 +182,52 @@ func TestThrowComplexities(t *testing.T) {
 		}
 	})
 }
+
+func TestCommonFunctionsArgumentErrors(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		fn   rideFunction
+		args []rideType
+		err  string
+	}{
+		{"eq", eq, []rideType{rideInt(1)}, "eq: 1 is invalid number of arguments, expected 2"},
+		{"neq", neq, []rideType{rideInt(1), nil}, "neq: argument 2 is empty"},
+		{"instanceOf/count", instanceOf, []rideType{rideInt(1)},
+			"instanceOf: 1 is invalid number of arguments, expected 2"},
+		{"instanceOf/type", instanceOf, []rideType{rideInt(1), rideInt(2)},
+			"instanceOf: second argument is not a String value but 'Int'"},
+		{"extract", extract, nil, "extract: 0 is invalid number of arguments, expected 1"},
+		{"isDefined", isDefined, []rideType{rideInt(1), rideInt(2)},
+			"isDefined: 2 is invalid number of arguments, expected 1"},
+		{"value", value, nil, "value: 0 is invalid number of arguments, expected 1"},
+		{"valueOrErrorMessage/count", valueOrErrorMessage, []rideType{rideInt(1)},
+			"valueOrErrorMessage: 1 is invalid number of arguments, expected 2"},
+		{"valueOrErrorMessage/type", valueOrErrorMessage, []rideType{rideInt(1), rideInt(2)},
+			"valueOrErrorMessage: unexpected argument type '2'"},
+		{"valueOrElse", valueOrElse, []rideType{rideInt(1)},
+			"valueOrErrorMessage: 1 is invalid number of arguments, expected 2"},
+		{"throw", throw, []rideType{rideInt(1)}, "throw: argument 1 is not of type 'String' but 'Int'"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			r, err := test.fn(nil, test.args...)
+			assert.EqualError(t, err, test.err)
+			assert.Nil(t, r)
+		})
+	}
+}
+
+func TestCommonFunctionsUnitValues(t *testing.T) {
+	_, err := extract(nil, rideUnit{})
+	assert.EqualError(t, err, "extract() called on unit value")
+	assert.Equal(t, UserError, GetEvaluationErrorType(err))
+	_, err = value(nil, rideUnit{})
+	assert.EqualError(t, err, defaultThrowMessage)
+	_, err = valueOrErrorMessage(nil, rideUnit{}, rideString("custom"))
+	assert.EqualError(t, err, "custom")
+	r, err := valueOrElse(nil, rideUnit{}, rideInt(7))
+	require.NoError(t, err)
+	assert.Equal(t, rideInt(7), r)
+	r, err = isDefined(nil, rideUnit{})
+	require.NoError(t, err)
+	assert.Equal(t, rideBoolean(false), r)
+}

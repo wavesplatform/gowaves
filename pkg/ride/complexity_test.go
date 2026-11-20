@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	stderrs "errors"
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -913,4 +914,191 @@ func TestInvokeVerifierWithZeroComplexity(t *testing.T) {
 		t.Run("without-ride-v6", func(t *testing.T) { doTest(t, false) })
 		t.Run("with-ride-v6", func(t *testing.T) { doTest(t, true) })
 	})
+}
+
+const overflowMsg = "add: integer overflow/underflow"
+
+type calcTestCase struct {
+	name    string
+	c, l    int
+	run     func(cc complexityCalculator) error // nil for add-only cases
+	add     func(cc complexityCalculator)
+	testErr string
+	addC    int
+	addErr  string
+}
+
+func newCalculatorWith(v2 bool, c, l int) complexityCalculator {
+	if v2 {
+		return &complexityCalculatorV2{c: c, l: l}
+	}
+	return &complexityCalculatorV1{c: c, l: l}
+}
+
+func checkCalculatorCase(t *testing.T, v2 bool, tc calcTestCase) {
+	if tc.run != nil {
+		cc := newCalculatorWith(v2, tc.c, tc.l)
+		err := tc.run(cc)
+		if tc.testErr == "" {
+			assert.NoError(t, err)
+		} else {
+			require.Error(t, err)
+			assert.EqualError(t, err, tc.testErr)
+		}
+		assert.Equal(t, tc.c, cc.complexity(), "test method must not change complexity")
+		assert.NoError(t, cc.error(), "test method must not set error")
+	}
+	if tc.add != nil {
+		cc := newCalculatorWith(v2, tc.c, tc.l)
+		tc.add(cc)
+		assert.Equal(t, tc.addC, cc.complexity())
+		if tc.addErr == "" {
+			assert.NoError(t, cc.error())
+		} else {
+			require.Error(t, cc.error())
+			assert.EqualError(t, cc.error(), tc.addErr)
+		}
+	}
+}
+
+func nativeCases(fc int) []calcTestCase {
+	test := func(cc complexityCalculator) error { return cc.testNativeFunctionComplexity("f", fc) }
+	add := func(cc complexityCalculator) { cc.addNativeFunctionComplexity("f", fc) }
+	return []calcTestCase{
+		{name: "below limit", c: 100 - fc - 1, l: 100, run: test, add: add, addC: 99},
+		{name: "at limit", c: 100 - fc, l: 100, run: test, add: add, addC: 100},
+		{name: "over limit", c: 100 - fc + 1, l: 100, run: test, add: add, addC: 101,
+			testErr: fmt.Sprintf("node 'f' with complexity %d has exceeded the complexity limit 100 "+
+				"with result complexity 101", fc)},
+		{name: "at max int", c: math.MaxInt - fc, l: math.MaxInt, run: test, add: add, addC: math.MaxInt},
+		{name: "overflow", c: math.MaxInt - fc + 1, l: math.MaxInt, run: test, add: add, addC: 0,
+			testErr: fmt.Sprintf("node 'f' with complexity %d has overflowed integer calculator complexity %d: %s",
+				fc, math.MaxInt-fc+1, overflowMsg),
+			addErr: fmt.Sprintf("node 'f' with complexity %d has overflowed integer calculator complexity %d: %s",
+				fc, math.MaxInt-fc+1, overflowMsg)},
+	}
+}
+
+func TestComplexityCalculatorNativeBoundaries(t *testing.T) {
+	for _, v2 := range []bool{false, true} {
+		for _, fc := range []int{1, 7} {
+			for _, tc := range nativeCases(fc) {
+				t.Run(fmt.Sprintf("v2=%t/fc=%d/%s", v2, fc, tc.name), func(t *testing.T) {
+					checkCalculatorCase(t, v2, tc)
+				})
+			}
+		}
+	}
+}
+
+func TestComplexityCalculatorNativeZeroComplexity(t *testing.T) {
+	v1 := &complexityCalculatorV1{c: 5, l: 10}
+	require.NoError(t, v1.testNativeFunctionComplexity("f", 0))
+	v1.addNativeFunctionComplexity("f", 0)
+	assert.Equal(t, 5, v1.complexity())
+	assert.NoError(t, v1.error())
+
+	v2 := &complexityCalculatorV2{c: 5, l: 10}
+	err := v2.testNativeFunctionComplexity("f", 0)
+	require.Error(t, err)
+	assert.EqualError(t, err, "node 'f' has zero complexity")
+	assert.Equal(t, EvaluationFailure, errTypeFromComplexityCalcErr(err))
+	v2.addNativeFunctionComplexity("f", 0)
+	assert.Equal(t, 5, v2.complexity())
+	require.Error(t, v2.error())
+	assert.EqualError(t, v2.error(), "node 'f' has zero complexity")
+}
+
+func TestComplexityCalculatorV1NodeBoundaries(t *testing.T) {
+	type method struct {
+		name string
+		test func(cc complexityCalculator) error
+		add  func(cc complexityCalculator)
+	}
+	methods := []method{
+		{conditionalNodeCodeName, complexityCalculator.testConditionalComplexity,
+			complexityCalculator.addConditionalComplexity},
+		{referenceNodeCodeName, complexityCalculator.testReferenceComplexity,
+			complexityCalculator.addReferenceComplexity},
+		{propertyNodeCallCodeName, complexityCalculator.testPropertyComplexity,
+			complexityCalculator.addPropertyComplexity},
+	}
+	for _, m := range methods {
+		cases := []calcTestCase{
+			{name: "at limit", c: 99, l: 100, run: m.test, add: m.add, addC: 100},
+			{name: "over limit", c: 100, l: 100, run: m.test, add: m.add, addC: 101,
+				testErr: fmt.Sprintf("node '%s' with complexity 1 has exceeded the complexity limit 100 "+
+					"with result complexity 101", m.name)},
+			{name: "at max int", c: math.MaxInt - 1, l: math.MaxInt, run: m.test, add: m.add, addC: math.MaxInt},
+			{name: "overflow", c: math.MaxInt, l: math.MaxInt, run: m.test, add: m.add, addC: 0,
+				testErr: fmt.Sprintf("node '%s' with complexity 1 has overflowed integer calculator complexity %d: %s",
+					m.name, math.MaxInt, overflowMsg),
+				addErr: fmt.Sprintf("node '%s' with complexity 1 has overflowed integer calculator complexity %d: %s",
+					m.name, math.MaxInt, overflowMsg)},
+		}
+		for _, tc := range cases {
+			t.Run(m.name+"/"+tc.name, func(t *testing.T) {
+				checkCalculatorCase(t, false, tc)
+			})
+		}
+		// V2 doesn't count conditional, reference and property nodes.
+		t.Run(m.name+"/v2", func(t *testing.T) {
+			checkCalculatorCase(t, true, calcTestCase{c: math.MaxInt, l: 0, run: m.test, add: m.add, addC: math.MaxInt})
+		})
+	}
+}
+
+func TestComplexityCalculatorAdditionalUserFunctionBoundaries(t *testing.T) {
+	const name = "uf"
+	test := func(ic int) func(cc complexityCalculator) error {
+		return func(cc complexityCalculator) error { return cc.testAdditionalUserFunctionComplexity(name, ic) }
+	}
+	add := func(ic int) func(cc complexityCalculator) {
+		return func(cc complexityCalculator) { cc.addAdditionalUserFunctionComplexity(name, ic) }
+	}
+	overflow := fmt.Sprintf("node 'uf' with complexity 1 has overflowed integer calculator complexity %d: %s",
+		math.MaxInt, overflowMsg)
+	v2Cases := []calcTestCase{
+		// No complexity spent in the function: test passes, add increments.
+		{name: "unchanged at limit", c: 100, l: 100, run: test(100), add: add(100), addC: 101},
+		{name: "unchanged overflow", c: math.MaxInt, l: math.MaxInt, run: test(math.MaxInt), add: add(math.MaxInt),
+			addC: 0, addErr: overflow},
+		// Complexity spent in the function: test checks the increment, add does nothing.
+		{name: "changed below limit", c: 99, l: 100, run: test(0), add: add(0), addC: 99},
+		{name: "changed over limit", c: 100, l: 100, run: test(0), add: add(0), addC: 100,
+			testErr: "node 'uf' with complexity 1 has exceeded the complexity limit 100 with result complexity 101"},
+		{name: "changed overflow", c: math.MaxInt, l: math.MaxInt, run: test(0), add: add(0), addC: math.MaxInt,
+			testErr: overflow},
+	}
+	for _, tc := range v2Cases {
+		t.Run("v2/"+tc.name, func(t *testing.T) {
+			checkCalculatorCase(t, true, tc)
+		})
+		t.Run("v1/"+tc.name, func(t *testing.T) { // V1 never adds anything for user functions.
+			checkCalculatorCase(t, false, calcTestCase{c: tc.c, l: tc.l, run: tc.run, add: tc.add, addC: tc.c})
+		})
+	}
+}
+
+func TestErrTypeFromComplexityCalcErr(t *testing.T) {
+	overflow := overflowError("f", 1, math.MaxInt)
+	limit := newComplexityLimitOverflowError("f", 1, 2, 1)
+	zero := newZeroComplexityError("f")
+	for _, tc := range []struct {
+		err      error
+		expected EvaluationError
+	}{
+		{overflow, ComplexityLimitExceed},
+		{limit, ComplexityLimitExceed},
+		{zero, EvaluationFailure},
+		{fmt.Errorf("wrapped: %w", limit), ComplexityLimitExceed},
+		{fmt.Errorf("wrapped: %w", zero), EvaluationFailure},
+		{stderrs.New("other"), Undefined},
+		{nil, Undefined},
+	} {
+		assert.Equal(t, tc.expected, errTypeFromComplexityCalcErr(tc.err), "%v", tc.err)
+	}
+	var inner interface{ Unwrap() error }
+	require.ErrorAs(t, overflow, &inner)
+	assert.EqualError(t, inner.Unwrap(), overflowMsg)
 }
