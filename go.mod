@@ -28,7 +28,7 @@ require (
 	github.com/mattn/go-isatty v0.0.24
 	github.com/minio/minlz v1.3.0
 	github.com/moby/go-archive v0.3.3
-	github.com/moby/moby/api v1.54.1
+	github.com/moby/moby/api v1.57.0
 	github.com/moby/moby/client v0.4.0
 	github.com/moby/patternmatcher v0.6.1
 	github.com/mr-tron/base58 v1.3.0
