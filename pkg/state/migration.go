@@ -25,6 +25,18 @@ import (
 // written in batches along with the progress of migration, so an interrupted migration continues from the last
 // written record. The version of the database is updated along with the removal of the progress in the last batch
 // of migration, so the node, which requires StateVersion, never opens a partially migrated database.
+//
+// The node refuses to open the database of another version, the database of an older supported version must be
+// converted with the cmd/migrate utility (`migrate -state-path <state dir>`) while the node is stopped.
+//
+// Supported migrations:
+//   - 26 to 27 (migration_v26.go): new formats of Waves and asset balance histories and legacy state hashes.
+//   - 27 to 28 (migration_v27.go): the entry sizes of variable size history records are stored as uvarint
+//     instead of 4 bytes big-endian uint32, all histories of variable size entities are re-encoded.
+//
+// A migration that writes records in the format of an intermediate version must use frozen encoders of that
+// version, not the current ones, so the chain of migrations stays correct after later format changes. For example,
+// the migration from 26 writes histories with marshalV27History from migration_v27.go.
 
 // migrationBatchSize is the number of converted records written to the database at once along with the progress.
 const migrationBatchSize = 10_000
@@ -40,6 +52,7 @@ type stateMigration struct {
 func stateMigrations() []stateMigration {
 	return []stateMigration{
 		{from: stateVersionV26, steps: migrationStepsFromV26},
+		{from: stateVersionV27, steps: migrationStepsFromV27},
 	}
 }
 

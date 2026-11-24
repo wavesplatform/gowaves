@@ -273,16 +273,19 @@ func (k *assetBalanceKey) unmarshal(data []byte) error {
 	return nil
 }
 
+// blockIDKeyBytes builds a key from the prefix followed by the block ID bytes with a single allocation.
+func blockIDKeyBytes(prefix byte, blockID proto.BlockID) []byte {
+	buf := make([]byte, 1, 1+blockID.Len())
+	buf[0] = prefix
+	return blockID.AppendBytes(buf)
+}
+
 type blockIdToNumKey struct {
 	blockID proto.BlockID
 }
 
 func (k *blockIdToNumKey) bytes() []byte {
-	idBytes := k.blockID.Bytes()
-	buf := make([]byte, 1+len(idBytes))
-	buf[0] = blockIdToNumKeyPrefix
-	copy(buf[1:], idBytes)
-	return buf
+	return blockIDKeyBytes(blockIdToNumKeyPrefix, k.blockID)
 }
 
 type blockNumToIdKey struct {
@@ -312,11 +315,7 @@ type blockOffsetKey struct {
 }
 
 func (k *blockOffsetKey) bytes() []byte {
-	idBytes := k.blockID.Bytes()
-	buf := make([]byte, 1+len(idBytes))
-	buf[0] = blockOffsetKeyPrefix
-	copy(buf[1:], idBytes)
-	return buf
+	return blockIDKeyBytes(blockOffsetKeyPrefix, k.blockID)
 }
 
 type txInfoKey struct {
@@ -520,11 +519,7 @@ type blocksInfoKey struct {
 }
 
 func (k *blocksInfoKey) bytes() []byte {
-	idBytes := k.blockID.Bytes()
-	buf := make([]byte, 1+len(idBytes))
-	buf[0] = blocksInfoKeyPrefix
-	copy(buf[1:], idBytes)
-	return buf
+	return blockIDKeyBytes(blocksInfoKeyPrefix, k.blockID)
 }
 
 type accountStorAddrToNumKey struct {
@@ -747,11 +742,7 @@ type patchKey struct {
 }
 
 func (k *patchKey) bytes() []byte {
-	idBytes := k.blockID.Bytes()
-	buf := make([]byte, 1+len(idBytes))
-	buf[0] = patchKeyPrefix
-	copy(buf[1:], idBytes)
-	return buf
+	return blockIDKeyBytes(patchKeyPrefix, k.blockID)
 }
 
 type rewardVotesKey struct {

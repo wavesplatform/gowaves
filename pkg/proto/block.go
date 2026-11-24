@@ -144,6 +144,20 @@ func (id BlockID) Bytes() []byte {
 	}
 }
 
+// AppendBytes appends the bytes of BlockID to dst and returns the extended slice.
+// Unlike Bytes, it does not allocate when dst has enough capacity.
+// If BlockID is not initialized, dst is returned unchanged.
+func (id BlockID) AppendBytes(dst []byte) []byte {
+	switch id.idType {
+	case SignatureID:
+		return append(dst, id.sig[:]...)
+	case DigestID:
+		return append(dst, id.dig[:]...)
+	default:
+		return dst
+	}
+}
+
 // IsSignature returns true if BlockID is a Signature.
 func (id BlockID) IsSignature() bool {
 	return id.idType == SignatureID

@@ -12,7 +12,7 @@ import (
 
 func Test_patchesStorage(t *testing.T) {
 	var (
-		blockIDs      = genRandBlockIds(t, 2)
+		blockIDs      = genRandBlockIDs(t, 2)
 		fistBlockID   = blockIDs[0]
 		secondBlockID = blockIDs[1]
 	)

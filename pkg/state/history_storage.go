@@ -1,6 +1,7 @@
 package state
 
 import (
+	"bytes"
 	"encoding/binary"
 	"sync"
 
@@ -61,10 +62,14 @@ type blockchainEntityProperties struct {
 // Note on size calculation.
 // 1) For fixed size records. We add 4 bytes for storing block number to each record.
 // 2) For variable size records record size consists of length of data, 4 bytes for storing block number and
-//    4 bytes for storing each record length.
+//    the uvarint encoded size of each record (the length of data plus 4 bytes of block number) before it.
+//    Up to state version 27 the size of each record was stored as fixed 4 bytes big-endian uint32,
+//    see migration_v27.go.
 
+// properties holds the properties of each blockchain entity, indexed by the entity type.
+// Use entityProperties to read it, it rejects unknown entity types.
 // + 4 bytes for blockNum at the end of each record.
-var properties = map[blockchainEntity]blockchainEntityProperties{
+var properties = [...]blockchainEntityProperties{ //nolint:gochecknoglobals // Read-only table of properties.
 	alias: {
 		needToFilter: true,
 		needToCut:    true,
@@ -230,6 +235,21 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 	},
 }
 
+// entityProperties returns the properties of the given entity type.
+// It returns false for unknown entity types, including the zero placeholder and types without properties.
+func entityProperties(entity blockchainEntity) (blockchainEntityProperties, bool) {
+	if int(entity) >= len(properties) {
+		return blockchainEntityProperties{}, false
+	}
+	p := properties[entity]
+	// A zero value means that the properties for the entity are not defined.
+	// No defined entity has zero properties, because each of them needs to be filtered.
+	if p == (blockchainEntityProperties{}) {
+		return blockchainEntityProperties{}, false
+	}
+	return p, true
+}
+
 type historyEntry struct {
 	data     []byte
 	blockNum uint32
@@ -237,15 +257,6 @@ type historyEntry struct {
 
 func (he *historyEntry) size() int {
 	return len(he.data) + 4 // 4 bytes to store block number added here
-}
-
-func (he *historyEntry) marshalBinary() ([]byte, error) {
-	res := make([]byte, len(he.data)+4)
-	pos := 0
-	copy(res[:len(he.data)], he.data)
-	pos += len(he.data)
-	binary.BigEndian.PutUint32(res[pos:pos+4], he.blockNum)
-	return res, nil
 }
 
 func (he *historyEntry) unmarshalBinary(data []byte) error {
@@ -263,58 +274,205 @@ type historyRecord struct {
 	entries    []historyEntry
 }
 
-func newHistoryRecord(entityType blockchainEntity) *historyRecord {
-	return &historyRecord{entityType: entityType}
+// historyRecordWithEntry keeps a record together with the storage for its first entry,
+// so a record with a single entry, which is the most common case, takes one allocation instead of two.
+type historyRecordWithEntry struct {
+	record historyRecord
+	first  [1]historyEntry
 }
 
+// newHistoryRecordWithLen returns a record with n zero entries.
+// The entries of a record with at most one entry are allocated together with the record.
+func newHistoryRecordWithLen(entityType blockchainEntity, n int) *historyRecord {
+	if n > 1 {
+		return &historyRecord{entityType: entityType, entries: make([]historyEntry, n)}
+	}
+	r := &historyRecordWithEntry{record: historyRecord{entityType: entityType}}
+	r.record.entries = r.first[:n:1] // The capacity limit makes a second append reallocate.
+	return &r.record
+}
+
+func newHistoryRecord(entityType blockchainEntity) *historyRecord {
+	return newHistoryRecordWithLen(entityType, 0)
+}
+
+// newHistoryRecordFromBytes decodes the history record from the given bytes.
+// The data of decoded entries points into the given slice, so the caller must not modify or reuse it while the
+// record is in use. Values returned by keyvalue.KeyVal.Get are owned by the caller, iterator values are not and
+// must be copied before decoding.
 func newHistoryRecordFromBytes(data []byte) (*historyRecord, error) {
 	if len(data) < 1 {
 		return nil, errors.Wrap(errInvalidDataSize, "data too short")
 	}
 	entityType := blockchainEntity(data[0])
-	property, ok := properties[entityType]
+	property, ok := entityProperties(entityType)
 	if !ok {
 		return nil, errors.Errorf("bad entity type %v", entityType)
 	}
-	var entries []historyEntry
 	if property.fixedSize {
-		dataSize := len(data)
-		recordSize := property.recordSize
-		if dataSize < 1+recordSize {
+		n := (len(data) - 1) / property.recordSize
+		if n == 0 {
 			return nil, errors.Wrapf(errInvalidDataSize,
 				"fixed size record too short (expected %d, actual %d), entity type %v",
-				recordSize, dataSize-1, entityType)
+				property.recordSize, len(data)-1, entityType)
 		}
-		for i := 1; i <= dataSize-recordSize; i += recordSize {
-			var entry historyEntry
-			if err := entry.unmarshalBinary(data[i : i+recordSize]); err != nil { // Returns only `errInvalidDataSize`
-				return nil, errors.Wrapf(err, "failed to unmarshal binary data for entity type %v", entityType)
-			}
-			entries = append(entries, entry)
-		}
-	} else {
-		dataSize := uint32(len(data))
-		for i := uint32(1); i <= dataSize-4; {
-			recordSize := binary.BigEndian.Uint32(data[i : i+4])
-			i += 4
-			if dataSize < i+recordSize {
-				return nil, errors.Wrapf(errInvalidDataSize,
-					"variable size record too short (expected %d, actual %d), entity type %v",
-					recordSize, dataSize-i, entityType)
-			}
-			var entry historyEntry
-			if err := entry.unmarshalBinary(data[i : i+recordSize]); err != nil { // Returns only `errInvalidDataSize`
-				return nil, errors.Wrapf(err, "failed to unmarshal binary data for entity type %v", entityType)
-			}
-			entries = append(entries, entry)
-			i += recordSize
+		hr := newHistoryRecordWithLen(entityType, n)
+		decodeFixedSizeEntries(hr.entries, data, property.recordSize)
+		return hr, nil
+	}
+	n, err := variableSizeEntriesCount(data)
+	if err != nil {
+		return nil, errors.Wrapf(err, "entity type %v", entityType)
+	}
+	if n == 0 {
+		return &historyRecord{entityType: entityType}, nil
+	}
+	hr := newHistoryRecordWithLen(entityType, n)
+	decodeVariableSizeEntries(hr.entries, data)
+	return hr, nil
+}
+
+// decodeFixedSizeEntries decodes len(entries) entries of the fixed size record into entries.
+// The data must hold at least len(entries) complete entries after the entity type byte.
+// Trailing bytes that do not form a complete entry are ignored.
+func decodeFixedSizeEntries(entries []historyEntry, data []byte, recordSize int) {
+	for i, pos := 0, 1; i < len(entries); i, pos = i+1, pos+recordSize {
+		end := pos + recordSize
+		dataEnd := end - historyBlockNumSize
+		entries[i] = historyEntry{
+			data:     data[pos:dataEnd:dataEnd],
+			blockNum: binary.BigEndian.Uint32(data[dataEnd:end]),
 		}
 	}
-	return &historyRecord{entityType, entries}, nil
+}
+
+const (
+	// uvarintContinuationBit is set in every byte of the uvarint encoding except the last one.
+	uvarintContinuationBit = 0x80
+	// uvarintPayloadMask selects the seven payload bits of a byte of the uvarint encoding.
+	uvarintPayloadMask = 0x7f
+	// uvarintPayloadBits is the number of payload bits in a byte of the uvarint encoding.
+	uvarintPayloadBits = 7
+)
+
+// variableSizeEntriesCount checks the layout of variable size record and returns the number of entries in it.
+// The layout is checked strictly: each entry must be preceded by its uvarint encoded size, which must be
+// in canonical (shortest) form and cover at least the block number, and the entries must end exactly
+// at the end of the data.
+func variableSizeEntriesCount(data []byte) (int, error) {
+	// The loop decodes sizes of one and two bytes, which cover entries up to 16 KiB, inline and has no calls on
+	// the happy path. A longer size continues the count with the generic loop.
+	n := 0
+	for i := 1; i < len(data); n++ {
+		recordSize, sizeLen := uint64(data[i]), 1
+		if recordSize >= uvarintContinuationBit {
+			// Not the canonical size of two bytes.
+			if i+1 >= len(data) || data[i+1]-1 >= uvarintPayloadMask { //nolint:gosec // i+1 < len(data) is checked.
+				return variableSizeEntriesCountFrom(data, i, n)
+			}
+			//nolint:gosec // i+1 < len(data) is checked above.
+			recordSize, sizeLen = recordSize&uvarintPayloadMask|uint64(data[i+1])<<uvarintPayloadBits, 2
+		}
+		i += sizeLen
+		//nolint:gosec // i <= len(data) here, the difference is not negative.
+		if uint64(len(data)-i) < recordSize || recordSize < historyBlockNumSize {
+			return 0, invalidEntrySizeError(recordSize, len(data)-i)
+		}
+		i += int(recordSize) // #nosec G115 // recordSize is not greater than len(data) here.
+	}
+	return n, nil
+}
+
+// variableSizeEntriesCountFrom continues the count of entries of variable size record from position i, where
+// n entries are already counted.
+func variableSizeEntriesCountFrom(data []byte, i, n int) (int, error) {
+	for ; i < len(data); n++ {
+		recordSize, sizeLen := readEntrySize(data[i:])
+		if sizeLen == 0 {
+			return 0, errors.Wrap(errInvalidDataSize, "invalid size of variable size record")
+		}
+		i += sizeLen
+		//nolint:gosec // i <= len(data) here, the difference is not negative.
+		if uint64(len(data)-i) < recordSize || recordSize < historyBlockNumSize {
+			return 0, invalidEntrySizeError(recordSize, len(data)-i)
+		}
+		i += int(recordSize) // #nosec G115 // recordSize is not greater than len(data) here.
+	}
+	return n, nil
+}
+
+func invalidEntrySizeError(recordSize uint64, available int) error {
+	if recordSize < historyBlockNumSize {
+		return errors.Wrapf(errInvalidDataSize, "variable size record size %d is too small", recordSize)
+	}
+	return errors.Wrapf(errInvalidDataSize,
+		"variable size record too short (expected %d, actual %d)", recordSize, available)
+}
+
+// readEntrySize reads the uvarint encoded size of the history entry from the beginning of b.
+// It returns the size and the number of bytes read, or zero number of bytes if the size is truncated, overflows
+// uint64, or is not in the canonical (shortest) form. It is used only for sizes that the inline loops of
+// variableSizeEntriesCount and decodeVariableSizeEntries do not handle.
+func readEntrySize(b []byte) (uint64, int) {
+	v, n := binary.Uvarint(b)
+	if n <= 0 || (n > 1 && b[n-1] == 0) { // the last byte of the canonical encoding longer than one byte is not zero
+		return 0, 0
+	}
+	return v, n
+}
+
+// uvarintSize returns the number of bytes of the uvarint encoding of v.
+func uvarintSize(v uint64) int {
+	n := 1
+	for v >= uvarintContinuationBit {
+		v >>= uvarintPayloadBits
+		n++
+	}
+	return n
+}
+
+// decodeVariableSizeEntries decodes len(entries) entries of the variable size record into entries.
+// The layout of the data must be checked with variableSizeEntriesCount beforehand.
+func decodeVariableSizeEntries(entries []historyEntry, data []byte) {
+	// Sizes of one and two bytes are decoded inline, a longer size continues with the generic loop.
+	pos := 1
+	for i := range entries {
+		size, sizeLen := uint64(data[pos]), 1
+		if size >= uvarintContinuationBit {
+			if data[pos+1] >= uvarintContinuationBit {
+				decodeVariableSizeEntriesFrom(entries[i:], data, pos)
+				return
+			}
+			size, sizeLen = size&uvarintPayloadMask|uint64(data[pos+1])<<uvarintPayloadBits, 2
+		}
+		pos += sizeLen
+		end := pos + int(size) // #nosec G115 // checked by variableSizeEntriesCount.
+		dataEnd := end - historyBlockNumSize
+		entries[i] = historyEntry{
+			data:     data[pos:dataEnd:dataEnd],
+			blockNum: binary.BigEndian.Uint32(data[dataEnd:end]),
+		}
+		pos = end
+	}
+}
+
+// decodeVariableSizeEntriesFrom decodes entries of the variable size record starting at position pos.
+func decodeVariableSizeEntriesFrom(entries []historyEntry, data []byte, pos int) {
+	for i := range entries {
+		size, sizeLen := readEntrySize(data[pos:])
+		pos += sizeLen
+		end := pos + int(size) // #nosec G115 // checked by variableSizeEntriesCount.
+		dataEnd := end - historyBlockNumSize
+		entries[i] = historyEntry{
+			data:     data[pos:dataEnd:dataEnd],
+			blockNum: binary.BigEndian.Uint32(data[dataEnd:end]),
+		}
+		pos = end
+	}
 }
 
 func (hr *historyRecord) fixedSize() (bool, error) {
-	property, ok := properties[hr.entityType]
+	property, ok := entityProperties(hr.entityType)
 	if !ok {
 		return false, errors.Errorf("bad entity type %v", hr.entityType)
 	}
@@ -322,65 +480,80 @@ func (hr *historyRecord) fixedSize() (bool, error) {
 }
 
 func (hr *historyRecord) countTotalSize() (int, error) {
-	totalSize := 1
 	fixedSize, err := hr.fixedSize()
 	if err != nil {
 		return 0, err
 	}
-	for _, r := range hr.entries {
-		totalSize += r.size()
+	return 1 + entriesSize(hr.entries, fixedSize), nil
+}
+
+// entriesSize returns the encoded size of the entries without the entity type byte.
+func entriesSize(entries []historyEntry, fixedSize bool) int {
+	size := 0
+	for i := range entries {
+		entrySize := entries[i].size()
+		size += entrySize
 		if !fixedSize {
-			totalSize += 4 // This is 4 bytes for storing each record size
+			size += uvarintSize(uint64(entrySize)) // #nosec G115 // Encoded size of the record, always positive.
 		}
 	}
-	return totalSize, nil
+	return size
 }
 
 func (hr *historyRecord) marshalBinary() ([]byte, error) {
-	totalSize, err := hr.countTotalSize()
-	if err != nil {
-		return nil, err
+	return marshalHistoryInto(nil, hr.entityType, hr.entries, nil)
+}
+
+// marshalHistoryInto encodes a history record of the given type that holds the entries of head followed by
+// the entries of tail. It produces the same bytes as marshalBinary of a record with the combined entries,
+// without building the combined entries slice. The encoding goes into buf, which grows if needed.
+func marshalHistoryInto(buf []byte, entityType blockchainEntity, head, tail []historyEntry) ([]byte, error) {
+	property, ok := entityProperties(entityType)
+	if !ok {
+		return nil, errors.Errorf("bad entity type %v", entityType)
 	}
-	data := make([]byte, totalSize)
-	data[0] = byte(hr.entityType)
-	curPos := 1
-	for _, entry := range hr.entries {
-		fixedSize, err := hr.fixedSize()
-		if err != nil {
-			return nil, err
-		}
-		if !fixedSize {
-			// Add size of this record.
-			size := entry.size()
-			binary.BigEndian.PutUint32(data[curPos:curPos+4], uint32(size))
-			curPos += 4
-		}
-		entryBytes, err := entry.marshalBinary()
-		if err != nil {
-			return nil, err
-		}
-		copy(data[curPos:], entryBytes)
-		curPos += entry.size()
+	fixedSize := property.fixedSize
+	size := 1 + entriesSize(head, fixedSize) + entriesSize(tail, fixedSize)
+	var data []byte
+	if cap(buf) >= size {
+		data = buf[:size]
+	} else {
+		data = make([]byte, size)
 	}
+	data[0] = byte(entityType)
+	curPos := putEntries(data, 1, head, fixedSize)
+	putEntries(data, curPos, tail, fixedSize)
 	return data, nil
 }
 
+// putEntries writes the entries into data starting at pos and returns the position after the last entry.
+func putEntries(data []byte, pos int, entries []historyEntry, fixedSize bool) int {
+	for i := range entries {
+		entry := &entries[i]
+		if !fixedSize {
+			// Add size of this record.
+			if size := entry.size(); size < uvarintContinuationBit {
+				data[pos] = byte(size) //nolint:gosec // size < 0x80 is checked.
+				pos++
+			} else {
+				pos += binary.PutUvarint(data[pos:], uint64(size)) // #nosec G115 // Always positive.
+			}
+		}
+		pos += copy(data[pos:], entry.data)
+		binary.BigEndian.PutUint32(data[pos:pos+historyBlockNumSize], entry.blockNum)
+		pos += historyBlockNumSize
+	}
+	return pos
+}
+
 func (hr *historyRecord) appendEntry(entry historyEntry) error {
-	if len(hr.entries) == 0 {
-		// History is empty, new record is the first one.
-		hr.entries = append(hr.entries, entry)
-	}
-	topEntry, err := hr.topEntry()
-	if err != nil {
-		return err
-	}
-	if topEntry.blockNum == entry.blockNum {
+	if n := len(hr.entries); n > 0 && hr.entries[n-1].blockNum == entry.blockNum {
 		// The block is the same, rewrite the last entry.
-		hr.entries[len(hr.entries)-1] = entry
-	} else {
-		// Append new entry to the end.
-		hr.entries = append(hr.entries, entry)
+		hr.entries[n-1] = entry
+		return nil
 	}
+	// The history is empty or the block is new, append new entry to the end.
+	hr.entries = append(hr.entries, entry)
 	return nil
 }
 
@@ -403,8 +576,9 @@ type topEntryIterator struct {
 
 func (i *topEntryIterator) Next() bool {
 	for i.dbIter.Next() {
-		historyBytes := i.dbIter.Value()
-		history, err := newHistoryRecordFromBytes(historyBytes)
+		// Decoded entries point into the iterator buffer, which is reused on the next move.
+		// The history is used only within this call, and the returned top entry data is copied below.
+		history, err := newHistoryRecordFromBytes(i.dbIter.Value())
 		if err != nil {
 			i.err = err
 			return false
@@ -422,7 +596,7 @@ func (i *topEntryIterator) Next() bool {
 			return false
 		}
 		i.curKey = i.dbIter.Key()
-		i.curVal = topEntry.data
+		i.curVal = bytes.Clone(topEntry.data) // Copy once, the value must stay valid after the iterator moves.
 		return true
 	}
 	return false
@@ -652,17 +826,31 @@ func (hs *historyStorage) newestTopEntry(key []byte) (historyEntry, error) {
 }
 
 func (hs *historyStorage) combineHistories(key []byte, newHist *historyRecord) (*historyRecord, error) {
-	prevHist, err := hs.getHistory(key, true)
-	if err == keyvalue.ErrNotFound || err == errEmptyHist {
+	prevHist, err := hs.previousHistory(key, newHist)
+	if err != nil {
+		return nil, err
+	}
+	if prevHist == nil {
 		// New history.
 		return newHist, nil
+	}
+	prevHist.entries = append(prevHist.entries, newHist.entries...)
+	return prevHist, nil
+}
+
+// previousHistory returns the normalized history stored in DB under the key, saving the normalized history back
+// to DB if it changed. It returns nil if there is no stored history or it is empty after normalization.
+// The stored history must have the same entity type as newHist.
+func (hs *historyStorage) previousHistory(key []byte, newHist *historyRecord) (*historyRecord, error) {
+	prevHist, err := hs.getHistory(key, true)
+	if errors.Is(err, keyvalue.ErrNotFound) || errors.Is(err, errEmptyHist) {
+		return nil, nil //nolint:nilnil // No previous history is a valid result, see the function comment.
 	} else if err != nil {
 		return nil, err
 	}
 	if prevHist.entityType != newHist.entityType {
 		return nil, errors.Errorf("trying to combine histories of different types %v and %v", prevHist.entityType, newHist.entityType)
 	}
-	prevHist.entries = append(prevHist.entries, newHist.entries...)
 	return prevHist, nil
 }
 
@@ -815,16 +1003,23 @@ func (hs *historyStorage) reset() {
 func (hs *historyStorage) flush() error {
 	entries := hs.stor.getEntries()
 	sortEntries(entries)
+	// The batch copies values on Put, so a single encoding buffer is reused for all records.
+	var buf []byte
 	for _, entry := range entries {
-		newEntry, err := hs.combineHistories(entry.key, entry.value)
+		prevHist, err := hs.previousHistory(entry.key, entry.value)
 		if err != nil {
 			return err
 		}
-		newEntryBytes, err := newEntry.marshalBinary()
+		// Encode the stored entries followed by the new ones, it is the same as encoding the combined history.
+		var prevEntries []historyEntry
+		if prevHist != nil {
+			prevEntries = prevHist.entries
+		}
+		buf, err = marshalHistoryInto(buf, entry.value.entityType, prevEntries, entry.value.entries)
 		if err != nil {
 			return err
 		}
-		hs.dbBatch.Put(entry.key, newEntryBytes)
+		hs.dbBatch.Put(entry.key, buf)
 	}
 	hs.stor.reset()
 	return nil

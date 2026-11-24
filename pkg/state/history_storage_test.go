@@ -165,10 +165,10 @@ func TestVariableSizes(t *testing.T) {
 	assert.NoError(t, err)
 	s1, err := h1.countTotalSize()
 	assert.NoError(t, err)
-	assert.Equal(t, 1+4+4+3+4+4+4, s1)
+	assert.Equal(t, 1+1+3+4+1+4+4, s1) // type, (uvarint size, data, block number) per entry
 	h2, err := to.hs.getHistory(key2.bytes(), true)
 	assert.NoError(t, err)
 	s2, err := h2.countTotalSize()
 	assert.NoError(t, err)
-	assert.Equal(t, 1+4+4+4+4+4+5, s2)
+	assert.Equal(t, 1+1+4+4+1+5+4, s2)
 }

@@ -74,6 +74,53 @@ type stateDB struct {
 	newestBlockNum2Id map[uint32]proto.BlockID
 
 	blocksNum int
+
+	// minAcceptableBlockNum caches the number of the block at the rollback minimal height.
+	// It depends only on committed data and is invalidated after every batch write and on reset.
+	minAcceptableBlockNum blockNumCache
+	// validBlockNumWatermark caches the lowest block number starting from which all the assigned block numbers
+	// are known to be valid. It changes only when blocks are rolled back.
+	validBlockNumWatermark blockNumCache
+	// rollbackPending is set when some blocks were removed in the current batch.
+	rollbackPending bool
+}
+
+// blockNumCache is a concurrency safe cache of a single block number computed from the committed DB data.
+// The generation counter prevents storing a value computed concurrently with an invalidation.
+type blockNumCache struct {
+	mu    sync.Mutex
+	gen   uint64
+	valid bool
+	value uint32
+}
+
+func (c *blockNumCache) get(compute func() (uint32, error)) (uint32, error) {
+	c.mu.Lock()
+	if c.valid {
+		v := c.value
+		c.mu.Unlock()
+		return v, nil
+	}
+	gen := c.gen
+	c.mu.Unlock()
+	v, err := compute()
+	if err != nil {
+		return 0, err
+	}
+	c.mu.Lock()
+	if c.gen == gen {
+		c.value = v
+		c.valid = true
+	}
+	c.mu.Unlock()
+	return v, nil
+}
+
+func (c *blockNumCache) invalidate() {
+	c.mu.Lock()
+	c.gen++
+	c.valid = false
+	c.mu.Unlock()
 }
 
 func newStateDB(db keyvalue.KeyValue, dbBatch keyvalue.Batch, params StateParams, amend bool) (*stateDB, error) {
@@ -226,6 +273,8 @@ func (s *stateDB) rollbackBlock(blockID proto.BlockID) error {
 	if err != nil {
 		return err
 	}
+	s.rollbackPending = true
+	s.validBlockNumWatermark.invalidate()
 	key := validBlockNumKey{blockNum}
 	s.dbBatch.Delete(key.bytes())
 	numKey := blockIdToNumKey{blockID}
@@ -397,10 +446,14 @@ func (s *stateDB) flushBatch() error {
 	s.dbWriteLock.Lock()
 	defer s.dbWriteLock.Unlock()
 	// Write the whole batch to DB.
-	if err := s.db.Flush(s.dbBatch); err != nil {
-		return err
+	err := s.db.Flush(s.dbBatch)
+	// Invalidate cached values after the write, even a failed one could have changed the DB.
+	s.minAcceptableBlockNum.invalidate()
+	if s.rollbackPending {
+		s.validBlockNumWatermark.invalidate()
+		s.rollbackPending = false
 	}
-	return nil
+	return err
 }
 
 func (s *stateDB) reset() {
@@ -408,6 +461,60 @@ func (s *stateDB) reset() {
 	s.newestBlockNum2Id = make(map[uint32]proto.BlockID)
 	s.blocksNum = 0
 	s.dbBatch.Reset()
+	s.rollbackPending = false
+	s.minAcceptableBlockNum.invalidate()
+}
+
+// getMinAcceptableBlockNum returns the number of the block at the rollback minimal height.
+// The value is cached until the next batch write or reset.
+func (s *stateDB) getMinAcceptableBlockNum() (uint32, error) {
+	return s.minAcceptableBlockNum.get(s.calculateMinAcceptableBlockNum)
+}
+
+func (s *stateDB) calculateMinAcceptableBlockNum() (uint32, error) {
+	rollbackMinHeight, err := s.getRollbackMinHeight()
+	if err != nil {
+		return 0, err
+	}
+	return s.blockNumByHeight(rollbackMinHeight)
+}
+
+// getValidBlockNumWatermark returns the block number W such that every committed block number greater than
+// or equal to W is valid. Block numbers are assigned sequentially and never reused, so W is the lowest number of
+// the run of consecutive numbers of the top blocks that ends at the last assigned number.
+// A rolled back number breaks the run. The walk is limited by rollbackMaxBlocks, below that the watermark is
+// conservative. The value is cached until blocks are rolled back.
+func (s *stateDB) getValidBlockNumWatermark() (uint32, error) {
+	return s.validBlockNumWatermark.get(s.calculateValidBlockNumWatermark)
+}
+
+func (s *stateDB) calculateValidBlockNumWatermark() (uint32, error) {
+	watermark, err := s.getLastBlockNum() // The next block number to assign, all the assigned ones are lower.
+	if err != nil {
+		return 0, err
+	}
+	height, err := s.getHeight()
+	if err != nil {
+		return 0, err
+	}
+	for steps := uint64(0); height > 0 && steps < rollbackMaxBlocks && watermark > 0; height, steps = height-1, steps+1 {
+		// Any lookup failure only stops the walk, a higher watermark is always safe.
+		// For example, the block can be rolled back without updating the height, or the block storage
+		// can be behind the DB.
+		blockID, idErr := s.rw.blockIDByHeight(height)
+		if idErr != nil {
+			break
+		}
+		blockNum, numErr := s.blockIdToNum(blockID)
+		if numErr != nil {
+			break
+		}
+		if blockNum != watermark-1 {
+			break // There is a gap, the numbers in between were rolled back.
+		}
+		watermark = blockNum
+	}
+	return watermark, nil //nolint:nilerr // Lookup failures only stop the walk, see above.
 }
 
 func (s *stateDB) close() error {

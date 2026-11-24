@@ -39,7 +39,7 @@ func createInvokeApplierTestObjects(t *testing.T) *invokeApplierTestObjects {
 		settings.MustMainNetSettings(), false, nil)
 	assert.NoError(t, err, "newStateManager() failed")
 	to := &invokeApplierTestObjects{state}
-	randGenesisBlockID := genRandBlockId(t)
+	randGenesisBlockID := genRandBlockID(t)
 	to.addBlock(t, randGenesisBlockID)
 
 	to.prepareBlock(t, blockID0) // height here is 2

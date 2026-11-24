@@ -129,7 +129,7 @@ func TestLastRecordByKeyWithRollback(t *testing.T) {
 
 	to := createBatchedStorage(t, testRecordSize)
 
-	ids := genRandBlockIds(t, size)
+	ids := genRandBlockIDs(t, size)
 	key0Records := genTestRecords(t, ids)
 	key1Records := genTestRecords(t, ids)
 	to.addTestRecords(t, key0, key0Records)
@@ -213,7 +213,7 @@ func TestIterators(t *testing.T) {
 
 	to := createBatchedStorage(t, testRecordSize)
 
-	ids := genRandBlockIds(t, size)
+	ids := genRandBlockIDs(t, size)
 	key0Records := genTestRecords(t, ids)
 	key1Records := genTestRecords(t, ids)
 	to.addTestRecords(t, key0, key0Records[:size/2])

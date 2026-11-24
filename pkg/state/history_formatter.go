@@ -1,6 +1,7 @@
 package state
 
 import (
+	"cmp"
 	"slices"
 
 	"github.com/pkg/errors"
@@ -21,20 +22,28 @@ func newHistoryFormatter(db *stateDB) *historyFormatter {
 
 // filter removes entries from the history record that belongs to a removed by roll back blocks.
 func (hfmt *historyFormatter) filter(history *historyRecord) (bool, error) {
-	property, ok := properties[history.entityType]
+	property, ok := entityProperties(history.entityType)
 	if !ok {
 		return false, errors.Errorf("bad entity type: %v", history.entityType)
 	}
-	if !property.needToFilter {
+	if !property.needToFilter || len(history.entries) == 0 {
 		// This type of entities needs no filtering.
 		return false, nil
+	}
+	// All block numbers starting from the watermark are known to be valid, no DB lookups are needed for them.
+	watermark, err := hfmt.db.getValidBlockNumWatermark()
+	if err != nil {
+		return false, err
 	}
 	changed := false
 	for i := range slices.Backward(history.entries) {
 		entry := history.entries[i]
-		valid, err := hfmt.db.isValidBlock(entry.blockNum)
-		if err != nil {
-			return false, err
+		if entry.blockNum >= watermark {
+			break
+		}
+		valid, vErr := hfmt.db.isValidBlock(entry.blockNum)
+		if vErr != nil {
+			return false, vErr
 		}
 		if valid {
 			// Is valid entry.
@@ -47,48 +56,37 @@ func (hfmt *historyFormatter) filter(history *historyRecord) (bool, error) {
 	return changed, nil
 }
 
-func (hfmt *historyFormatter) calculateMinAcceptableBlockNum() (uint32, error) {
-	rollbackMinHeight, err := hfmt.db.getRollbackMinHeight()
-	if err != nil {
-		return 0, err
-	}
-
-	minAcceptableBlockNum, err := hfmt.db.blockNumByHeight(rollbackMinHeight)
-	if err != nil {
-		return 0, err
-	}
-	return minAcceptableBlockNum, nil
-}
-
 // cut removes the oldest entries from the history record.
 // cut always left one entry even if it block number is less than least acceptable block number.
+// History entries are ordered by block number, because block numbers are assigned sequentially.
+// The result is reported as changed only if some entries were actually removed.
 func (hfmt *historyFormatter) cut(history *historyRecord) (bool, error) {
-	property, ok := properties[history.entityType]
+	property, ok := entityProperties(history.entityType)
 	if !ok {
 		return false, errors.Errorf("bad entity type: %v", history.entityType)
 	}
-	if !property.needToCut {
-		// This type of entities needs no cuts.
+	if !property.needToCut || len(history.entries) < 2 {
+		// This type of entities needs no cuts, or there is nothing to cut.
 		return false, nil
 	}
-	changed := false
-	firstNeeded := 0
-	minAcceptableBlockNum, err := hfmt.calculateMinAcceptableBlockNum()
+	minAcceptableBlockNum, err := hfmt.db.getMinAcceptableBlockNum()
 	if err != nil {
 		return false, err
 	}
-
-	for i, entry := range history.entries {
-		if entry.blockNum < minAcceptableBlockNum {
-			// 1 entry BEFORE minAcceptableHeight is needed.
-			firstNeeded = i
-			changed = true
-			continue
-		}
-		break
+	if history.entries[0].blockNum >= minAcceptableBlockNum {
+		return false, nil // The oldest entry is acceptable, nothing to cut.
+	}
+	// Number of entries with block number less than minimal acceptable, it's at least 1 here.
+	n, _ := slices.BinarySearchFunc(history.entries, minAcceptableBlockNum, func(e historyEntry, num uint32) int {
+		return cmp.Compare(e.blockNum, num)
+	})
+	// 1 entry BEFORE minAcceptableHeight is needed.
+	firstNeeded := n - 1
+	if firstNeeded == 0 {
+		return false, nil
 	}
 	history.entries = history.entries[firstNeeded:]
-	return changed, nil
+	return true, nil
 }
 
 func (hfmt *historyFormatter) normalize(history *historyRecord, amend bool) (bool, error) {

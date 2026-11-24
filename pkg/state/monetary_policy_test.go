@@ -146,7 +146,7 @@ func TestFinishRewardVoting(t *testing.T) {
 		{up, 2, 0, initial, true},               //30 end of term
 		{down, 0, 0, initial + 50000000, true},  //31 start of term
 	}
-	ids := genRandBlockIds(t, len(tests)+1)
+	ids := genRandBlockIDs(t, len(tests)+1)
 	const (
 		blockRewardActivationHeight = 10
 		initialHeight               = 11
@@ -197,7 +197,7 @@ func TestRewardAtHeight(t *testing.T) {
 		{15, initialReward + 3*rewardIncrement},
 		{20, initialReward + 2*rewardIncrement},
 	}
-	ids := genRandBlockIds(t, len(rewardsChanges))
+	ids := genRandBlockIDs(t, len(rewardsChanges))
 	for i, rewardChange := range rewardsChanges {
 		storage.addBlock(t, ids[i])
 		err := mo.saveNewRewardChange(rewardChange.newReward, rewardChange.height, ids[i])
@@ -242,7 +242,7 @@ func TestTotalWavesAmountAtHeightWithRewardsAtGenesis(t *testing.T) {
 		{15, initialReward + 3*rewardIncrement},
 		{20, initialReward + 2*rewardIncrement},
 	}
-	ids := genRandBlockIds(t, len(rewardsChanges))
+	ids := genRandBlockIDs(t, len(rewardsChanges))
 	for i, rewardChange := range rewardsChanges {
 		storage.addBlock(t, ids[i])
 		err := mo.saveNewRewardChange(rewardChange.newReward, rewardChange.height, ids[i])
@@ -303,7 +303,7 @@ func TestTotalWavesAmountAtHeight(t *testing.T) {
 		{25, initialReward + 3*rewardIncrement},
 		{30, initialReward + 2*rewardIncrement},
 	}
-	ids := genRandBlockIds(t, len(rewardsChanges))
+	ids := genRandBlockIDs(t, len(rewardsChanges))
 	for i, rewardChange := range rewardsChanges {
 		storage.addBlock(t, ids[i])
 		err := mo.saveNewRewardChange(rewardChange.newReward, rewardChange.height, ids[i])
@@ -389,7 +389,7 @@ func TestBoostedTotalWavesAmountAtHeight(t *testing.T) {
 		{25, initialReward + 3*rewardIncrement},
 		{30, initialReward + 2*rewardIncrement},
 	}
-	ids := genRandBlockIds(t, len(rewardsChanges))
+	ids := genRandBlockIDs(t, len(rewardsChanges))
 	for i, rewardChange := range rewardsChanges {
 		storage.addBlock(t, ids[i])
 		err := mo.saveNewRewardChange(rewardChange.newReward, rewardChange.height, ids[i])
@@ -534,7 +534,7 @@ func TestResetBlockRewardOnAdjustedDistributionActivation(t *testing.T) {
 	t.Run("the reward is reset at the activation height only", func(t *testing.T) {
 		mp, storage := createTestObjects(t, sets)
 		feat := makeFeatures(t)
-		ids := genRandBlockIds(t, 3)
+		ids := genRandBlockIDs(t, 3)
 
 		// Before the activation height nothing is written.
 		storage.addBlock(t, ids[0])
@@ -568,7 +568,7 @@ func TestResetBlockRewardOnAdjustedDistributionActivation(t *testing.T) {
 	t.Run("the reset overrides the voted reward at the same height", func(t *testing.T) {
 		mp, storage := createTestObjects(t, sets)
 		feat := makeFeatures(t)
-		id := genRandBlockIds(t, 1)[0]
+		id := genRandBlockIDs(t, 1)[0]
 		storage.addBlock(t, id)
 
 		// The voting changes the reward for the same height the feature is activated at.
@@ -582,7 +582,7 @@ func TestResetBlockRewardOnAdjustedDistributionActivation(t *testing.T) {
 	t.Run("the reward stays votable after the reset", func(t *testing.T) {
 		mp, storage := createTestObjects(t, sets)
 		feat := makeFeatures(t)
-		ids := genRandBlockIds(t, 2)
+		ids := genRandBlockIDs(t, 2)
 
 		storage.addBlock(t, ids[0])
 		require.NoError(t, resetBlockRewardOnAdjustedDistributionActivation(feat, mp, activationHeight, ids[0]))

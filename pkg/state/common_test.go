@@ -361,7 +361,7 @@ type testStorageObjects struct {
 	entities *blockchainEntitiesStorage
 }
 
-func createStorageObjects(t *testing.T, amend bool) *testStorageObjects {
+func createStorageObjects(t testing.TB, amend bool) *testStorageObjects {
 	return createStorageObjectsWithOptions(t, testStorageObjectsOptions{Amend: amend})
 }
 
@@ -371,7 +371,7 @@ type testStorageObjectsOptions struct {
 	CalculateHashes bool
 }
 
-func createStorageObjectsWithOptions(t *testing.T, options testStorageObjectsOptions) *testStorageObjects {
+func createStorageObjectsWithOptions(t testing.TB, options testStorageObjectsOptions) *testStorageObjects {
 	if options.Settings == nil {
 		options.Settings = settings.MustMainNetSettings()
 	}
@@ -441,24 +441,24 @@ func (s *testStorageObjects) fullRollbackBlockClearCache(t *testing.T, blockID p
 }
 
 // prepareBlock makes test block officially valid (but only after batch is flushed).
-func (s *testStorageObjects) prepareBlock(t *testing.T, blockID proto.BlockID) {
+func (s *testStorageObjects) prepareBlock(t testing.TB, blockID proto.BlockID) {
 	err := s.stateDB.addBlock(blockID) // Assign unique block number for this block ID, add this number to the list of valid blocks.
 	assert.NoError(t, err, "stateDB.addBlock() failed")
 }
 
-func (s *testStorageObjects) prepareAndStartBlock(t *testing.T, blockID proto.BlockID) {
+func (s *testStorageObjects) prepareAndStartBlock(t testing.TB, blockID proto.BlockID) {
 	s.prepareBlock(t, blockID)
 	err := s.rw.startBlock(blockID)
 	assert.NoError(t, err, "startBlock() failed")
 }
 
 // addBlock prepares, starts and finishes fake block.
-func (s *testStorageObjects) addBlock(t *testing.T, blockID proto.BlockID) {
+func (s *testStorageObjects) addBlock(t testing.TB, blockID proto.BlockID) {
 	s.prepareAndStartBlock(t, blockID)
 	s.finishBlock(t, blockID)
 }
 
-func (s *testStorageObjects) finishBlock(t *testing.T, blockID proto.BlockID) {
+func (s *testStorageObjects) finishBlock(t testing.TB, blockID proto.BlockID) {
 	err := s.rw.finishBlock(blockID)
 	assert.NoError(t, err, "finishBlock() failed")
 }
@@ -469,8 +469,8 @@ func (s *testStorageObjects) addBlockAndDo(t *testing.T, blockID proto.BlockID, 
 	s.finishBlock(t, blockID)
 }
 
-func (s *testStorageObjects) addBlocks(t *testing.T, blocksNum int) {
-	ids := genRandBlockIds(t, blocksNum)
+func (s *testStorageObjects) addBlocks(t testing.TB, blocksNum int) {
+	ids := genRandBlockIDs(t, blocksNum)
 	for _, id := range ids {
 		s.addBlock(t, id)
 	}
@@ -505,7 +505,7 @@ func (s *testStorageObjects) createAssetWithDecimals(t *testing.T, assetID crypt
 }
 
 func (s *testStorageObjects) createAssetUsingRandomBlock(t *testing.T, assetID crypto.Digest) *assetInfo {
-	return s.createAssetAtBlock(t, assetID, genRandBlockId(t))
+	return s.createAssetAtBlock(t, assetID, genRandBlockID(t))
 }
 
 func (s *testStorageObjects) createAsset(t *testing.T, assetID crypto.Digest) *assetInfo {
@@ -613,7 +613,7 @@ func (s *testStorageObjects) activateSponsorship(t *testing.T) {
 	s.addBlocks(t, int(windowSize))
 }
 
-func (s *testStorageObjects) flush(t *testing.T) {
+func (s *testStorageObjects) flush(t testing.TB) {
 	err := s.rw.flush()
 	assert.NoError(t, err, "rw.flush() failed")
 	s.rw.reset()
@@ -625,7 +625,7 @@ func (s *testStorageObjects) flush(t *testing.T) {
 	s.stateDB.reset()
 }
 
-func genRandBlockId(t *testing.T) proto.BlockID {
+func genRandBlockID(t testing.TB) proto.BlockID {
 	id := make([]byte, crypto.SignatureSize)
 	_, err := rand.Read(id)
 	assert.NoError(t, err, "rand.Read() failed")
@@ -634,12 +634,12 @@ func genRandBlockId(t *testing.T) proto.BlockID {
 	return blockID
 }
 
-func genRandBlockIds(t *testing.T, number int) []proto.BlockID {
+func genRandBlockIDs(t testing.TB, number int) []proto.BlockID {
 	ids := make([]proto.BlockID, number)
 	idsDict := make(map[proto.BlockID]bool)
 	for i := range number {
 		for {
-			blockID := genRandBlockId(t)
+			blockID := genRandBlockID(t)
 			if _, ok := idsDict[blockID]; ok {
 				continue
 			}

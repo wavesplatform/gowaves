@@ -91,7 +91,7 @@ func TestFinishVoting(t *testing.T) {
 	to := createFeatures(t)
 
 	height := sets.ActivationWindowSize(1)
-	ids := genRandBlockIds(t, int(height*3))
+	ids := genRandBlockIDs(t, int(height*3))
 	tests := []struct {
 		curHeight        uint64
 		votesNum         uint64
@@ -209,7 +209,7 @@ func TestRollbackActivation(t *testing.T) {
 
 func TestActivateFeaturesAtSponsoredInvokeFeeFixHeight(t *testing.T) {
 	const fixHeight = proto.Height(100)
-	id := genRandBlockIds(t, 1)[0]
+	id := genRandBlockIDs(t, 1)[0]
 	feature26 := int16(settings.AdjustedBlockRewardDistribution)
 
 	t.Run("nothing happens before and after the fix height", func(t *testing.T) {

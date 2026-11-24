@@ -11,7 +11,7 @@ import (
 func TestSaveSnapshots(t *testing.T) {
 	storage := createStorageObjects(t, true)
 	snapshotStor := newSnapshotsAtHeight(storage.hs, storage.settings.AddressSchemeCharacter)
-	ids := genRandBlockIds(t, 1)
+	ids := genRandBlockIDs(t, 1)
 	snapshots := proto.BlockSnapshot{
 		TxSnapshots: [][]proto.AtomicSnapshot{{
 			proto.WavesBalanceSnapshot{Address: *generateRandomRecipient(t).Address(), Balance: 100},

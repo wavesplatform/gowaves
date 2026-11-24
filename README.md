@@ -206,3 +206,4 @@ make release-node
 
 * [chaincmp](https://github.com/wavesplatform/gowaves/blob/master/cmd/chaincmp/README.md) - utility to compare blockchains on few nodes
 * [commit](https://github.com/wavesplatform/gowaves/blob/master/cmd/commit/README.md) - utility to create CommitToGeneration transactions
+* [migrate](https://github.com/wavesplatform/gowaves/blob/master/cmd/migrate/README.md) - utility to convert the state of the node to the current storage format
