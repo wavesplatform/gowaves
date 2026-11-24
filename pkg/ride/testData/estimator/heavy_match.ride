@@ -1,0 +1,203 @@
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+# Synthetic dApp with many match/case expressions over union types.
+
+func classify(k: String) = match getInteger(this, k) {
+  case n: Int => n
+  case _ => match getString(this, k) {
+    case s: String => size(s)
+    case _ => match getBoolean(this, k) {
+      case b: Boolean => if (b) then 1 else 0
+      case _ => -1
+    }
+  }
+}
+
+@Callable(i)
+func m0() = {
+  let p = match i.payments[0].assetId {
+    case a: ByteVector => toBase58String(a)
+    case _ => "WAVES"
+  }
+  let c = classify(p) + classify("k0")
+  let r = match getBinary(this, p) {
+    case b: ByteVector => size(b) + c
+    case _ => c
+  }
+  [IntegerEntry(p, r)]
+}
+
+@Callable(i)
+func m1() = {
+  let p = match i.payments[0].assetId {
+    case a: ByteVector => toBase58String(a)
+    case _ => "WAVES"
+  }
+  let c = classify(p) + classify("k1")
+  let r = match getBinary(this, p) {
+    case b: ByteVector => size(b) + c
+    case _ => c
+  }
+  [IntegerEntry(p, r)]
+}
+
+@Callable(i)
+func m2() = {
+  let p = match i.payments[0].assetId {
+    case a: ByteVector => toBase58String(a)
+    case _ => "WAVES"
+  }
+  let c = classify(p) + classify("k2")
+  let r = match getBinary(this, p) {
+    case b: ByteVector => size(b) + c
+    case _ => c
+  }
+  [IntegerEntry(p, r)]
+}
+
+@Callable(i)
+func m3() = {
+  let p = match i.payments[0].assetId {
+    case a: ByteVector => toBase58String(a)
+    case _ => "WAVES"
+  }
+  let c = classify(p) + classify("k3")
+  let r = match getBinary(this, p) {
+    case b: ByteVector => size(b) + c
+    case _ => c
+  }
+  [IntegerEntry(p, r)]
+}
+
+@Callable(i)
+func m4() = {
+  let p = match i.payments[0].assetId {
+    case a: ByteVector => toBase58String(a)
+    case _ => "WAVES"
+  }
+  let c = classify(p) + classify("k4")
+  let r = match getBinary(this, p) {
+    case b: ByteVector => size(b) + c
+    case _ => c
+  }
+  [IntegerEntry(p, r)]
+}
+
+@Callable(i)
+func m5() = {
+  let p = match i.payments[0].assetId {
+    case a: ByteVector => toBase58String(a)
+    case _ => "WAVES"
+  }
+  let c = classify(p) + classify("k5")
+  let r = match getBinary(this, p) {
+    case b: ByteVector => size(b) + c
+    case _ => c
+  }
+  [IntegerEntry(p, r)]
+}
+
+@Callable(i)
+func m6() = {
+  let p = match i.payments[0].assetId {
+    case a: ByteVector => toBase58String(a)
+    case _ => "WAVES"
+  }
+  let c = classify(p) + classify("k6")
+  let r = match getBinary(this, p) {
+    case b: ByteVector => size(b) + c
+    case _ => c
+  }
+  [IntegerEntry(p, r)]
+}
+
+@Callable(i)
+func m7() = {
+  let p = match i.payments[0].assetId {
+    case a: ByteVector => toBase58String(a)
+    case _ => "WAVES"
+  }
+  let c = classify(p) + classify("k7")
+  let r = match getBinary(this, p) {
+    case b: ByteVector => size(b) + c
+    case _ => c
+  }
+  [IntegerEntry(p, r)]
+}
+
+@Callable(i)
+func m8() = {
+  let p = match i.payments[0].assetId {
+    case a: ByteVector => toBase58String(a)
+    case _ => "WAVES"
+  }
+  let c = classify(p) + classify("k8")
+  let r = match getBinary(this, p) {
+    case b: ByteVector => size(b) + c
+    case _ => c
+  }
+  [IntegerEntry(p, r)]
+}
+
+@Callable(i)
+func m9() = {
+  let p = match i.payments[0].assetId {
+    case a: ByteVector => toBase58String(a)
+    case _ => "WAVES"
+  }
+  let c = classify(p) + classify("k9")
+  let r = match getBinary(this, p) {
+    case b: ByteVector => size(b) + c
+    case _ => c
+  }
+  [IntegerEntry(p, r)]
+}
+
+@Callable(i)
+func m10() = {
+  let p = match i.payments[0].assetId {
+    case a: ByteVector => toBase58String(a)
+    case _ => "WAVES"
+  }
+  let c = classify(p) + classify("k10")
+  let r = match getBinary(this, p) {
+    case b: ByteVector => size(b) + c
+    case _ => c
+  }
+  [IntegerEntry(p, r)]
+}
+
+@Callable(i)
+func m11() = {
+  let p = match i.payments[0].assetId {
+    case a: ByteVector => toBase58String(a)
+    case _ => "WAVES"
+  }
+  let c = classify(p) + classify("k11")
+  let r = match getBinary(this, p) {
+    case b: ByteVector => size(b) + c
+    case _ => c
+  }
+  [IntegerEntry(p, r)]
+}
+
+@Verifier(tx)
+func verify() = match tx {
+  case t: TransferTransaction => classify(toBase58String(t.id)) > 0 && sigVerify(t.bodyBytes, t.proofs[0], t.senderPublicKey)
+  case t: MassTransferTransaction => classify(toBase58String(t.id)) > 0 && sigVerify(t.bodyBytes, t.proofs[0], t.senderPublicKey)
+  case t: IssueTransaction => classify(toBase58String(t.id)) > 0 && sigVerify(t.bodyBytes, t.proofs[0], t.senderPublicKey)
+  case t: ReissueTransaction => classify(toBase58String(t.id)) > 0 && sigVerify(t.bodyBytes, t.proofs[0], t.senderPublicKey)
+  case t: BurnTransaction => classify(toBase58String(t.id)) > 0 && sigVerify(t.bodyBytes, t.proofs[0], t.senderPublicKey)
+  case t: LeaseTransaction => classify(toBase58String(t.id)) > 0 && sigVerify(t.bodyBytes, t.proofs[0], t.senderPublicKey)
+  case t: LeaseCancelTransaction => classify(toBase58String(t.id)) > 0 && sigVerify(t.bodyBytes, t.proofs[0], t.senderPublicKey)
+  case t: CreateAliasTransaction => classify(toBase58String(t.id)) > 0 && sigVerify(t.bodyBytes, t.proofs[0], t.senderPublicKey)
+  case t: DataTransaction => classify(toBase58String(t.id)) > 0 && sigVerify(t.bodyBytes, t.proofs[0], t.senderPublicKey)
+  case t: SetScriptTransaction => classify(toBase58String(t.id)) > 0 && sigVerify(t.bodyBytes, t.proofs[0], t.senderPublicKey)
+  case t: SponsorFeeTransaction => classify(toBase58String(t.id)) > 0 && sigVerify(t.bodyBytes, t.proofs[0], t.senderPublicKey)
+  case t: ExchangeTransaction => classify(toBase58String(t.id)) > 0 && sigVerify(t.bodyBytes, t.proofs[0], t.senderPublicKey)
+  case t: InvokeScriptTransaction => classify(toBase58String(t.id)) > 0 && sigVerify(t.bodyBytes, t.proofs[0], t.senderPublicKey)
+  case t: SetAssetScriptTransaction => classify(toBase58String(t.id)) > 0 && sigVerify(t.bodyBytes, t.proofs[0], t.senderPublicKey)
+  case _ => false
+}

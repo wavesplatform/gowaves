@@ -1,0 +1,118 @@
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+# Synthetic dApp for the evaluator benchmarks. Every callable stresses a different part of the evaluator.
+
+let base = 7
+let names = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta"]
+
+# Deep nesting of user functions, every level calls the previous one twice.
+func f0(x: Int) = x + base
+func f1(x: Int) = { let a = f0(x); a % 1000 + f0(x + 1) }
+func f2(x: Int) = { let a = f1(x); a % 1000 + f1(x + 1) }
+func f3(x: Int) = { let a = f2(x); a % 1000 + f2(x + 1) }
+func f4(x: Int) = { let a = f3(x); a % 1000 + f3(x + 1) }
+func f5(x: Int) = { let a = f4(x); a % 1000 + f4(x + 1) }
+func f6(x: Int) = { let a = f5(x); a % 1000 + f5(x + 1) }
+func f7(x: Int) = { let a = f6(x); a % 1000 + f6(x + 1) }
+
+func classify(i: Int) =
+  if (i < 0) then "negative"
+  else if (i == 0) then "zero"
+  else if (i < 10) then "small"
+  else if (i < 100) then "medium"
+  else if (i < 1000) then "large"
+  else if (i < 10000) then "huge"
+  else "enormous"
+
+func describe(v: Int|String|Boolean|ByteVector) = match v {
+  case i: Int => classify(i)
+  case s: String => if (s == "alpha") then "A" else if (s == "beta") then "B" else if (s == "gamma") then "G" else s
+  case b: Boolean => if (b) then "yes" else "no"
+  case _: ByteVector => "bytes"
+}
+
+func stored(k: String) = match getInteger(this, k) {
+  case n: Int => n
+  case _ => match getString(this, k) {
+    case s: String => size(s)
+    case _ => -1
+  }
+}
+
+func sum(acc: Int, e: Int) = acc + e * base
+
+func entry(acc: List[IntegerEntry|StringEntry], e: String) =
+  acc :+ IntegerEntry(e, size(acc)) :+ StringEntry(e + "_name", e + "_value")
+
+@Callable(i)
+func nested(x: Int) = {
+  let r = f7(x)
+  [IntegerEntry("nested", r)]
+}
+
+@Callable(i)
+func matches(x: Int, s: String) = {
+  let a = describe(x) + describe(s) + describe(x > 10) + describe(i.callerPublicKey)
+  let b = describe(x * 10) + describe(x * 100) + describe(x * 1000) + describe(-x) + describe(0)
+  let c = describe("alpha") + describe("beta") + describe("gamma") + describe("delta")
+  let d = stored("counter") + stored("name") + stored("missing")
+  [StringEntry("matches", a + b + c), IntegerEntry("stored", d)]
+}
+
+@Callable(i)
+func lets(x: Int) = {
+  let l00 = x + 1
+  let l01 = l00 * 2
+  let l02 = l01 + l00
+  let l03 = l02 + l01 + l00
+  let l04 = l03 + l02 + l01
+  let l05 = l04 + l03 + l02
+  let l06 = l05 + l04 + l03
+  let l07 = l06 + l05 + l04
+  let l08 = l07 + l06 + l05
+  let l09 = l08 + l07 + l06
+  let l10 = l09 + l08 + l07
+  let l11 = l10 + l09 + l08
+  let l12 = l11 + l10 + l09
+  let l13 = l12 + l11 + l10
+  let l14 = l13 + l12 + l11
+  let l15 = l14 + l13 + l12
+  let l16 = l15 % 1000 + l00
+  let l17 = l16 + l15 % 1000 + l14 % 1000
+  let l18 = l17 + l16 + l00 + l01 + l02
+  let l19 = l18 + l17 + l16 + l03 + l04
+  let total = l00 + l01 + l02 + l03 + l04 + l05 + l06 + l07 + l08 + l09 + l10 + l11 + l12 + l13 + l14 + l15 + l16 + l17 + l18 + l19
+  [IntegerEntry("lets", total), IntegerEntry("caller", size(i.caller.bytes))]
+}
+
+@Callable(i)
+func fold(l: List[Int]) = {
+  let s = FOLD<100>(l, 0, sum)
+  [IntegerEntry("fold", s)]
+}
+
+@Callable(i)
+func actions() = {
+  let entries = FOLD<10>(names, [], entry)
+  let more = [
+    BooleanEntry("b0", true), BooleanEntry("b1", false),
+    BinaryEntry("bin0", base58'3P3336rNSSU8'), BinaryEntry("bin1", i.callerPublicKey),
+    DeleteEntry("deleted0"), DeleteEntry("deleted1"),
+    ScriptTransfer(i.caller, 100, unit), ScriptTransfer(i.caller, 200, unit)
+  ]
+  (entries ++ more, size(entries))
+}
+
+@Verifier(tx)
+func verify() = match tx {
+  case t: TransferTransaction =>
+    let limit = if (t.amount > 100000) then 1000000000 else 100000000
+    let att = match t.attachment {
+      case b: ByteVector => size(b)
+      case _ => 0
+    }
+    t.amount > 0 && t.amount < limit && att < 140 && describe(t.amount) != "negative" && f4(size(t.id)) > 0
+  case _ => false
+}

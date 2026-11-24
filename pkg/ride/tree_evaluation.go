@@ -50,8 +50,25 @@ func CallFunction(env environment, tree *ast.Tree, fc proto.FunctionCall) (Resul
 	}
 	// Add actions from wrapped state
 	// Append actions of the original call to the end of actions collected in wrapped state
-	dAppResult.actions = append(wrappedStateActions(env.state()), dAppResult.actions...)
+	dAppResult.actions = combineActions(wrappedStateActions(env.state()), dAppResult.actions)
 	return dAppResult, nil
+}
+
+// combineActions returns the actions of the wrapped state followed by the actions of the call.
+// The result holds the same elements as append(wsActions, actions...) and is nil if both are empty.
+// It never shares the backing array of wsActions. Without wrapped state actions the actions of the call
+// are returned as is, they are owned by the call result. Otherwise the result is allocated once.
+func combineActions(wsActions, actions []proto.ScriptAction) []proto.ScriptAction {
+	if len(wsActions) == 0 {
+		if len(actions) == 0 {
+			return nil
+		}
+		return actions
+	}
+	r := make([]proto.ScriptAction, len(wsActions)+len(actions))
+	copy(r, wsActions)
+	copy(r[len(wsActions):], actions)
+	return r
 }
 
 func wrappedStateActions(state types.SmartState) []proto.ScriptAction {

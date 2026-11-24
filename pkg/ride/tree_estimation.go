@@ -2,6 +2,9 @@ package ride
 
 import (
 	"encoding/base64"
+	"fmt"
+	"maps"
+	"slices"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
@@ -26,26 +29,9 @@ func EstimateTree(tree *ast.Tree, v int) (TreeEstimation, error) {
 		}
 		return TreeEstimation{Estimation: e, Verifier: verifier, Functions: functions}, nil
 	case 2:
-		id := base64.StdEncoding.EncodeToString(tree.Digest[:])
-		switch id {
-		case "WX51srRAh4WN7dzlOu5EDXYm1vbR9x+gzvd8r2NeXKI=":
-			return TreeEstimation{Estimation: 3418, Functions: map[string]int{"random": 3418}}, nil
-		case "iCUS2gce1wBLSNEE//ehvTvBaoZ6aLtdLxyj1k76yjk=":
-			return TreeEstimation{Estimation: 3223, Functions: map[string]int{"random": 3223}}, nil
-		case "x932L0eSYHVgTMIYKVVDKXm67RFFUrshgsKYYjFVLfg=":
-			return TreeEstimation{Estimation: 3089, Functions: map[string]int{"random": 3089}}, nil
-		case "VPRjsCLrvwS8pKPk78vzZ2VplwlKWBbRs4M/KhZGpCU=":
-			return TreeEstimation{Estimation: 3128, Functions: map[string]int{"setOrder": 3128, "cancelOrder": 1143, "executeOrder": 2794}}, nil
-		case "fjng1PLxQ1nXYlubqOuS8FLxzIaY92AheqsNfWuEmgE=":
-			return TreeEstimation{Estimation: 3128, Functions: map[string]int{"setOrder": 3128, "cancelOrder": 1143, "executeOrder": 2791}}, nil
-		case "hBqgd3xz9N3dwfVBMQ5uba3l9Bo/+grSpZsCCyuefJs=":
-			return TreeEstimation{Estimation: 3118, Functions: map[string]int{"setOrder": 3118, "cancelOrder": 1133, "executeOrder": 1887}}, nil
-		case "jLb7Zt9mH8cjIVhnyVYVXkATgHrNzqdEMF/PGG/tpV8=":
-			return TreeEstimation{Estimation: 3128, Functions: map[string]int{"setOrder": 3128, "cancelOrder": 1143, "executeOrder": 2794}}, nil
-		case "oUYWZD6AgjbrJIlq9X89KkkbGn6yWRlao4+JcPVyMvM=":
-			return TreeEstimation{Estimation: 3118, Functions: map[string]int{"setOrder": 3118, "cancelOrder": 1133, "executeOrder": 1875}}, nil
+		if te, ok := treeEstimationV2Override(tree); ok {
+			return te, nil
 		}
-
 		te, err := newTreeEstimatorV2(tree)
 		if err != nil {
 			return TreeEstimation{}, errors.Wrapf(err, "failed to estimate with tree estimator V%d", v)
@@ -78,4 +64,81 @@ func EstimateTree(tree *ast.Tree, v int) (TreeEstimation, error) {
 	default:
 		return TreeEstimation{}, errors.Errorf("unsupported version of tree estimator '%d'", v)
 	}
+}
+
+// treeEstimationV2Override returns the hard-coded V2 estimations of the scripts on which the V2 estimator
+// overflows the stack. The values are consensus-critical and must not be changed.
+func treeEstimationV2Override(tree *ast.Tree) (TreeEstimation, bool) {
+	// The raw digests are compared, so no base64 encoding is needed on every call.
+	for i := range treeEstimationV2Overrides {
+		if o := &treeEstimationV2Overrides[i]; o.digest == tree.Digest {
+			return TreeEstimation{Estimation: o.estimation, Functions: maps.Clone(o.functions)}, true
+		}
+	}
+	return TreeEstimation{}, false
+}
+
+type treeEstimationV2OverrideEntry struct {
+	digest     [32]byte
+	estimation int
+	functions  map[string]int // Cloned on return, callers get their own copy.
+}
+
+//nolint:gochecknoglobals,mnd,goconst // Consensus-critical constants, decoded once.
+var treeEstimationV2Overrides = []treeEstimationV2OverrideEntry{
+	{mustDecodeTreeDigest("WX51srRAh4WN7dzlOu5EDXYm1vbR9x+gzvd8r2NeXKI="), 3418, map[string]int{"random": 3418}},
+	{mustDecodeTreeDigest("iCUS2gce1wBLSNEE//ehvTvBaoZ6aLtdLxyj1k76yjk="), 3223, map[string]int{"random": 3223}},
+	{mustDecodeTreeDigest("x932L0eSYHVgTMIYKVVDKXm67RFFUrshgsKYYjFVLfg="), 3089, map[string]int{"random": 3089}},
+	{mustDecodeTreeDigest("VPRjsCLrvwS8pKPk78vzZ2VplwlKWBbRs4M/KhZGpCU="), 3128,
+		map[string]int{"setOrder": 3128, "cancelOrder": 1143, "executeOrder": 2794}},
+	{mustDecodeTreeDigest("fjng1PLxQ1nXYlubqOuS8FLxzIaY92AheqsNfWuEmgE="), 3128,
+		map[string]int{"setOrder": 3128, "cancelOrder": 1143, "executeOrder": 2791}},
+	{mustDecodeTreeDigest("hBqgd3xz9N3dwfVBMQ5uba3l9Bo/+grSpZsCCyuefJs="), 3118,
+		map[string]int{"setOrder": 3118, "cancelOrder": 1133, "executeOrder": 1887}},
+	{mustDecodeTreeDigest("jLb7Zt9mH8cjIVhnyVYVXkATgHrNzqdEMF/PGG/tpV8="), 3128,
+		map[string]int{"setOrder": 3128, "cancelOrder": 1143, "executeOrder": 2794}},
+	{mustDecodeTreeDigest("oUYWZD6AgjbrJIlq9X89KkkbGn6yWRlao4+JcPVyMvM="), 3118,
+		map[string]int{"setOrder": 3118, "cancelOrder": 1133, "executeOrder": 1875}},
+}
+
+func mustDecodeTreeDigest(s string) [32]byte {
+	b, err := base64.StdEncoding.DecodeString(s)
+	if err != nil || len(b) != 32 {
+		panic(fmt.Sprintf("invalid tree digest %q", s))
+	}
+	return [32]byte(b)
+}
+
+// wrappedCallable holds the nodes created by wrapCallable, so they take one allocation. The arguments slice
+// is allocated separately: keeping room for the arguments inline makes the common callables without or with
+// few arguments allocate more bytes and run slower.
+type wrappedCallable struct {
+	trueNode   ast.BooleanNode
+	call       ast.FunctionCallNode
+	invocation ast.AssignmentNode
+}
+
+// wrapCallable turns a callable or the verifier into an expression that the estimators can walk:
+// the global declarations followed by the invocation parameter and a call of the function with constant
+// arguments. The estimators only read the constant, so one node is shared by all arguments.
+// Like before, the function's block and the blocks of the global declarations are set in the tree.
+func wrapCallable(declarations []ast.Node, node *ast.FunctionDeclarationNode) ast.Node {
+	w := &wrappedCallable{trueNode: ast.BooleanNode{Value: true}}
+	var args []ast.Node
+	if n := len(node.Arguments); n > 0 {
+		args = make([]ast.Node, n)
+	}
+	for i := range args {
+		args[i] = &w.trueNode
+	}
+	// It's definitely user function as node is sent from FunctionDeclarationNode
+	w.call = ast.FunctionCallNode{Function: ast.UserFunction(node.Name), Arguments: args}
+	node.SetBlock(&w.call)
+	w.invocation = ast.AssignmentNode{Name: node.InvocationParameter, Expression: &w.trueNode, Block: node}
+	var block ast.Node = &w.invocation
+	for i := range slices.Backward(declarations) {
+		declarations[i].SetBlock(block)
+		block = declarations[i]
+	}
+	return block
 }

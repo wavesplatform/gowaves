@@ -334,17 +334,9 @@ func NewFastHash() (hash.Hash, error) {
 	return blake2b.New256(nil)
 }
 
+// FastHash returns the BLAKE2b-256 digest of the data. The error is always nil and kept for compatibility.
 func FastHash(data []byte) (Digest, error) {
-	var d Digest
-	h, err := blake2b.New256(nil)
-	if err != nil {
-		return d, err
-	}
-	if _, err := h.Write(data); err != nil {
-		return d, err
-	}
-	h.Sum(d[:0])
-	return d, nil
+	return blake2b.Sum256(data), nil
 }
 
 func MustFastHash(data []byte) Digest {
@@ -356,15 +348,7 @@ func MustFastHash(data []byte) Digest {
 }
 
 func SecureHash(data []byte) (Digest, error) {
-	var d Digest
-	fh, err := blake2b.New256(nil)
-	if err != nil {
-		return d, err
-	}
-	if _, err := fh.Write(data); err != nil {
-		return d, err
-	}
-	fh.Sum(d[:0])
+	d := Digest(blake2b.Sum256(data))
 	h := sha3.NewLegacyKeccak256()
 	if _, err := h.Write(d[:DigestSize]); err != nil {
 		return d, err

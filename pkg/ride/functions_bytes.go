@@ -176,10 +176,51 @@ type limits struct {
 }
 
 func checkStringLength(s string, limit int) error {
-	if size := len(s); limit > 0 && size > limit { // utf8 bytes length
+	return checkStringSize(len(s), limit) // utf8 bytes length
+}
+
+// checkStringSize checks the size in bytes of a string, it allows checking the size of a string before
+// constructing it.
+func checkStringSize(size, limit int) error {
+	if limit > 0 && size > limit {
 		return RuntimeError.Errorf("string size=%d exceeds %d bytes", size, limit)
 	}
 	return nil
+}
+
+// encodingChunkSize is the size of the stack buffer used to encode bytes directly into the resulting string.
+const encodingChunkSize = 512
+
+// encodeBase16 returns the same string as hex.EncodeToString without allocating the intermediate buffer.
+func encodeBase16(b []byte) string {
+	const srcChunk = encodingChunkSize / 2
+	var sb strings.Builder
+	sb.Grow(hex.EncodedLen(len(b)))
+	var buf [encodingChunkSize]byte
+	for len(b) > 0 {
+		n := min(srcChunk, len(b))
+		m := hex.Encode(buf[:], b[:n])
+		sb.Write(buf[:m])
+		b = b[n:]
+	}
+	return sb.String()
+}
+
+// encodeBase64 returns the same string as base64.StdEncoding.EncodeToString without allocating the intermediate
+// buffer. Chunks of input are multiples of 3 bytes, so only the last chunk can be padded.
+func encodeBase64(b []byte) string {
+	const srcChunk = encodingChunkSize / 4 * 3
+	var sb strings.Builder
+	sb.Grow(base64.StdEncoding.EncodedLen(len(b)))
+	var buf [encodingChunkSize]byte
+	for len(b) > 0 {
+		n := min(srcChunk, len(b))
+		m := base64.StdEncoding.EncodedLen(n)
+		base64.StdEncoding.Encode(buf[:m], b[:n])
+		sb.Write(buf[:m])
+		b = b[n:]
+	}
+	return sb.String()
 }
 
 func checkByteVectorLength(b []byte, limit int) error {
@@ -245,11 +286,10 @@ func toBase64Limited(limits limits, args ...rideType) (rideType, error) {
 	if l := len(b); limits.input > 0 && l > limits.input {
 		return nil, RuntimeError.Errorf("toBase64: input is too long (%d), limit is %d", l, limits.input)
 	}
-	s := base64.StdEncoding.EncodeToString(b)
-	if lErr := checkStringLength(s, limits.output); lErr != nil {
+	if lErr := checkStringSize(base64.StdEncoding.EncodedLen(len(b)), limits.output); lErr != nil {
 		return nil, errors.Wrap(lErr, "toBase64")
 	}
-	return rideString(s), nil
+	return rideString(encodeBase64(b)), nil
 }
 
 func toBase64(_ environment, args ...rideType) (rideType, error) {
@@ -317,11 +357,10 @@ func toBase16Limited(limits limits, args ...rideType) (rideType, error) {
 	if l := len(b); limits.input > 0 && l > limits.input {
 		return nil, RuntimeError.Errorf("toBase16: input is too long (%d), limit is %d", l, limits.input)
 	}
-	s := hex.EncodeToString(b)
-	if lErr := checkStringLength(s, limits.output); lErr != nil {
+	if lErr := checkStringSize(hex.EncodedLen(len(b)), limits.output); lErr != nil {
 		return nil, errors.Wrap(lErr, "toBase16")
 	}
-	return rideString(s), nil
+	return rideString(encodeBase16(b)), nil
 }
 
 func toBase16(_ environment, args ...rideType) (rideType, error) {
@@ -414,14 +453,13 @@ func bytesToUTF8StringLimited(limits limits, args ...rideType) (rideType, error)
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesToUTF8String")
 	}
-	s := string(b)
-	if !utf8.ValidString(s) {
+	if !utf8.Valid(b) {
 		return nil, errors.Errorf("invalid UTF-8 sequence")
 	}
-	if lErr := checkStringLength(s, limits.output); lErr != nil {
+	if lErr := checkStringSize(len(b), limits.output); lErr != nil {
 		return nil, errors.Wrap(lErr, "bytesToUTF8String")
 	}
-	return rideString(s), nil
+	return rideString(b), nil
 }
 
 func bytesToUTF8String(_ environment, args ...rideType) (rideType, error) {

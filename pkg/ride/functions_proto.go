@@ -1337,7 +1337,8 @@ func rebuildMerkleRoot(_ environment, args ...rideType) (rideType, error) {
 	if l := len(proofsLeafsToRootOrder); l > maxProofsCount {
 		return nil, errors.New("rebuildMerkleRoot: no more than 16 proofs is allowed")
 	}
-	proofsRootToLeafsOrder := make([]crypto.Digest, 0, len(proofsLeafsToRootOrder))
+	var proofsBuf [maxProofsCount]crypto.Digest
+	proofsRootToLeafsOrder := proofsBuf[:0]
 	for i, x := range slices.Backward(proofsLeafsToRootOrder) { // reverse order
 		b, ok := x.(rideByteVector)
 		if !ok {
@@ -1369,11 +1370,7 @@ func rebuildMerkleRoot(_ environment, args ...rideType) (rideType, error) {
 	if index < 0 {
 		idx = uint64(-index)
 	}
-	tree, err := crypto.NewMerkleTree()
-	if err != nil {
-		return nil, errors.Wrap(err, "rebuildMerkleRoot")
-	}
-	root, err := tree.RebuildRoot(lf, proofsRootToLeafsOrder, idx)
+	root, err := crypto.RebuildMerkleRoot(lf, proofsRootToLeafsOrder, idx)
 	if err != nil {
 		return nil, fmt.Errorf("rebuildMerkleRoot: %w", err)
 	}
@@ -1521,20 +1518,10 @@ func calculateDelay(env environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("calculateDelay: invalid type '%T' of baseTarget", bt)
 	}
-	h, err := blake2b.New256(nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "calculateDelay")
-	}
-	_, err = h.Write(hitSource)
-	if err != nil {
-		return nil, errors.Wrap(err, "calculateDelay")
-	}
-	_, err = h.Write(addr)
-	if err != nil {
-		return nil, errors.Wrap(err, "calculateDelay")
-	}
-	hs := h.Sum(nil)[:consensus.HitSize]
-	hit := big.NewInt(0).SetBytes(hs)
+	// The buffer fits the VRF and the address, so the hashing of the concatenation doesn't allocate.
+	var buf [crypto.DigestSize + proto.WavesAddressSize]byte
+	hs := blake2b.Sum256(append(append(buf[:0], hitSource...), addr...))
+	hit := big.NewInt(0).SetBytes(hs[:consensus.HitSize])
 
 	pos := consensus.NewFairPosCalculator(0, 0)
 	delay, err := pos.CalculateDelay(hit, uint64(baseTarget), uint64(balance))
