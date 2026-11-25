@@ -15,6 +15,9 @@ import (
 
 // Migration of the state storage from version 26 to version 27.
 //
+// The migration produces the state of version 27, so histories are encoded in the format of version 27, see
+// marshalV27History.
+//
 // Version 27 changes the formats of the following records:
 //   - Waves balances history: fixed size binary records (balance, leaseIn, leaseOut) are replaced with
 //     variable size CBOR records (Balance, LeaseIn, LeaseOut, Deposit).
@@ -91,7 +94,7 @@ func convertV26FixedSizeHistory(
 		}
 		hr.entries = append(hr.entries, historyEntry{data: converted, blockNum: entry.blockNum})
 	}
-	return hr.marshalBinary()
+	return marshalV27History(hr)
 }
 
 // isV27BalanceHistory reports whether the data is a valid history of variable size records of the given entity.
@@ -226,11 +229,11 @@ func convertV26LegacyStateHashHistory(db *keyvalue.KeyVal, key, data []byte) ([]
 		}
 		hr.entries[i].data = converted
 	}
-	return hr.marshalBinary()
+	return marshalV27History(hr)
 }
 
 func readLegacyStateHashHistory(data []byte) (*historyRecord, error) {
-	hr, err := newHistoryRecordFromBytes(data) // history of legacy state hashes was of variable size already
+	hr, err := decodeV27History(data) // history of legacy state hashes was of variable size already
 	if err != nil {
 		return nil, err
 	}

@@ -6,6 +6,7 @@ version of the storage format. Supported migrations:
 | From version | To version | Changes                                                                         |
 |--------------|------------|---------------------------------------------------------------------------------|
 | 26           | 27         | Formats of Waves and asset balances, order of fields in legacy state hashes.    |
+| 27           | 28         | Entry sizes of variable size history records are stored as uvarint.             |
 
 Migrations are applied one by one, so the state of any supported version is brought to the current one in a single
 run. The state of a version older than the oldest supported migration has to be re-imported.

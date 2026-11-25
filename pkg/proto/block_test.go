@@ -622,3 +622,35 @@ func newSlowReader(r io.Reader) *slowReader {
 func (r *slowReader) Read(p []byte) (int, error) {
 	return io.ReadFull(r.r, p[:2])
 }
+
+func TestBlockIDAppendBytes(t *testing.T) {
+	var sig crypto.Signature
+	for i := range sig {
+		sig[i] = byte(i + 1)
+	}
+	var dig crypto.Digest
+	for i := range dig {
+		dig[i] = byte(0xff - i)
+	}
+	for _, tc := range []struct {
+		name string
+		id   BlockID
+	}{
+		{"signature", NewBlockIDFromSignature(sig)},
+		{"digest", NewBlockIDFromDigest(dig)},
+		{"uninitialized", BlockID{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			prefix := []byte{0xaa, 0xbb}
+			got := tc.id.AppendBytes(bytes.Clone(prefix))
+			assert.Equal(t, append(bytes.Clone(prefix), tc.id.Bytes()...), got)
+			assert.Len(t, got, len(prefix)+tc.id.Len())
+
+			buf := make([]byte, 0, 1+tc.id.Len())
+			allocs := testing.AllocsPerRun(100, func() {
+				buf = tc.id.AppendBytes(buf[:0])
+			})
+			assert.Zero(t, allocs)
+		})
+	}
+}

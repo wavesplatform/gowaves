@@ -18,6 +18,7 @@ type KeyValue interface {
 
 type Batch interface {
 	Delete(key []byte)
+	// Put stores a copy of key and val, so callers may reuse both buffers after the call.
 	Put(key, val []byte)
 	Reset()
 }

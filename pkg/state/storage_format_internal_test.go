@@ -208,13 +208,27 @@ func storageRecordSamples(t *testing.T) []storageSample {
 			hr.entries = []historyEntry{{data: []byte{1, 2}, blockNum: 1}, {data: []byte{3}, blockNum: 2}}
 			return hr.marshalBinary()
 		}},
+		{"history/variableSizeLongEntry", func() ([]byte, error) { // the size of the first entry takes 2 bytes
+			hr := newHistoryRecord(dataEntry)
+			long := make([]byte, 200)
+			for i := range long {
+				long[i] = byte(i)
+			}
+			hr.entries = []historyEntry{{data: long, blockNum: 0x01020304}, {data: nil, blockNum: 0x01020305}}
+			return hr.marshalBinary()
+		}},
 	}
 }
 
 // storageEntitySamples pins the values of entity types and their properties, which are stored in history records.
 func storageEntitySamples() []storageSample {
 	res := make([]storageSample, 0, len(properties))
-	for e, p := range properties {
+	for i := range properties {
+		e := blockchainEntity(i) // #nosec G115 // the number of entities fits into a byte.
+		p, ok := entityProperties(e)
+		if !ok {
+			continue
+		}
 		res = append(res, storageSample{
 			name: fmt.Sprintf("%s%d", entitySamplePrefix, e),
 			data: noErr(fmt.Appendf(nil, "%+v", p)),

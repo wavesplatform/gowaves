@@ -14,88 +14,58 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/fdlimit"
 )
 
-type pair struct {
-	key      []byte
-	value    []byte
-	deletion bool
-}
-
+// batch accumulates writes directly in a leveldb.Batch, which copies keys and values into its own buffer.
 type batch struct {
-	mu    *sync.Mutex
-	pairs []pair
+	mu sync.Mutex
+	lb leveldb.Batch
 }
 
 func (b *batch) Delete(key []byte) {
 	b.mu.Lock()
-	keyCopy := make([]byte, len(key))
-	copy(keyCopy[:], key[:])
-	b.pairs = append(b.pairs, pair{key: keyCopy, deletion: true})
+	b.lb.Delete(key)
 	b.mu.Unlock()
 }
 
 func (b *batch) Put(key, val []byte) {
 	b.mu.Lock()
-	valCopy := make([]byte, len(val))
-	copy(valCopy[:], val[:])
-	keyCopy := make([]byte, len(key))
-	copy(keyCopy[:], key[:])
-	b.pairs = append(b.pairs, pair{key: keyCopy, value: valCopy, deletion: false})
+	b.lb.Put(key, val)
 	b.mu.Unlock()
-}
-
-func (b *batch) addToFilter(filter BloomFilter) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	for _, pair := range b.pairs {
-		if !pair.deletion {
-			if err := filter.add(pair.key); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (b *batch) addToCache(cache *freecache.Cache) {
-	b.mu.Lock()
-	for _, pair := range b.pairs {
-		if pair.deletion {
-			cache.Del(pair.key)
-		} else {
-			if err := cache.Set(pair.key, pair.value, 0); err != nil {
-				// If we can not set the value for some reason, at least make sure the old one is gone.
-				cache.Del(pair.key)
-			}
-		}
-	}
-	b.mu.Unlock()
-}
-
-func (b *batch) leveldbBatch() *leveldb.Batch {
-	b.mu.Lock()
-	leveldbBatch := new(leveldb.Batch)
-	for _, pair := range b.pairs {
-		if pair.deletion {
-			leveldbBatch.Delete(pair.key)
-		} else {
-			leveldbBatch.Put(pair.key, pair.value)
-		}
-	}
-	b.mu.Unlock()
-	return leveldbBatch
 }
 
 func (b *batch) Reset() {
 	b.mu.Lock()
-	b.pairs = nil
+	b.lb.Reset()
 	b.mu.Unlock()
+}
+
+// cacheFilterUpdater replays the batch records into the cache and the bloom filter.
+// Keys and values passed to Put and Delete point into the batch buffer, so they are only valid during the call;
+// both the cache and the filter copy or hash them without retaining the slices.
+type cacheFilterUpdater struct {
+	cache  *freecache.Cache
+	filter BloomFilter
+	err    error
+}
+
+func (u *cacheFilterUpdater) Put(key, value []byte) {
+	if err := u.cache.Set(key, value, 0); err != nil {
+		// If we can not set the value for some reason, at least make sure the old one is gone.
+		u.cache.Del(key)
+	}
+	if u.err == nil && u.filter != nil {
+		u.err = u.filter.add(key)
+	}
+}
+
+func (u *cacheFilterUpdater) Delete(key []byte) {
+	u.cache.Del(key)
 }
 
 type KeyVal struct {
 	db     *leveldb.DB
 	filter BloomFilter
 	cache  *freecache.Cache
-	mu     *sync.RWMutex
+	mu     sync.RWMutex
 }
 
 func initBloomFilter(kv *KeyVal, params BloomFilterParams) error {
@@ -166,7 +136,7 @@ func NewKeyVal(path string, params KeyValParams) (*KeyVal, error) {
 		return nil, errors.Wrapf(err, "failed to open key-value db by path '%s'", path)
 	}
 	cache := freecache.NewCache(params.CacheSize)
-	kv := &KeyVal{db: db, cache: cache, mu: &sync.RWMutex{}}
+	kv := &KeyVal{db: db, cache: cache}
 	if bfErr := initBloomFilter(kv, params.BloomFilterParams); bfErr != nil {
 		return nil, errors.Wrap(bfErr, "failed to initialize bloom filter")
 	}
@@ -189,7 +159,7 @@ func openLevelDB(path string, dbOptions *opt.Options) (*leveldb.DB, error) {
 }
 
 func (k *KeyVal) NewBatch() (Batch, error) {
-	return &batch{mu: &sync.Mutex{}}, nil
+	return &batch{}, nil
 }
 
 func (k *KeyVal) addToCache(key, val []byte) {
@@ -216,12 +186,18 @@ func (k *KeyVal) Get(key []byte) ([]byte, error) {
 		}
 	}
 	val, err := k.db.Get(key, nil)
-	if errors.Is(err, leveldb.ErrNotFound) {
-		return nil, ErrNotFound
+	if err != nil {
+		if errors.Is(err, leveldb.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
 	}
 	k.addToCache(key, val)
-	return val, err
+	return val, nil
 }
+
+// noopValueFn is used to check the presence of a key in the cache without copying its value.
+func noopValueFn([]byte) error { return nil }
 
 func (k *KeyVal) Has(key []byte) (bool, error) {
 	k.mu.RLock()
@@ -235,7 +211,7 @@ func (k *KeyVal) Has(key []byte) (bool, error) {
 			return false, nil
 		}
 	}
-	if _, err := k.cache.Get(key); err == nil {
+	if err := k.cache.GetFn(key, noopValueFn); err == nil {
 		return true, nil
 	}
 	return k.db.Has(key, nil)
@@ -268,14 +244,19 @@ func (k *KeyVal) Flush(b1 Batch) error {
 	if !ok {
 		return errors.New("can't convert Batch interface to leveldb batch")
 	}
-	if err := k.db.Write(b.leveldbBatch(), nil); err != nil {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if err := k.db.Write(&b.lb, nil); err != nil {
 		return err
 	}
-	b.addToCache(k.cache)
-	if err := b.addToFilter(k.filter); err != nil {
+	u := cacheFilterUpdater{cache: k.cache, filter: k.filter}
+	if err := b.lb.Replay(&u); err != nil {
 		return err
 	}
-	b.Reset()
+	if u.err != nil {
+		return u.err
+	}
+	b.lb.Reset()
 	return nil
 }
 

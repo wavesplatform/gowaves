@@ -2,7 +2,7 @@ package state
 
 import (
 	"bytes"
-	"sort"
+	"slices"
 
 	"github.com/pkg/errors"
 )
@@ -14,22 +14,13 @@ type history struct {
 	value *historyRecord
 }
 
-type byKey []history
-
-func (k byKey) Len() int {
-	return len(k)
+func compareHistoryKeys(a, b history) int {
+	return bytes.Compare(a.key, b.key)
 }
 
-func (k byKey) Swap(i, j int) {
-	k[i], k[j] = k[j], k[i]
-}
-
-func (k byKey) Less(i, j int) bool {
-	return bytes.Compare(k[i].key, k[j].key) == -1
-}
-
+// sortEntries sorts entries by key in ascending byte order.
 func sortEntries(entries []history) {
-	sort.Sort(byKey(entries))
+	slices.SortFunc(entries, compareHistoryKeys)
 }
 
 type localHistoryStorage struct {
@@ -68,7 +59,10 @@ func (l *localHistoryStorage) getEntries() []history {
 	return l.entries
 }
 
+// reset empties the storage, keeping the allocated index map and entries slice for reuse.
+// Slices previously returned by getEntries must not be used after reset.
 func (l *localHistoryStorage) reset() {
-	l.entries = nil
-	l.index = make(map[string]int)
+	clear(l.entries) // Drop references to keys and records so they can be collected.
+	l.entries = l.entries[:0]
+	clear(l.index)
 }

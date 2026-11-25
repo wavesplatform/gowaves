@@ -36,7 +36,7 @@ func createBlockDifferWithSettings(t *testing.T, sets *settings.BlockchainSettin
 func genBlocks(t *testing.T, to *blockDifferTestObjects) (*proto.Block, *proto.Block) {
 	// Create and sign parent block.
 	txs := proto.Transactions{createTransferWithSig(t)}
-	randSig := genRandBlockIds(t, 1)[0]
+	randSig := genRandBlockIDs(t, 1)[0]
 	genSig := crypto.MustBytesFromBase58(defaultGenSig)
 	parent, err := proto.CreateBlock(
 		txs,
@@ -281,7 +281,7 @@ func TestCreateBlockDiffWithReward(t *testing.T) {
 	to.stor.activateFeature(t, int16(settings.NG))
 	to.stor.activateFeature(t, int16(settings.BlockReward))
 
-	sig := genRandBlockIds(t, 1)[0]
+	sig := genRandBlockIDs(t, 1)[0]
 	gs := crypto.MustBytesFromBase58(defaultGenSig)
 
 	// First block
@@ -322,7 +322,7 @@ func TestBlockRewardDistributionWithTwoAddresses(t *testing.T) {
 	to.stor.activateFeature(t, int16(settings.BlockReward))
 	to.stor.activateFeature(t, int16(settings.BlockRewardDistribution))
 
-	sig := genRandBlockIds(t, 1)[0]
+	sig := genRandBlockIDs(t, 1)[0]
 	gs := crypto.MustBytesFromBase58(defaultGenSig)
 
 	// First block
@@ -372,7 +372,7 @@ func TestBlockRewardDistributionWithOneAddress(t *testing.T) {
 	to.stor.activateFeature(t, int16(settings.BlockReward))
 	to.stor.activateFeature(t, int16(settings.BlockRewardDistribution))
 
-	sig := genRandBlockIds(t, 1)[0]
+	sig := genRandBlockIDs(t, 1)[0]
 	gs := crypto.MustBytesFromBase58(defaultGenSig)
 
 	// First block
@@ -429,7 +429,7 @@ func TestPunishment(t *testing.T) {
 	to.stor.activateFeature(t, int16(settings.BlockRewardDistribution))
 	to.stor.activateFeature(t, int16(settings.DeterministicFinality))
 
-	sig := genRandBlockIds(t, 1)[0]
+	sig := genRandBlockIDs(t, 1)[0]
 	gs := crypto.MustBytesFromBase58(defaultGenSig)
 
 	// First block

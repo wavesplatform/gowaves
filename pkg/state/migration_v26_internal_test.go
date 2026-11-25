@@ -68,7 +68,7 @@ func testDigest(b byte) crypto.Digest {
 }
 
 func testLegacyStateHash(t *testing.T, b byte, prevSum []byte) *proto.StateHashV1 {
-	id := genRandBlockIds(t, 1)[0]
+	id := genRandBlockIDs(t, 1)[0]
 	sh := &proto.StateHashV1{
 		BlockID:           id,
 		WavesBalanceHash:  testDigest(b + 1),
@@ -90,7 +90,7 @@ func legacyStateHashHistory(t *testing.T, entries ...[]byte) []byte {
 	for i, e := range entries {
 		hr.entries = append(hr.entries, historyEntry{data: e, blockNum: uint32(i + 1)}) // #nosec G115 // test data.
 	}
-	data, err := hr.marshalBinary()
+	data, err := marshalV27History(hr)
 	require.NoError(t, err)
 	return data
 }
@@ -103,7 +103,7 @@ func v27BalanceHistory(t *testing.T, entity blockchainEntity, records ...interfa
 		require.NoError(t, err)
 		hr.entries = append(hr.entries, historyEntry{data: data, blockNum: uint32(i + 1)}) // #nosec G115 // test data.
 	}
-	data, err := hr.marshalBinary()
+	data, err := marshalV27History(hr)
 	require.NoError(t, err)
 	return data
 }
@@ -178,7 +178,7 @@ func createV26TestState(t *testing.T) *v26TestState {
 		}
 		batch.Put((&legacyStateHashKey{height: h}).bytes(), legacyStateHashHistory(t, data))
 	}
-	shV2 := &proto.StateHashV2{BlockID: genRandBlockIds(t, 1)[0], FieldsHashesV1: ts.hashes[0].FieldsHashesV1,
+	shV2 := &proto.StateHashV2{BlockID: genRandBlockIDs(t, 1)[0], FieldsHashesV1: ts.hashes[0].FieldsHashesV1,
 		GeneratorsHash: testDigest(1), GeneratorsBalancesHash: testDigest(2)}
 	require.NoError(t, shV2.GenerateSumHash(prevSum))
 	ts.hashV2, err = shV2.MarshalBinary()
@@ -243,12 +243,15 @@ func (ts *v26TestState) verify(t *testing.T) {
 		assert.Equal(t, ts.assetHistory[j].blockNum, e.blockNum)
 	}
 
-	data, err = db.Get(ts.newWavesKey)
-	require.NoError(t, err)
-	assert.Equal(t, ts.newWavesData, data)
-	data, err = db.Get(ts.newAssetKey)
-	require.NoError(t, err)
-	assert.Equal(t, ts.newAssetData, data)
+	// Records of version 27 are kept by the migration from version 26 and re-encoded by the migration from 27.
+	for key, v27Data := range map[string][]byte{string(ts.newWavesKey): ts.newWavesData,
+		string(ts.newAssetKey): ts.newAssetData} {
+		expected, cErr := convertV27History(v27Data)
+		require.NoError(t, cErr)
+		data, err = db.Get([]byte(key))
+		require.NoError(t, err)
+		assert.Equal(t, expected, data)
+	}
 
 	for i, expected := range ts.hashes {
 		data, err = db.Get((&legacyStateHashKey{height: uint64(i + 1)}).bytes()) // #nosec G115 // test data.
@@ -389,16 +392,16 @@ func TestMigrateStateFromV26OrphanLegacyStateHashes(t *testing.T) {
 	orphanKey := (&legacyStateHashKey{height: v26LegacyHeights + 1}).bytes()
 	hr := newHistoryRecord(legacyStateHash)
 	hr.entries = append(hr.entries, historyEntry{data: v26LegacyStateHash(orphan), blockNum: v26ValidBlocks + 1})
-	data, err := hr.marshalBinary()
+	data, err := marshalV27History(hr)
 	require.NoError(t, err)
 	batch.Put(orphanKey, data)
 	// The hash of the rolled back block on top of the valid hash at the height 2.
 	validData, err := db.Get((&legacyStateHashKey{height: 2}).bytes())
 	require.NoError(t, err)
-	hr, err = newHistoryRecordFromBytes(validData)
+	hr, err = decodeV27History(validData)
 	require.NoError(t, err)
 	hr.entries = append(hr.entries, historyEntry{data: v26LegacyStateHash(orphan), blockNum: v26ValidBlocks + 2})
-	data, err = hr.marshalBinary()
+	data, err = marshalV27History(hr)
 	require.NoError(t, err)
 	batch.Put((&legacyStateHashKey{height: 2}).bytes(), data)
 	require.NoError(t, db.Flush(batch))
