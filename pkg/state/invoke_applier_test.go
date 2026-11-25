@@ -35,7 +35,11 @@ type invokeApplierTestObjects struct {
 }
 
 func createInvokeApplierTestObjects(t *testing.T) *invokeApplierTestObjects {
-	state, err := newStateManager(t.Context(), t.TempDir(), true, DefaultTestingStateParams(),
+	return createInvokeApplierTestObjectsWithParams(t, DefaultTestingStateParams())
+}
+
+func createInvokeApplierTestObjectsWithParams(t *testing.T, params StateParams) *invokeApplierTestObjects {
+	state, err := newStateManager(t.Context(), t.TempDir(), true, params,
 		settings.MustMainNetSettings(), false, nil)
 	assert.NoError(t, err, "newStateManager() failed")
 	to := &invokeApplierTestObjects{state}

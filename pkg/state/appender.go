@@ -62,6 +62,9 @@ type txAppender struct {
 	bUpdatesPluginInfo *proto.BlockchainUpdatesPluginInfo
 
 	finalizer *finalizer
+
+	// invokeExec executes invokes of a block in parallel, nil if the parallel execution is disabled.
+	invokeExec *invokeExecutor
 }
 
 func newTxAppender(
@@ -73,6 +76,7 @@ func newTxAppender(
 	atx *addressTransactions,
 	snapshotApplier *blockSnapshotsApplier,
 	bUpdatesPluginInfo *proto.BlockchainUpdatesPluginInfo,
+	invokeExecutionGoroutinesNum int,
 ) (*txAppender, error) {
 	buildAPIData, err := stateDB.stateStoresApiData()
 	if err != nil {
@@ -106,7 +110,7 @@ func newTxAppender(
 	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier)
 	ethKindResolver := proto.NewEthereumTransactionKindResolver(state, settings.AddressSchemeCharacter)
 	finalizer := newFinalizer(stor.generators, stor.finality)
-	return &txAppender{
+	a := &txAppender{
 		sc:                 sc,
 		ia:                 ia,
 		rw:                 rw,
@@ -124,7 +128,28 @@ func newTxAppender(
 		ethTxKindResolver:  ethKindResolver,
 		bUpdatesPluginInfo: bUpdatesPluginInfo,
 		finalizer:          finalizer,
-	}, nil
+	}
+	if invokeExecutionGoroutinesNum > 0 {
+		a.invokeExec = newInvokeExecutor(invokeExecutionGoroutinesNum, state, stor, settings, a.betweenTransactions)
+		sc.invokeExec = a.invokeExec
+	}
+	return a, nil
+}
+
+// betweenTransactions reports whether the appender holds no changes of a partially applied transaction:
+// uncertain storages are empty and both storages of balance diffs are reset. Only in this condition the state
+// seen by scripts is the state left by the applied transactions, so it can be read by speculative evaluations.
+func (a *txAppender) betweenTransactions() bool {
+	return a.stor.uncertainIsEmpty() &&
+		len(a.diffStor.changes) == 0 &&
+		len(a.diffStorInvoke.invokeDiffsStor.changes) == 0
+}
+
+// close stops the goroutines owned by the appender.
+func (a *txAppender) close() {
+	if a.invokeExec != nil {
+		a.invokeExec.close()
+	}
 }
 
 func (a *txAppender) checkDuplicateTxIdsImpl(id []byte, recentIds map[string]struct{}) error {
@@ -799,12 +824,19 @@ func (a *txAppender) appendTxs(
 		validatingUtx:                    false,
 		currentMinerPK:                   params.block.GeneratorPublicKey,
 	}
-	for _, tx := range params.transactions {
+	if a.invokeExec != nil {
+		a.invokeExec.startBlock(params.block.GeneratorPublicKey)
+	}
+	for i, tx := range params.transactions {
 		txID, idErr := tx.GetID(a.settings.AddressSchemeCharacter)
 		if idErr != nil {
 			return proto.BlockSnapshot{}, crypto.Digest{}, idErr
 		}
 
+		if a.invokeExec != nil {
+			// Evaluate the invoke together with the invokes that are expected to be independent of it.
+			a.invokeExec.beforeTx(params.transactions, i, appendTxArgs)
+		}
 		txSnap, errAppendTx := a.appendTx(tx, appendTxArgs)
 		if errAppendTx != nil { // TODO: check error type for elided tx
 			if !isBlockWithChallenge {
@@ -823,6 +855,10 @@ func (a *txAppender) appendTxs(
 				return proto.BlockSnapshot{}, crypto.Digest{},
 					errors.Wrapf(aErr, "failed to apply elided tx (ID=%q) snapshot", base58.Encode(txID))
 			}
+		}
+		if a.invokeExec != nil {
+			// Register the changes made by the transaction, they invalidate speculative results that read them.
+			a.invokeExec.afterTx(i, txID, txSnap, errAppendTx == nil)
 		}
 		bs.AppendTxSnapshot(txSnap.regular)
 
@@ -888,6 +924,14 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		a.sc.resetComplexity()
 		a.totalScriptsRuns = 0
 	}()
+	if a.invokeExec != nil {
+		// Speculative results never survive the block they were computed for, whether it is applied or not.
+		a.invokeExec.resetBlock()
+		defer func() {
+			a.invokeExec.finishBlock(params.blockchainHeight + 1)
+			a.invokeExec.resetBlock()
+		}()
+	}
 	chkInfo, err := a.createCheckerInfo(params)
 	if err != nil {
 		return err
@@ -1457,4 +1501,7 @@ func (a *txAppender) reset() {
 	a.recentTxIds = make(map[string]struct{})
 	a.diffStor.reset()
 	a.blockDiffer.reset()
+	if a.invokeExec != nil {
+		a.invokeExec.resetBlock()
+	}
 }

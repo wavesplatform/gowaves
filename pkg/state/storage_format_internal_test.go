@@ -127,6 +127,7 @@ func storageKeySamples() []storageSample {
 		{"key/challengedAddress", noErr((&challengedAddressKey{address: addr}).bytes())},
 		{"key/commitment", noErr((&commitmentKey{periodStart: 0x01020304}).bytes())},
 		{"key/generators", noErr((&generatorsKey{height: 0x0102030405}).bytes())},
+		{"key/invokeStats", noErr(invokeStatsKey{dApp: addr, function: "call"}.bytes())},
 	}
 }
 
@@ -198,6 +199,21 @@ func storageRecordSamples(t *testing.T) []storageSample {
 		{"record/legacyStateHashV1", (&proto.StateHashV1{BlockID: sampleBlockID(), SumHash: testDigest(12),
 			FieldsHashesV1: sampleFieldsHashes()}).MarshalBinary},
 		{"record/legacyStateHashV2", shV2.MarshalBinary},
+		{"record/invokeStats", marshal(&invokeStats{
+			reads: statKeySet{
+				{role: statRoleSender, key: accessKey{kind: accessKindAccountBalance}}: 1 << 20,
+				{role: statRoleDApp, key: accessKey{kind: accessKindAccountData}}:      1 << 20,
+				{key: accountScriptAccessKey(addr)}:                                    3,
+				{key: shortAssetAccessKey(sampleAssetID(2))}:                           4,
+				{key: aliasAccessKey("alias")}:                                         5,
+				{key: leaseAccessKey(digest)}:                                          6,
+			},
+			writes: statKeySet{
+				{role: statRoleDApp, key: accessKey{kind: accessKindAccountData}}: 1 << 20,
+				{key: accountBalanceAccessKey(addr)}:                              7,
+			},
+			executions: 1 << 20, mispredictions: 300})},
+		{"record/invokeStats/wide", marshal(&invokeStats{wide: true, executions: 2, mispredictions: 1})},
 		{"history/fixedSize", func() ([]byte, error) {
 			hr := newHistoryRecord(activatedFeature)
 			hr.entries = []historyEntry{{data: []byte{1, 2, 3, 4, 5, 6, 7, 8}, blockNum: 0x01020304}}

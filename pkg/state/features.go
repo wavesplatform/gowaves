@@ -222,6 +222,8 @@ func (f *features) newestIsActivatedForNBlocks(featureID int16, n int) (bool, er
 	return curBlockHeight-uint64(n) >= activationHeight, nil
 }
 
+// Read-path audit (parallel invoke execution): activation lookups fill activationCache on reads, the cache is
+// guarded by mu in all of them (newestIsActivated, isActivated, newestActivationHeight, activationHeight).
 func (f *features) newestIsActivated(featureID int16) (bool, error) {
 	defer f.mu.Unlock()
 	f.mu.Lock()

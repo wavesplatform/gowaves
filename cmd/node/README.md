@@ -16,10 +16,25 @@ usage: node [flags]
   -serve-extended-api Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point
   -seed               Seed for miner
   -binds-address      Bind address for incoming connections. If empty, will be same as declared address
+  -invoke-execution-goroutines-num
+                      Number of goroutines that evaluate scripts of independent InvokeScript transactions of a block in parallel. Zero (default) disables the parallel execution of invokes
 ```
 Parameter `-state-path` has no default value, so you have to provide the path to node state directory.
 
 By default, most parameters have values for MainNet. 
+
+### Parallel execution of invokes
+
+By default, transactions of a block are applied strictly one by one. With `-invoke-execution-goroutines-num N`, where
+`N` is greater than zero, the node evaluates scripts of `InvokeScript` transactions that are expected to be independent
+of each other in parallel on `N` goroutines. Transactions are still applied in the order of the block, and a result
+evaluated in advance is used only if nothing the script has read was changed by the preceding transactions, otherwise
+the script is evaluated again in order. The resulting state is the same as with the option switched off.
+
+The node learns which accounts and assets a callable function reads and writes while applying blocks and keeps these
+statistics in the state database, so the benefit grows after functions have been executed at least once. The option
+affects only the application of blocks: validation of unconfirmed transactions, mining and the light mode work as
+before. A reasonable value is the number of CPU cores.
 
 To start a node on MainNet execute the following command.
 

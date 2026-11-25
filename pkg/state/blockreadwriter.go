@@ -604,6 +604,13 @@ func (rw *blockReadWriter) heightByBlockID(blockID proto.BlockID) (uint64, error
 	return bm.height, nil
 }
 
+// addingBlockHeight returns the height of the block being added, or the last height if no block is in progress.
+// Read-path audit (parallel invoke execution): reads of blockReadWriter do not mutate it. The in-memory maps
+// (rtx, rheaders, blockInfo, height2IDCache) are read under mtx and files are read with ReadAt.
+// height and addingBlock are read here without the lock, they are written by the appender goroutine only, which
+// does not run while a batch of evaluations is in progress.
+// Transactions returned by readNewestTransaction from rtx are shared objects, their IDs are already generated,
+// so the lazy ID generation of proto transactions does not write to them.
 func (rw *blockReadWriter) addingBlockHeight() uint64 {
 	if rw.addingBlock {
 		return rw.height + 1

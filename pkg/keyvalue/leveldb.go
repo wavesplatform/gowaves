@@ -169,6 +169,8 @@ func (k *KeyVal) addToCache(key, val []byte) {
 	}
 }
 
+// Get returns the value by the key. It is safe for concurrent use: a value read from DB is added to the cache
+// on a miss, the cache is internally synchronized and Get holds the read lock, which excludes Put, Delete and Flush.
 func (k *KeyVal) Get(key []byte) ([]byte, error) {
 	k.mu.RLock()
 	defer k.mu.RUnlock()

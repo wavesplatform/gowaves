@@ -30,7 +30,22 @@ Import could be done as follows:
 
 Import may take a few hours, after which you can run the node as described in next section.
 
+To speed up the import on a multicore machine, scripts of independent `InvokeScript` transactions of a block can be
+evaluated in parallel. The feature is switched off by default, to enable it put the number of goroutines to use
+in the `-invoke-execution-goroutines-num` option, for example the number of CPU cores. The resulting state does not
+depend on the option. The same option is available for the `node`, see
+[node's readme](https://github.com/wavesplatform/gowaves/tree/master/cmd/node#parallel-execution-of-invokes).
+
+```bash
+./importer -blockchain-path [path to blockchain file] -data-path [path to node state directory] -blocks-number [height - 1] -invoke-execution-goroutines-num 8
+```
+
 Please note that the Go Node has its own state storage structure that is incompatible with Scala Node.
+
+The format of the state storage changes between versions of the Go Node. The node does not open the state created
+by a version with another storage format. Such state has to be converted with the
+[migrate](https://github.com/wavesplatform/gowaves/blob/master/cmd/migrate/README.md) utility, if the migration from
+its version is supported, or the blockchain has to be imported again.
 
 ### How to run the node
 

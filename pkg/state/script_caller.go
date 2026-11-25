@@ -24,6 +24,10 @@ type scriptCaller struct {
 
 	totalComplexity    uint64
 	recentTxComplexity uint64
+
+	// invokeExec provides evaluations of the invokes applied by the block appender when the parallel execution
+	// of invokes is enabled, nil otherwise.
+	invokeExec *invokeExecutor
 }
 
 func newScriptCaller(
@@ -273,18 +277,38 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 	return a.callAssetScriptCommon(env, setTx, assetID, params)
 }
 
-func (a *scriptCaller) invokeFunction(
+// invokeEvaluation is the outcome of the RIDE part of an InvokeScript transaction. It is produced by
+// evaluateInvokeScriptWithProofs, which does not touch scriptCaller, so the complexity accounting that mutates
+// scriptCaller.recentTxComplexity is done separately by scriptCaller.accountInvokeEvaluation.
+type invokeEvaluation struct {
+	// result is the evaluation result, nil if err is not nil.
+	result ride.Result
+	// functionCall is the function call that must be used for complexity accounting.
+	functionCall proto.FunctionCall
+	// err is the script evaluation error. The complexity spent before the error still has to be accounted.
+	err error
+	// spentComplexity is the complexity spent by the evaluation, successful or not.
+	spentComplexity int
+	// workaround is set when the evaluation was replaced by the result of workaroundHandler.
+	workaround bool
+}
+
+// newInvokeEnvironment creates the RIDE environment for evaluation of an invoke transaction over the given state
+// view. It also returns the Waves address of the transaction sender.
+// The function reads state only through the given view and does not modify its arguments.
+func newInvokeEnvironment(
+	state types.EnrichedSmartState,
+	stngs *settings.BlockchainSettings,
 	tree *ast.Tree,
-	scriptEstimationUpdate *scriptEstimation, // can be nil
 	tx proto.Transaction,
 	info *fallibleValidationParams,
 	scriptAddress proto.WavesAddress,
-) (ride.Result, error) {
+) (*ride.EvaluationEnvironment, proto.WavesAddress, error) {
 	env, err := ride.NewEnvironment(
-		a.settings.AddressSchemeCharacter,
-		a.state,
-		a.settings.InternalInvokePaymentsValidationAfterHeight,
-		a.settings.PaymentsFixAfterHeight,
+		stngs.AddressSchemeCharacter,
+		state,
+		stngs.InternalInvokePaymentsValidationAfterHeight,
+		stngs.PaymentsFixAfterHeight,
 		info.blockV5Activated,
 		info.rideV6Activated,
 		info.consensusImprovementsActivated,
@@ -292,32 +316,156 @@ func (a *scriptCaller) invokeFunction(
 		info.lightNodeActivated,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create RIDE environment")
+		return nil, proto.WavesAddress{}, errors.Wrap(err, "failed to create RIDE environment")
 	}
 	env.SetThisFromAddress(scriptAddress)
 	env.ChooseSizeCheck(tree.LibVersion)
-	if err := env.SetLastBlockFromBlockInfo(info.blockInfo); err != nil {
-		return nil, errors.Wrap(err, "failed to create RIDE environment")
+	if blErr := env.SetLastBlockFromBlockInfo(info.blockInfo); blErr != nil {
+		return nil, proto.WavesAddress{}, errors.Wrap(blErr, "failed to create RIDE environment")
 	}
 	env.SetTimestamp(tx.GetTimestamp())
 	env.ChooseTakeString(info.rideV5Activated)
 	env.ChooseMaxDataEntriesSize(info.rideV5Activated)
 	limit, err := ride.MaxChainInvokeComplexityByVersion(tree.LibVersion)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to set limit for invoke")
+		return nil, proto.WavesAddress{}, errors.Wrap(err, "failed to set limit for invoke")
 	}
 	env.SetLimit(limit)
 
 	err = env.SetTransaction(tx)
 	if err != nil {
-		return nil, err
+		return nil, proto.WavesAddress{}, err
 	}
 
-	senderAddr, err := tx.GetSender(a.settings.AddressSchemeCharacter)
+	senderAddr, err := tx.GetSender(stngs.AddressSchemeCharacter)
 	if err != nil {
-		return nil, err
+		return nil, proto.WavesAddress{}, err
 	}
-	sender, err := senderAddr.ToWavesAddress(a.settings.AddressSchemeCharacter)
+	sender, err := senderAddr.ToWavesAddress(stngs.AddressSchemeCharacter)
+	if err != nil {
+		return nil, proto.WavesAddress{}, err
+	}
+	return env, sender, nil
+}
+
+// evaluateInvokeScriptWithProofs evaluates the callable function called by the InvokeScript transaction over the
+// given state view. It is the pure part of the invocation: the state is accessed only through the view, nothing
+// shared is modified, so the function can be called repeatedly and, given a view that is safe for it, concurrently.
+//
+// The returned error reports a failure to set up the evaluation; no complexity is accounted in this case.
+// An error of the script evaluation itself is returned in invokeEvaluation.err together with the complexity spent,
+// which has to be accounted by scriptCaller.accountInvokeEvaluation.
+func evaluateInvokeScriptWithProofs(
+	state types.EnrichedSmartState,
+	stngs *settings.BlockchainSettings,
+	tree *ast.Tree,
+	tx *proto.InvokeScriptWithProofs,
+	info *fallibleValidationParams,
+	scriptAddress proto.WavesAddress,
+) (invokeEvaluation, error) {
+	env, sender, err := newInvokeEnvironment(state, stngs, tree, tx, info, scriptAddress)
+	if err != nil {
+		return invokeEvaluation{}, err
+	}
+	wr, ok, whErr := workaroundHandler(stngs.AddressSchemeCharacter, tx)
+	if whErr != nil {
+		return invokeEvaluation{}, errors.Wrap(whErr, "failed to handle workaround invoke tx")
+	}
+	if ok {
+		return invokeEvaluation{
+			result:          wr.r,
+			functionCall:    wr.fc,
+			err:             wr.rideErr,
+			spentComplexity: ride.EvaluationErrorSpentComplexity(wr.rideErr),
+			workaround:      true,
+		}, nil
+	}
+
+	err = env.SetInvoke(tx, tree.LibVersion)
+	if err != nil {
+		return invokeEvaluation{}, err
+	}
+
+	// Since V5 we have to create environment with wrapped state to which we put attached payments
+	if tree.LibVersion >= ast.LibV5 {
+		isPbTx := proto.IsProtobufTx(tx)
+		env, err = ride.NewEnvironmentWithWrappedState(env, state, tx.Payments, sender, isPbTx, tree.LibVersion, true)
+		if err != nil {
+			return invokeEvaluation{}, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
+		}
+	}
+
+	functionCall := tx.FunctionCall
+
+	r, err := ride.CallFunction(env, tree, functionCall)
+	if err != nil {
+		return invokeEvaluation{
+			functionCall:    functionCall,
+			err:             err,
+			spentComplexity: ride.EvaluationErrorSpentComplexity(err),
+		}, nil
+	}
+	return invokeEvaluation{result: r, functionCall: functionCall, spentComplexity: r.Complexity()}, nil
+}
+
+// accountInvokeEvaluation accounts the complexity of the evaluation and converts it to the result of invokeFunction.
+// This is the only part of the InvokeScript transaction invocation that modifies scriptCaller and, before the
+// activation of RideV5, may read the storage.
+func (a *scriptCaller) accountInvokeEvaluation(
+	ev invokeEvaluation,
+	scriptAddress proto.WavesAddress,
+	scriptEstimationUpdate *scriptEstimation, // can be nil
+	info *fallibleValidationParams,
+) (ride.Result, error) {
+	appendErr := a.appendFunctionComplexity(
+		ev.spentComplexity, scriptAddress, scriptEstimationUpdate, ev.functionCall, info,
+	)
+	if ev.err == nil {
+		return ev.result, appendErr
+	}
+	if appendErr != nil {
+		if ev.workaround {
+			return nil, errors.Wrap(appendErr, "failed to append function complexity for workaround invoke tx")
+		}
+		return nil, appendErr
+	}
+	return nil, ev.err
+}
+
+// obtainInvokeEvaluation returns the evaluation of the script called by the InvokeScript transaction. If the
+// transaction is being applied as a part of a block with the parallel execution of invokes enabled, the evaluation
+// comes from the invoke executor: it is either the valid speculative result or the result of the evaluation in
+// place. In all other cases the script is evaluated in place over the state.
+func (a *scriptCaller) obtainInvokeEvaluation(
+	tree *ast.Tree,
+	tx *proto.InvokeScriptWithProofs,
+	info *fallibleValidationParams,
+	scriptAddress proto.WavesAddress,
+) (invokeEvaluation, error) {
+	if a.invokeExec != nil {
+		if ev, ok, err := a.invokeExec.evaluation(tree, tx, info, scriptAddress); ok {
+			return ev, err
+		}
+	}
+	return evaluateInvokeScriptWithProofs(a.state, a.settings, tree, tx, info, scriptAddress)
+}
+
+func (a *scriptCaller) invokeFunction(
+	tree *ast.Tree,
+	scriptEstimationUpdate *scriptEstimation, // can be nil
+	tx proto.Transaction,
+	info *fallibleValidationParams,
+	scriptAddress proto.WavesAddress,
+) (ride.Result, error) {
+	if invokeTx, ok := tx.(*proto.InvokeScriptWithProofs); ok {
+		// Obtain the evaluation, then account its complexity.
+		ev, err := a.obtainInvokeEvaluation(tree, invokeTx, info, scriptAddress)
+		if err != nil {
+			return nil, err
+		}
+		return a.accountInvokeEvaluation(ev, scriptAddress, scriptEstimationUpdate, info)
+	}
+	env, sender, err := newInvokeEnvironment(a.state, a.settings, tree, tx, info, scriptAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -369,6 +517,8 @@ func workaroundHandler(scheme proto.Scheme, tx proto.Transaction) (workaroundRes
 	}
 }
 
+// doTxInvoke invokes the function for Ethereum and InvokeExpression transactions.
+// InvokeScript transactions are handled by evaluateInvokeScriptWithProofs and never get here.
 func (a *scriptCaller) doTxInvoke(
 	tx proto.Transaction,
 	sender proto.WavesAddress,
@@ -393,14 +543,6 @@ func (a *scriptCaller) doTxInvoke(
 		return wr.r, wr.fc, wr.rideErr
 	}
 	switch transaction := tx.(type) {
-	case *proto.InvokeScriptWithProofs:
-		r, functionCall, err := a.invokeFunctionByInvokeWithProofsTx(transaction, sender, scriptAddress,
-			env, tree, scriptEstimationUpdate, info,
-		)
-		if err != nil {
-			return nil, functionCall, err
-		}
-		return r, functionCall, nil
 	case *proto.InvokeExpressionTransactionWithProofs:
 		// don't initialize function call because invoke expression tx can call only default function
 		var functionCall proto.FunctionCall
@@ -423,43 +565,6 @@ func (a *scriptCaller) doTxInvoke(
 		return nil, proto.FunctionCall{},
 			errors.Errorf("failed to invoke function: unexpected type of transaction (%T)", transaction)
 	}
-}
-
-func (a *scriptCaller) invokeFunctionByInvokeWithProofsTx(
-	tx *proto.InvokeScriptWithProofs,
-	sender proto.WavesAddress,
-	scriptAddress proto.WavesAddress,
-	env *ride.EvaluationEnvironment,
-	tree *ast.Tree,
-	scriptEstimationUpdate *scriptEstimation,
-	info *fallibleValidationParams,
-) (ride.Result, proto.FunctionCall, error) {
-	err := env.SetInvoke(tx, tree.LibVersion)
-	if err != nil {
-		return nil, proto.FunctionCall{}, err
-	}
-
-	// Since V5 we have to create environment with wrapped state to which we put attached payments
-	if tree.LibVersion >= ast.LibV5 {
-		isPbTx := proto.IsProtobufTx(tx)
-		env, err = ride.NewEnvironmentWithWrappedState(env, a.state, tx.Payments, sender, isPbTx, tree.LibVersion, true)
-		if err != nil {
-			return nil, proto.FunctionCall{}, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
-		}
-	}
-
-	functionCall := tx.FunctionCall
-
-	r, err := ride.CallFunction(env, tree, functionCall)
-	if err != nil {
-		complexity := ride.EvaluationErrorSpentComplexity(err)
-		appendErr := a.appendFunctionComplexity(complexity, scriptAddress, scriptEstimationUpdate, functionCall, info)
-		if appendErr != nil {
-			return nil, proto.FunctionCall{}, appendErr
-		}
-		return nil, proto.FunctionCall{}, err
-	}
-	return r, functionCall, nil
 }
 
 func (a *scriptCaller) invokeFunctionByEthereumTx(

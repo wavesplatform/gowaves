@@ -67,6 +67,7 @@ type cfg struct {
 	dataDirPath               string
 	nBlocks                   int
 	verificationGoroutinesNum int
+	invokeExecutionGoroutines int
 	writeBufferSize           int
 	buildDataForExtendedAPI   bool
 	buildStateHashes          bool
@@ -96,6 +97,9 @@ func parseFlags() cfg {
 	flag.IntVar(&c.nBlocks, "blocks-number", defaultBlocksNumber, "Number of blocks to import.")
 	flag.IntVar(&c.verificationGoroutinesNum, "verification-goroutines-num", runtime.NumCPU()*2,
 		" Number of goroutines that will be run for verification of transactions/blocks signatures.")
+	flag.IntVar(&c.invokeExecutionGoroutines, "invoke-execution-goroutines-num", 0,
+		"Number of goroutines that evaluate scripts of independent InvokeScript transactions of a block in parallel. "+
+			"Zero disables the parallel execution of invokes. Disabled by default.")
 	flag.IntVar(&c.writeBufferSize, "write-buffer", defaultBufferSize, "Write buffer size in MiB.")
 	flag.BoolVar(&c.buildDataForExtendedAPI, "build-extended-api", false,
 		"Build and store additional data required for extended API in state. "+
@@ -126,6 +130,9 @@ func (c *cfg) validateFlags() error {
 	if c.dataDirPath == "" {
 		return errors.New("option data-path is not specified, please specify it")
 	}
+	if c.invokeExecutionGoroutines < 0 {
+		return errors.New("option invoke-execution-goroutines-num must not be negative")
+	}
 	if c.lightNodeMode && c.snapshotsPath == "" {
 		return errors.New("option snapshots-path is not specified in light mode, please specify it")
 	}
@@ -137,6 +144,7 @@ func (c *cfg) params(maxFDs int) state.StateParams {
 	params := state.DefaultStateParams()
 	params.DbParams.OpenFilesCacheCapacity = maxFDs - clearance
 	params.VerificationGoroutinesNum = c.verificationGoroutinesNum
+	params.InvokeExecutionGoroutinesNum = c.invokeExecutionGoroutines
 	params.DbParams.WriteBuffer = c.writeBufferSize * MiB
 	params.DbParams.DisableBloomFilter = c.disableBloomFilter
 	params.StoreExtendedApiData = c.buildDataForExtendedAPI

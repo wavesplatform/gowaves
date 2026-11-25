@@ -65,6 +65,7 @@ type blockchainEntitiesStorage struct {
 	scriptsStorage    scriptStorageState
 	scriptsComplexity *scriptsComplexity
 	invokeResults     *invokeResults
+	invokeStats       *invokeStatsStorage
 	stateHashes       *stateHashes
 	hitSources        *hitSources
 	snapshots         *snapshotsAtHeight
@@ -106,6 +107,7 @@ func newBlockchainEntitiesStorage(
 		scriptsStorage:    ss,
 		scriptsComplexity: newScriptsComplexity(hs),
 		invokeResults:     newInvokeResults(hs),
+		invokeStats:       newInvokeStatsStorage(hs.db, hs.dbBatch, invokeStatsCacheSize),
 		stateHashes:       newStateHashes(hs, fts),
 		hitSources:        newHitSources(hs),
 		snapshots:         newSnapshotsAtHeight(hs, sets.AddressSchemeCharacter),
@@ -230,6 +232,15 @@ func (s *blockchainEntitiesStorage) dropUncertain() {
 	s.sponsoredAssets.dropUncertain()
 }
 
+// uncertainIsEmpty reports whether uncertain storages hold no changes, which is the case between transactions.
+func (s *blockchainEntitiesStorage) uncertainIsEmpty() bool {
+	return len(s.assets.uncertainAssetInfo) == 0 &&
+		len(s.accountsDataStor.uncertainEntries) == 0 &&
+		len(s.scriptsStorage.uncertainAssetScriptsCopy()) == 0 &&
+		len(s.leases.uncertainLeases) == 0 &&
+		len(s.sponsoredAssets.uncertainSponsoredAssets) == 0
+}
+
 func (s *blockchainEntitiesStorage) reset() {
 	s.hs.reset()
 	s.assets.reset()
@@ -241,6 +252,7 @@ func (s *blockchainEntitiesStorage) reset() {
 	s.aliases.reset()
 	s.commitments.reset()
 	s.generators.reset()
+	s.invokeStats.reset()
 }
 
 func (s *blockchainEntitiesStorage) flush() error {
@@ -251,7 +263,7 @@ func (s *blockchainEntitiesStorage) flush() error {
 	if err := s.accountsDataStor.flush(); err != nil {
 		return err
 	}
-	return nil
+	return s.invokeStats.flush()
 }
 
 var ErrIncompatibleStateParams = stderrs.New("incompatible state params")
@@ -657,7 +669,9 @@ func newStateManager(
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
 	snapshotApplier := newBlockSnapshotsApplier(nil, newSnapshotApplierStorages(stor, rw))
-	appender, err := newTxAppender(state, rw, stor, settings, sdb, atx, &snapshotApplier, bUpdatesPluginInfo)
+	appender, err := newTxAppender(
+		state, rw, stor, settings, sdb, atx, &snapshotApplier, bUpdatesPluginInfo, params.InvokeExecutionGoroutinesNum,
+	)
 	if err != nil {
 		return nil, wrapErr(stateerr.Other, err)
 	}
@@ -682,6 +696,23 @@ func newStateManager(
 	state.checkProtobufActivation(h + 1)
 	return state, nil
 }
+
+// Compile-time check that stateManager provides the state view used by RIDE.
+//
+// Read-path audit (parallel invoke execution). The methods of types.EnrichedSmartState may be called from several
+// goroutines at once provided that nothing writes to the state meanwhile. Everything they mutate on a read:
+//   - script AST cache (scripts_cache.go): recency order on hit, insertion on miss. Was unprotected, now guarded
+//     by the mutex of lru.
+//   - history normalization (historyStorage.getHistory): may save a normalized record back to DB when the
+//     generating balance is requested; done under the DB write lock.
+//   - feature activation cache (features.go) and block number caches (stateDB): guarded by their mutexes.
+//   - key-value cache (keyvalue.KeyVal): filled on a miss, internally synchronized.
+//
+// Read without mutation: local history storage, accounts data address numbers, uncertain storages, disabled
+// aliases, fresh asset infos, invoke diff storage (diffStorInvoke) and the in-memory maps of blockReadWriter.
+// All of them are written by the appender goroutine only. TestConcurrentSmartStateReads checks all the methods
+// under the race detector.
+var _ types.EnrichedSmartState = (*stateManager)(nil)
 
 func (s *stateManager) NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error) {
 	addr, err := s.NewestRecipientToAddress(account)
@@ -3523,6 +3554,7 @@ func (s *stateManager) SnapshotsAtHeight(height proto.Height) (proto.BlockSnapsh
 }
 
 func (s *stateManager) Close() error {
+	s.appender.close()
 	if err := s.atx.close(); err != nil {
 		return wrapErr(stateerr.ClosureError, err)
 	}

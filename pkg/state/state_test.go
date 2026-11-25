@@ -750,6 +750,7 @@ func createMockStateManager(t *testing.T, bs *settings.BlockchainSettings) (*sta
 		state.atx,
 		&snapshotApplier,
 		nil,
+		0,
 	)
 	require.NoError(t, err, "newTxAppender() failed")
 	state.appender = appender

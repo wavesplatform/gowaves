@@ -122,6 +122,12 @@ type wrappedCallable struct {
 // the global declarations followed by the invocation parameter and a call of the function with constant
 // arguments. The estimators only read the constant, so one node is shared by all arguments.
 // Like before, the function's block and the blocks of the global declarations are set in the tree.
+//
+// ATTENTION: this is the only place that modifies nodes of an existing tree (SetBlock), so the estimation of a
+// tree must not run concurrently with another estimation of the same tree. The evaluation never modifies a tree
+// and does not read the Block fields set here (global declarations are declared by name and expression, callables
+// and the verifier are entered by Body), so trees are safe to evaluate from several goroutines
+// (see TestConcurrentTreeEvaluation).
 func wrapCallable(declarations []ast.Node, node *ast.FunctionDeclarationNode) ast.Node {
 	w := &wrappedCallable{trueNode: ast.BooleanNode{Value: true}}
 	var args []ast.Node

@@ -102,6 +102,7 @@ type config struct {
 	buildExtendedAPI              bool
 	serveExtendedAPI              bool
 	buildStateHashes              bool
+	invokeExecutionGoroutines     int
 	bindAddress                   string
 	disableOutgoingConnections    bool
 	minerVoteFeatures             string
@@ -154,7 +155,8 @@ func (c *config) String() string {
 		"wallet-path: %s, hashed wallet-password: %s, limit-connections: %d, profiler: %t, "+
 		"disable-bloom: %t, drop-peers: %t, db-file-descriptors: %d, new-connections-limit: %d, "+
 		"enable-metamask: %t, disable-ntp: %t, microblock-interval: %s, enable-light-mode: %t, generate-in-past: %t, "+
-		"enable-blockchain-updates-plugin: %t, l2-contract-address: %s, db-compression-algo: %s, min-peers-mining: %d}",
+		"enable-blockchain-updates-plugin: %t, l2-contract-address: %s, db-compression-algo: %s, min-peers-mining: %d, "+
+		"invoke-execution-goroutines-num: %d}",
 		c.lp.String(), c.logNetwork, c.logFSM, c.statePath, c.blockchainType,
 		c.peerAddresses, c.declAddr, c.apiAddr, crypto.MustKeccak256([]byte(c.apiKey)).Hex(), c.grpcAddr,
 		c.enableGrpcAPI, c.blackListResidenceTime, c.buildExtendedAPI, c.serveExtendedAPI,
@@ -162,7 +164,8 @@ func (c *config) String() string {
 		c.walletPath, crypto.MustKeccak256([]byte(c.walletPassword)).Hex(), c.limitAllConnections, c.profiler,
 		c.disableBloomFilter, c.dropPeers, c.dbFileDescriptors, c.newConnectionsLimit,
 		c.enableMetaMaskAPI, c.disableNTP, c.microblockInterval, c.enableLightMode, c.generateInPast,
-		c.enableBlockchainUpdatesPlugin, c.blockchainUpdatesL2Address, c.DBCompressionAlgo, c.minPeersMining)
+		c.enableBlockchainUpdatesPlugin, c.blockchainUpdatesL2Address, c.DBCompressionAlgo, c.minPeersMining,
+		c.invokeExecutionGoroutines)
 }
 
 func (c *config) parse() {
@@ -218,6 +221,9 @@ func (c *config) parse() {
 			"and start serving at this point.")
 	flag.BoolVar(&c.buildStateHashes, "build-state-hashes", false,
 		"Calculate and store state hashes for each block height.")
+	flag.IntVar(&c.invokeExecutionGoroutines, "invoke-execution-goroutines-num", 0,
+		"Number of goroutines that evaluate scripts of independent InvokeScript transactions of a block in parallel. "+
+			"Zero disables the parallel execution of invokes. Disabled by default.")
 	flag.StringVar(&c.bindAddress, "bind-address", "",
 		"Bind address for incoming connections. If empty, will be same as declared address")
 	flag.BoolVar(&c.disableOutgoingConnections, "no-connections", false,
@@ -565,8 +571,14 @@ func stateParams(nc *config, ntpTime types.Time) (state.StateParams, error) {
 			nc.dbFileDescriptors,
 		)
 	}
+	if nc.invokeExecutionGoroutines < 0 {
+		return state.StateParams{}, errors.Errorf("negative 'invoke-execution-goroutines-num' flag value (%d)",
+			nc.invokeExecutionGoroutines,
+		)
+	}
 	params := state.DefaultStateParams()
 	params.DbParams.OpenFilesCacheCapacity = int(dbFileDescriptors)
+	params.InvokeExecutionGoroutinesNum = nc.invokeExecutionGoroutines
 	params.StoreExtendedApiData = nc.buildExtendedAPI
 	params.ProvideExtendedApi = nc.serveExtendedAPI
 	params.BuildStateHashes = nc.buildStateHashes

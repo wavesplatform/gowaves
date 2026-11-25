@@ -120,6 +120,10 @@ func (s *accountsDataStorage) setLastAddrNum(lastAddrNum uint64) error {
 // newestAddrToNum returns the number of given address. It looks up for the address in cache map first
 // and if not present in state. The second result parameter is true if account's number was found cache otherwise false.
 // Error can be `keyvalue.ErrNotFound` if no corresponding number found for given address.
+// Read-path audit (parallel invoke execution): addrToNumMem is only read here, it is filled by appendAddr on
+// the appender goroutine. Lookups do not cache numbers read from DB, so concurrent readers are safe.
+// The same holds for uncertainEntries, which the retrieveNewest* methods only read; the entries returned from it
+// are shared and must not be modified.
 func (s *accountsDataStorage) newestAddrToNum(addr proto.Address) (uint64, bool, error) {
 	if addrNum, ok := s.addrToNumMem[addr.ID()]; ok {
 		return addrNum, true, nil

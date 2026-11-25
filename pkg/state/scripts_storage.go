@@ -175,6 +175,11 @@ type assetScriptRecordWithAssetIDTail struct {
 // It shouldn't be used at all when the node does rollbacks or validates UTX,
 // because it has to be cleared after each rollback or UTX validation,
 // which makes it inefficient.
+//
+// Read-path audit (parallel invoke execution): the only state of this storage mutated by lookups is the AST cache,
+// which is guarded by its own mutex (see lru). uncertainAssetScripts is only read by lookups and is written by the
+// appender goroutine between transactions; the tree returned for an uncertain asset script is parsed anew
+// on every call. Script bytes returned by newestScriptBytesBy* alias the history record and must not be modified.
 type scriptsStorage struct {
 	hs    *historyStorage
 	cache *lru
@@ -626,9 +631,10 @@ func (ss *scriptsStorage) scriptBytesByAddr(addr proto.WavesAddress) (proto.Scri
 }
 
 func (ss *scriptsStorage) clearCache() error {
-	var err error
-	ss.cache, err = newLru(maxCacheSize, maxCacheBytes)
-	return err
+	// The cache is cleared in place under its lock, the pointer is never replaced after construction,
+	// so concurrent readers always use the same guarded instance.
+	ss.cache.clear()
+	return nil
 }
 
 func (ss *scriptsStorage) prepareHashes() error {

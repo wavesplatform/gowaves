@@ -143,6 +143,9 @@ const (
 	generatorsKeyPrefix
 	// Key to store the progress of the state storage migration.
 	migrationProgressKeyPrefix
+	// Invoke access statistics by dApp address and function name (see invoke_stats.go).
+	// These records are advisory: they are not history records, are not hashed and are not rolled back.
+	invokeStatsKeyPrefix
 )
 
 var (

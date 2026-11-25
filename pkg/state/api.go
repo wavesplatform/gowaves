@@ -292,9 +292,13 @@ func DefaultTestingStorageParams() StorageParams {
 
 // ValidationParams are validation parameters.
 // VerificationGoroutinesNum specifies how many goroutines will be run for verification of transactions and blocks signatures.
+//
+// InvokeExecutionGoroutinesNum specifies how many goroutines evaluate scripts of independent InvokeScript
+// transactions of a block in parallel. Zero, which is the default, disables the parallel execution of invokes.
 type ValidationParams struct {
-	VerificationGoroutinesNum int
-	Time                      types.Time
+	VerificationGoroutinesNum    int
+	InvokeExecutionGoroutinesNum int
+	Time                         types.Time
 }
 
 type StateParams struct {

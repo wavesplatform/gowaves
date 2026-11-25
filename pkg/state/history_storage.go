@@ -779,6 +779,15 @@ func (hs *historyStorage) manageDbUpdate(key []byte, history *historyRecord) err
 
 // getHistory() retrieves history record from DB. It also normalizes it,
 // saving the result back to DB, if update argument is true.
+//
+// Read-path audit (parallel invoke execution): this is the only place where a read may write to the DB.
+// With update set (fullHistory, reached from RIDE through newestEntriesDataInHeightRange when the generating
+// balance is calculated) a history that was changed by normalization is saved back. The read and the write
+// are done under writeLock and the saved record holds the same valid entries, so concurrent readers are safe
+// and observe equivalent data. normalize itself modifies only the freshly decoded record, which is private
+// to the call; the block number caches it consults (stateDB.minAcceptableBlockNum, validBlockNumWatermark)
+// are guarded by their own mutexes.
+// Note that every DB read of a history takes writeLock, so concurrent readers are serialised here.
 func (hs *historyStorage) getHistory(key []byte, update bool) (*historyRecord, error) {
 	// Lock the write lock.
 	// It is necessary because if we read value *before* the main write batch is written,
@@ -818,6 +827,9 @@ func (hs *historyStorage) topEntry(key []byte) (historyEntry, error) {
 	return history.topEntry() // errEmptyHist here
 }
 
+// newestTopEntry returns the top entry from the local storage or DB.
+// Read-path audit (parallel invoke execution): the local storage is only read here (a map lookup), it is written
+// by the appender goroutine only. The returned entry data aliases the stored record, callers must not modify it.
 func (hs *historyStorage) newestTopEntry(key []byte) (historyEntry, error) {
 	if newHist, err := hs.stor.get(key); err == nil {
 		return newHist.topEntry()

@@ -39,4 +39,17 @@ const (
 	// Maximum size of transactions by addresses file.
 	// Then it is sorted and saved to DB.
 	MaxAddressTransactionsFileSize = 2 * 1024 * 1024 * 1024 // 2 GiB.
+
+	// Invoke access statistics parameters (see invoke_stats.go).
+	// invokeStatsKeysSoftCap is the number of read keys and the number of write keys kept in the statistics
+	// of a function, the least recently seen keys above it are evicted.
+	invokeStatsKeysSoftCap = 64
+	// invokeStatsKeysHardCap is the maximum number of read keys or write keys of a single execution, the function
+	// that exceeds it is marked as wide and its keys are not tracked anymore.
+	invokeStatsKeysHardCap = 256
+	// invokeStatsCacheSize is the number of functions which statistics are kept in memory.
+	invokeStatsCacheSize = 4096
+	// invokeSpeculationLookahead is the maximum number of upcoming transactions of a block considered for
+	// a batch of speculatively evaluated invokes (see invoke_scheduler.go).
+	invokeSpeculationLookahead = 64
 )
