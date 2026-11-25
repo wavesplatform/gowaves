@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log/slog"
-	"math/rand/v2"
+	"math/rand/v2" // nosemgrep: go.lang.security.audit.crypto.math_random.math-random-used
 	"testing"
 
 	"github.com/stretchr/testify/require"

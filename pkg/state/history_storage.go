@@ -374,8 +374,8 @@ func variableSizeEntriesCount(data []byte) (int, error) {
 			recordSize, sizeLen = recordSize&uvarintPayloadMask|uint64(data[i+1])<<uvarintPayloadBits, 2
 		}
 		i += sizeLen
-		//nolint:gosec // i <= len(data) here, the difference is not negative.
-		if uint64(len(data)-i) < recordSize || recordSize < historyBlockNumSize {
+		// i <= len(data) here, the difference is not negative.
+		if uint64(len(data)-i) < recordSize || recordSize < historyBlockNumSize { // #nosec G115 // Not negative.
 			return 0, invalidEntrySizeError(recordSize, len(data)-i)
 		}
 		i += int(recordSize) // #nosec G115 // recordSize is not greater than len(data) here.
@@ -392,8 +392,8 @@ func variableSizeEntriesCountFrom(data []byte, i, n int) (int, error) {
 			return 0, errors.Wrap(errInvalidDataSize, "invalid size of variable size record")
 		}
 		i += sizeLen
-		//nolint:gosec // i <= len(data) here, the difference is not negative.
-		if uint64(len(data)-i) < recordSize || recordSize < historyBlockNumSize {
+		// i <= len(data) here, the difference is not negative.
+		if uint64(len(data)-i) < recordSize || recordSize < historyBlockNumSize { // #nosec G115 // Not negative.
 			return 0, invalidEntrySizeError(recordSize, len(data)-i)
 		}
 		i += int(recordSize) // #nosec G115 // recordSize is not greater than len(data) here.
@@ -533,7 +533,7 @@ func putEntries(data []byte, pos int, entries []historyEntry, fixedSize bool) in
 		if !fixedSize {
 			// Add size of this record.
 			if size := entry.size(); size < uvarintContinuationBit {
-				data[pos] = byte(size) //nolint:gosec // size < 0x80 is checked.
+				data[pos] = byte(size) // #nosec G115 // size < 0x80 is checked.
 				pos++
 			} else {
 				pos += binary.PutUvarint(data[pos:], uint64(size)) // #nosec G115 // Always positive.
