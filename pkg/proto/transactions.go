@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"reflect"
 	"strconv"
 	"strings"
 
@@ -99,36 +98,6 @@ const (
 )
 
 var (
-	bytesToTransactionsV2 = map[TransactionType]reflect.Type{
-		IssueTransaction:          reflect.TypeFor[IssueWithProofs](),
-		TransferTransaction:       reflect.TypeFor[TransferWithProofs](),
-		ReissueTransaction:        reflect.TypeFor[ReissueWithProofs](),
-		BurnTransaction:           reflect.TypeFor[BurnWithProofs](),
-		ExchangeTransaction:       reflect.TypeFor[ExchangeWithProofs](),
-		LeaseTransaction:          reflect.TypeFor[LeaseWithProofs](),
-		LeaseCancelTransaction:    reflect.TypeFor[LeaseCancelWithProofs](),
-		CreateAliasTransaction:    reflect.TypeFor[CreateAliasWithProofs](),
-		DataTransaction:           reflect.TypeFor[DataWithProofs](),
-		SetScriptTransaction:      reflect.TypeFor[SetScriptWithProofs](),
-		SponsorshipTransaction:    reflect.TypeFor[SponsorshipWithProofs](),
-		SetAssetScriptTransaction: reflect.TypeFor[SetAssetScriptWithProofs](),
-		InvokeScriptTransaction:   reflect.TypeFor[InvokeScriptWithProofs](),
-	}
-
-	bytesToTransactionsV1 = map[TransactionType]reflect.Type{
-		GenesisTransaction:      reflect.TypeFor[Genesis](),
-		PaymentTransaction:      reflect.TypeFor[Payment](),
-		IssueTransaction:        reflect.TypeFor[IssueWithSig](),
-		TransferTransaction:     reflect.TypeFor[TransferWithSig](),
-		ReissueTransaction:      reflect.TypeFor[ReissueWithSig](),
-		BurnTransaction:         reflect.TypeFor[BurnWithSig](),
-		ExchangeTransaction:     reflect.TypeFor[ExchangeWithSig](),
-		LeaseTransaction:        reflect.TypeFor[LeaseWithSig](),
-		LeaseCancelTransaction:  reflect.TypeFor[LeaseCancelWithSig](),
-		CreateAliasTransaction:  reflect.TypeFor[CreateAliasWithSig](),
-		MassTransferTransaction: reflect.TypeFor[MassTransferWithProofs](),
-	}
-
 	// ProtobufTransactionsVersions map shows whether transaction can be marshaled as protobuf data or not.
 	// Value of ProtobufTransactionsVersions is minimum required transaction version to protobuf marshaling.
 	ProtobufTransactionsVersions = map[TransactionType]byte{
@@ -245,15 +214,19 @@ type Transaction interface {
 	ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error)
 }
 
+// protobufTxVersions holds the minimum protobuf version for every transaction type, indexed by TransactionType.
+// Zero means the type has no protobuf representation. It mirrors ProtobufTransactionsVersions.
+var protobufTxVersions = func() [256]byte { //nolint:gochecknoglobals // read-only lookup table
+	var r [256]byte
+	for t, v := range ProtobufTransactionsVersions {
+		r[t] = v
+	}
+	return r
+}()
+
 func IsProtobufTx(tx Transaction) bool {
-	protobufVersion, ok := ProtobufTransactionsVersions[tx.GetTypeInfo().Type]
-	if !ok {
-		return false
-	}
-	if tx.GetVersion() < protobufVersion {
-		return false
-	}
-	return true
+	protobufVersion := protobufTxVersions[tx.GetType()]
+	return protobufVersion != 0 && tx.GetVersion() >= protobufVersion
 }
 
 func MarshalTx(scheme Scheme, tx Transaction) ([]byte, error) {
@@ -270,6 +243,18 @@ func MarshalTxBody(scheme Scheme, tx Transaction) ([]byte, error) {
 	return tx.BodyMarshalBinary(scheme)
 }
 
+// setIDFromBody sets *id to the hash of the transaction body if the ID is not set yet. It lets Verify reuse
+// the body it has just marshalled instead of marshalling it again in GenerateID. It must only be used by
+// transactions whose ID is the FastHash of MarshalTxBody output (it is not the case for CreateAlias).
+// Like GenerateID, it writes the ID only when it is nil, so callers that set the ID before sharing the
+// transaction between goroutines (as the state appender does) never see a concurrent write.
+func setIDFromBody(id **crypto.Digest, body []byte) {
+	if *id == nil {
+		d := crypto.MustFastHash(body)
+		*id = &d
+	}
+}
+
 // TransactionToProtobufCommon converts to protobuf structure with fields
 // that are common for all of the transaction types.
 func TransactionToProtobufCommon(scheme Scheme, senderPublicKey []byte, tx Transaction) *g.Transaction {
@@ -281,37 +266,99 @@ func TransactionToProtobufCommon(scheme Scheme, senderPublicKey []byte, tx Trans
 	}
 }
 
+// newBinaryTxWithProofs returns an empty transaction with proofs for the given type, or nil if the type
+// has no binary representation with proofs.
+func newBinaryTxWithProofs(t TransactionType) Transaction {
+	switch t {
+	case IssueTransaction:
+		return new(IssueWithProofs)
+	case TransferTransaction:
+		return new(TransferWithProofs)
+	case ReissueTransaction:
+		return new(ReissueWithProofs)
+	case BurnTransaction:
+		return new(BurnWithProofs)
+	case ExchangeTransaction:
+		return new(ExchangeWithProofs)
+	case LeaseTransaction:
+		return new(LeaseWithProofs)
+	case LeaseCancelTransaction:
+		return new(LeaseCancelWithProofs)
+	case CreateAliasTransaction:
+		return new(CreateAliasWithProofs)
+	case DataTransaction:
+		return new(DataWithProofs)
+	case SetScriptTransaction:
+		return new(SetScriptWithProofs)
+	case SponsorshipTransaction:
+		return new(SponsorshipWithProofs)
+	case SetAssetScriptTransaction:
+		return new(SetAssetScriptWithProofs)
+	case InvokeScriptTransaction:
+		return new(InvokeScriptWithProofs)
+	case GenesisTransaction, PaymentTransaction, MassTransferTransaction, UpdateAssetInfoTransaction,
+		EthereumMetamaskTransaction, CommitToGenerationTransaction, InvokeExpressionTransaction:
+		return nil // No binary representation with proofs, or MassTransfer which uses the V1 path.
+	default:
+		return nil
+	}
+}
+
+// newBinaryTxV1 returns an empty transaction for the given type in its first binary version (signature-based,
+// except for MassTransfer), or nil if the type has no such representation.
+func newBinaryTxV1(t TransactionType) Transaction {
+	switch t {
+	case GenesisTransaction:
+		return new(Genesis)
+	case PaymentTransaction:
+		return new(Payment)
+	case IssueTransaction:
+		return new(IssueWithSig)
+	case TransferTransaction:
+		return new(TransferWithSig)
+	case ReissueTransaction:
+		return new(ReissueWithSig)
+	case BurnTransaction:
+		return new(BurnWithSig)
+	case ExchangeTransaction:
+		return new(ExchangeWithSig)
+	case LeaseTransaction:
+		return new(LeaseWithSig)
+	case LeaseCancelTransaction:
+		return new(LeaseCancelWithSig)
+	case CreateAliasTransaction:
+		return new(CreateAliasWithSig)
+	case MassTransferTransaction:
+		return new(MassTransferWithProofs)
+	case DataTransaction, SetScriptTransaction, SponsorshipTransaction, SetAssetScriptTransaction,
+		InvokeScriptTransaction, UpdateAssetInfoTransaction, EthereumMetamaskTransaction,
+		CommitToGenerationTransaction, InvokeExpressionTransaction:
+		return nil // No first-version binary representation.
+	default:
+		return nil
+	}
+}
+
 func BytesToTransaction(tx []byte, scheme Scheme) (Transaction, error) {
 	if len(tx) < 2 {
 		return nil, errors.New("invalid size of transaction's bytes slice")
 	}
+	var transaction Transaction
 	if tx[0] == 0 {
-		transactionType, ok := bytesToTransactionsV2[TransactionType(tx[1])]
-		if !ok {
+		transaction = newBinaryTxWithProofs(TransactionType(tx[1]))
+		if transaction == nil {
 			return nil, errors.Errorf("invalid transaction type %v", tx[1])
 		}
-		transaction, ok := reflect.TypeAssert[Transaction](reflect.New(transactionType))
-		if !ok {
-			panic("This transaction type does not implement marshal/unmarshal functions")
-		}
-		if err := transaction.UnmarshalBinary(tx, scheme); err != nil {
-			return nil, errors.Wrap(err, "failed to unmarshal transaction")
-		}
-		return transaction, nil
 	} else {
-		transactionType, ok := bytesToTransactionsV1[TransactionType(tx[0])]
-		if !ok {
+		transaction = newBinaryTxV1(TransactionType(tx[0]))
+		if transaction == nil {
 			return nil, errors.Errorf("invalid transaction type %v", tx[0])
 		}
-		transaction, ok := reflect.TypeAssert[Transaction](reflect.New(transactionType))
-		if !ok {
-			panic("This transaction type does not implement marshal/unmarshal functions")
-		}
-		if err := transaction.UnmarshalBinary(tx, scheme); err != nil {
-			return nil, errors.Wrap(err, "failed to unmarshal transaction")
-		}
-		return transaction, nil
 	}
+	if err := transaction.UnmarshalBinary(tx, scheme); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal transaction")
+	}
+	return transaction, nil
 }
 
 func BytesToTransactions(count int, txs []byte, scheme Scheme) ([]Transaction, error) {
@@ -1092,26 +1139,19 @@ func (i Issue) Valid() (bool, error) {
 }
 
 func (i Issue) marshalBinary() ([]byte, error) {
-	nl := len(i.Name)
-	dl := len(i.Description)
-	buf := make([]byte, issueLen+nl+dl)
-	p := 0
-	copy(buf[p:], i.SenderPK[:])
-	p += crypto.PublicKeySize
-	PutStringWithUInt16Len(buf[p:], i.Name)
-	p += 2 + nl
-	PutStringWithUInt16Len(buf[p:], i.Description)
-	p += 2 + dl
-	binary.BigEndian.PutUint64(buf[p:], i.Quantity)
-	p += 8
-	buf[p] = i.Decimals
-	p++
-	PutBool(buf[p:], i.Reissuable)
-	p++
-	binary.BigEndian.PutUint64(buf[p:], i.Fee)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], i.Timestamp)
-	return buf, nil
+	return i.appendBinary(make([]byte, 0, i.BinarySize())), nil
+}
+
+// appendBinary appends the binary body of Issue to dst. It appends exactly BinarySize() bytes.
+func (i *Issue) appendBinary(dst []byte) []byte {
+	dst = append(dst, i.SenderPK[:]...)
+	dst = appendStringWithUInt16Len(dst, i.Name)
+	dst = appendStringWithUInt16Len(dst, i.Description)
+	dst = binary.BigEndian.AppendUint64(dst, i.Quantity)
+	dst = append(dst, i.Decimals)
+	dst = appendBool(dst, i.Reissuable)
+	dst = binary.BigEndian.AppendUint64(dst, i.Fee)
+	return binary.BigEndian.AppendUint64(dst, i.Timestamp)
 }
 
 func (i *Issue) UnmarshalBinary(data []byte) error {
@@ -1131,6 +1171,10 @@ func (i *Issue) UnmarshalBinary(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal Description")
 	}
 	data = data[2+len(i.Description):]
+	const tailLen = 8 + 1 + 1 + 8 + 8 // quantity + decimals + reissuable + fee + timestamp
+	if l := len(data); l < tailLen {
+		return errors.Errorf("%d bytes is not enough for Issue tail, expected %d", l, tailLen)
+	}
 	i.Quantity = binary.BigEndian.Uint64(data)
 	data = data[8:]
 	i.Decimals = data[0]
@@ -1232,50 +1276,26 @@ func (tr *Transfer) attachmentSize() int {
 }
 
 func (tr *Transfer) marshalBinary() ([]byte, error) {
-	p := 0
-	aal := 0
-	if tr.AmountAsset.Present {
-		aal += crypto.DigestSize
-	}
-	fal := 0
-	if tr.FeeAsset.Present {
-		fal += crypto.DigestSize
-	}
-	rb, err := tr.Recipient.MarshalBinary()
+	return tr.appendBinary(make([]byte, 0, tr.BinarySize()))
+}
+
+// appendBinary appends the binary body of Transfer to dst. It appends exactly BinarySize() bytes.
+func (tr *Transfer) appendBinary(dst []byte) ([]byte, error) {
+	dst = append(dst, tr.SenderPK[:]...)
+	dst = tr.AmountAsset.appendBinary(dst)
+	dst = tr.FeeAsset.appendBinary(dst)
+	dst = binary.BigEndian.AppendUint64(dst, tr.Timestamp)
+	dst = binary.BigEndian.AppendUint64(dst, tr.Amount)
+	dst = binary.BigEndian.AppendUint64(dst, tr.Fee)
+	dst, err := tr.Recipient.appendBinary(dst)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal Transfer body")
 	}
-	rl := len(rb)
-	att := tr.Attachment
-	atl := att.Size()
-	buf := make([]byte, transferLen+aal+fal+atl+rl)
-	copy(buf[p:], tr.SenderPK[:])
-	p += crypto.PublicKeySize
-	aab, err := tr.AmountAsset.MarshalBinary()
+	dst, err = appendBytesWithUInt16Len(dst, tr.Attachment)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal Transfer body")
 	}
-	copy(buf[p:], aab)
-	p += 1 + aal
-	fab, err := tr.FeeAsset.MarshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal Transfer body")
-	}
-	copy(buf[p:], fab)
-	p += 1 + fal
-	binary.BigEndian.PutUint64(buf[p:], tr.Timestamp)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], tr.Amount)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], tr.Fee)
-	p += 8
-	copy(buf[p:], rb)
-	p += rl
-	attBytes := att.Bytes()
-	if err := PutBytesWithUInt16Len(buf[p:], attBytes); err != nil {
-		return nil, errors.Wrap(err, "failed to marshal Transfer body")
-	}
-	return buf, nil
+	return dst, nil
 }
 
 func (tr *Transfer) Serialize(s *serializer.Serializer) error {
@@ -1327,6 +1347,10 @@ func (tr *Transfer) UnmarshalBinary(data []byte) error {
 	data = data[1:]
 	if tr.FeeAsset.Present {
 		data = data[crypto.DigestSize:]
+	}
+	const fixedLen = 8 + 8 + 8 // timestamp + amount + fee
+	if l := len(data); l < fixedLen {
+		return errors.Errorf("%d bytes is not enough for Transfer timestamp, amount and fee, expected %d", l, fixedLen)
 	}
 	tr.Timestamp = binary.BigEndian.Uint64(data)
 	data = data[8:]
@@ -1416,20 +1440,17 @@ func (r Reissue) Valid() (bool, error) {
 }
 
 func (r *Reissue) marshalBinary() ([]byte, error) {
-	p := 0
-	buf := make([]byte, reissueLen)
-	copy(buf[p:], r.SenderPK[:])
-	p += crypto.PublicKeySize
-	copy(buf[p:], r.AssetID[:])
-	p += crypto.DigestSize
-	binary.BigEndian.PutUint64(buf[p:], r.Quantity)
-	p += 8
-	PutBool(buf[p:], r.Reissuable)
-	p++
-	binary.BigEndian.PutUint64(buf[p:], r.Fee)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], r.Timestamp)
-	return buf, nil
+	return r.appendBinary(make([]byte, 0, reissueLen)), nil
+}
+
+// appendBinary appends the binary body of Reissue to dst. It appends exactly reissueLen bytes.
+func (r *Reissue) appendBinary(dst []byte) []byte {
+	dst = append(dst, r.SenderPK[:]...)
+	dst = append(dst, r.AssetID[:]...)
+	dst = binary.BigEndian.AppendUint64(dst, r.Quantity)
+	dst = appendBool(dst, r.Reissuable)
+	dst = binary.BigEndian.AppendUint64(dst, r.Fee)
+	return binary.BigEndian.AppendUint64(dst, r.Timestamp)
 }
 
 func (r *Reissue) UnmarshalBinary(data []byte) error {
@@ -1506,18 +1527,16 @@ func (b Burn) Valid() (bool, error) {
 }
 
 func (b *Burn) marshalBinary() ([]byte, error) {
-	buf := make([]byte, burnLen)
-	p := 0
-	copy(buf[p:], b.SenderPK[:])
-	p += crypto.PublicKeySize
-	copy(buf[p:], b.AssetID[:])
-	p += crypto.DigestSize
-	binary.BigEndian.PutUint64(buf[p:], b.Amount)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], b.Fee)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], b.Timestamp)
-	return buf, nil
+	return b.appendBinary(make([]byte, 0, burnLen)), nil
+}
+
+// appendBinary appends the binary body of Burn to dst. It appends exactly burnLen bytes.
+func (b *Burn) appendBinary(dst []byte) []byte {
+	dst = append(dst, b.SenderPK[:]...)
+	dst = append(dst, b.AssetID[:]...)
+	dst = binary.BigEndian.AppendUint64(dst, b.Amount)
+	dst = binary.BigEndian.AppendUint64(dst, b.Fee)
+	return binary.BigEndian.AppendUint64(dst, b.Timestamp)
 }
 
 func (b *Burn) UnmarshalBinary(data []byte) error {
@@ -1629,23 +1648,19 @@ func (l Lease) Valid(scheme Scheme) (bool, error) {
 }
 
 func (l *Lease) marshalBinary() ([]byte, error) {
-	rl := l.Recipient.BinarySize()
-	buf := make([]byte, leaseLen+rl)
-	p := 0
-	copy(buf[p:], l.SenderPK[:])
-	p += crypto.PublicKeySize
-	rb, err := l.Recipient.MarshalBinary()
+	return l.appendBinary(make([]byte, 0, l.BinarySize()))
+}
+
+// appendBinary appends the binary body of Lease to dst. It appends exactly BinarySize() bytes.
+func (l *Lease) appendBinary(dst []byte) ([]byte, error) {
+	dst = append(dst, l.SenderPK[:]...)
+	dst, err := l.Recipient.appendBinary(dst)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal lease to bytes")
 	}
-	copy(buf[p:], rb)
-	p += rl
-	binary.BigEndian.PutUint64(buf[p:], l.Amount)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], l.Fee)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], l.Timestamp)
-	return buf, nil
+	dst = binary.BigEndian.AppendUint64(dst, l.Amount)
+	dst = binary.BigEndian.AppendUint64(dst, l.Fee)
+	return binary.BigEndian.AppendUint64(dst, l.Timestamp), nil
 }
 
 func (l *Lease) UnmarshalBinary(data []byte) error {
@@ -1659,6 +1674,12 @@ func (l *Lease) UnmarshalBinary(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal lease from bytes")
 	}
 	data = data[l.Recipient.BinarySize():]
+	const tailLen = 8 + 8 + 8 // amount + fee + timestamp
+	if dl := len(data); dl < tailLen {
+		return errors.Errorf("not enough data for lease amount, fee and timestamp, expected %d, received %d",
+			tailLen, dl,
+		)
+	}
 	l.Amount = binary.BigEndian.Uint64(data)
 	data = data[8:]
 	l.Fee = binary.BigEndian.Uint64(data)
@@ -1715,16 +1736,15 @@ func (lc LeaseCancel) Valid() (bool, error) {
 }
 
 func (lc *LeaseCancel) marshalBinary() ([]byte, error) {
-	buf := make([]byte, leaseCancelLen)
-	p := 0
-	copy(buf[p:], lc.SenderPK[:])
-	p += crypto.PublicKeySize
-	binary.BigEndian.PutUint64(buf[p:], lc.Fee)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], lc.Timestamp)
-	p += 8
-	copy(buf[p:], lc.LeaseID[:])
-	return buf, nil
+	return lc.appendBinary(make([]byte, 0, leaseCancelLen)), nil
+}
+
+// appendBinary appends the binary body of LeaseCancel to dst. It appends exactly leaseCancelLen bytes.
+func (lc *LeaseCancel) appendBinary(dst []byte) []byte {
+	dst = append(dst, lc.SenderPK[:]...)
+	dst = binary.BigEndian.AppendUint64(dst, lc.Fee)
+	dst = binary.BigEndian.AppendUint64(dst, lc.Timestamp)
+	return append(dst, lc.LeaseID[:]...)
 }
 
 func (lc *LeaseCancel) UnmarshalBinary(data []byte) error {
@@ -1793,23 +1813,17 @@ func (ca CreateAlias) Valid(scheme Scheme) (bool, error) {
 }
 
 func (ca *CreateAlias) marshalBinary() ([]byte, error) {
-	p := 0
-	buf := make([]byte, createAliasLen+len(ca.Alias.Alias))
-	copy(buf[p:], ca.SenderPK[:])
-	p += crypto.PublicKeySize
-	ab, err := ca.Alias.MarshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal CreateAlias to bytes")
-	}
-	al := len(ab)
-	binary.BigEndian.PutUint16(buf[p:], uint16(al))
-	p += 2
-	copy(buf[p:], ab)
-	p += al
-	binary.BigEndian.PutUint64(buf[p:], ca.Fee)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], ca.Timestamp)
-	return buf, nil
+	return ca.appendBinary(make([]byte, 0, ca.BinarySize())), nil
+}
+
+// appendBinary appends the binary body of CreateAlias to dst. It appends exactly BinarySize() bytes:
+// the alias bytes are prefixed with their uint16 length.
+func (ca *CreateAlias) appendBinary(dst []byte) []byte {
+	dst = append(dst, ca.SenderPK[:]...)
+	dst = binary.BigEndian.AppendUint16(dst, uint16(ca.Alias.BinarySize())) // #nosec G115 // Same as before.
+	dst = ca.Alias.appendBinary(dst)
+	dst = binary.BigEndian.AppendUint64(dst, ca.Fee)
+	return binary.BigEndian.AppendUint64(dst, ca.Timestamp)
 }
 
 func (ca *CreateAlias) UnmarshalBinary(data []byte) error {
@@ -1818,8 +1832,12 @@ func (ca *CreateAlias) UnmarshalBinary(data []byte) error {
 	}
 	copy(ca.SenderPK[:], data[:crypto.PublicKeySize])
 	data = data[crypto.PublicKeySize:]
-	al := binary.BigEndian.Uint16(data)
+	al := int(binary.BigEndian.Uint16(data))
 	data = data[2:]
+	const tailLen = 8 + 8 // fee + timestamp
+	if l := len(data); l < al+tailLen {
+		return errors.Errorf("not enough data for CreateAlias, expected %d, received %d", al+tailLen, l)
+	}
 	err := ca.Alias.UnmarshalBinary(data[:al])
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal CreateAlias from bytes")
@@ -1853,4 +1871,30 @@ func validJVMLong(x uint64) bool {
 
 func validJVMInt(x uint32) bool {
 	return x <= math.MaxInt32
+}
+
+// idFromInputBody returns the ID of a transaction that was just parsed from its binary representation.
+//
+// For binary versions the ID is the hash of the exact body bytes of the input, input[start:start+size], so the body
+// is not marshalled again. This is correct only because the binary parsers of the transactions that call this
+// function accept canonical encodings only: the re-marshalled body always equals the input body (see
+// FuzzTxIDFromInput). Transactions whose parsers accept non-canonical encodings (Exchange, InvokeScript) keep
+// re-marshalling.
+//
+// The binary parsers also accept protobuf versions. The ID of such a transaction is the hash of its protobuf body,
+// so it is marshalled as before.
+func idFromInputBody(tx Transaction, scheme Scheme, input []byte, start, size int) (*crypto.Digest, error) {
+	if IsProtobufTx(tx) {
+		body, err := MarshalTxBody(scheme, tx)
+		if err != nil {
+			return nil, err
+		}
+		id := crypto.MustFastHash(body)
+		return &id, nil
+	}
+	if start < 0 || size < 0 || start+size > len(input) {
+		return nil, errors.Errorf("invalid transaction body range [%d:%d] for %d bytes", start, start+size, len(input))
+	}
+	id := crypto.MustFastHash(input[start : start+size])
+	return &id, nil
 }

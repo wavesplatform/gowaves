@@ -13,14 +13,26 @@ import (
 
 type vtStrictMarshaler interface {
 	SizeVT() int
-	MarshalVTStrict() ([]byte, error)
+	MarshalToSizedBufferVTStrict(dAtA []byte) (int, error)
+}
+
+// marshalVTStrictSized marshals pb into a freshly allocated buffer of exactly size bytes, where size must be
+// the value of pb.SizeVT(). It produces the same bytes as pb.MarshalVTStrict() without computing the size again.
+func marshalVTStrictSized(pb vtStrictMarshaler, size int) ([]byte, error) {
+	buf := make([]byte, size)
+	n, err := pb.MarshalToSizedBufferVTStrict(buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf[size-n:], nil
 }
 
 func MarshalToProtobufDeterministic(pb vtStrictMarshaler) ([]byte, error) {
-	if l := pb.SizeVT(); l > 10*1024*1024 {
+	l := pb.SizeVT()
+	if l > 10*1024*1024 {
 		return nil, errors.Errorf("failed to marshal protobuf message with len %d, marshaled value exceeds 10MB limit", l)
 	}
-	return pb.MarshalVTStrict()
+	return marshalVTStrictSized(pb, l)
 }
 
 func MarshalTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error) {
@@ -28,7 +40,7 @@ func MarshalTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pbTx.MarshalVTStrict()
+	return marshalVTStrictSized(pbTx, pbTx.SizeVT())
 }
 
 func MarshalSignedTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error) {
@@ -36,7 +48,34 @@ func MarshalSignedTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error)
 	if err != nil {
 		return nil, err
 	}
-	return pbTx.MarshalVTStrict()
+	return marshalVTStrictSized(pbTx, pbTx.SizeVT())
+}
+
+// signedWavesTxToProtobufNoCopy builds the protobuf signed transaction like ToProtobufSigned does, but the
+// proofs of the result alias the proofs of the transaction. The result must only be used for marshalling,
+// it must not be retained or handed out.
+func signedWavesTxToProtobufNoCopy(tx Transaction, scheme Scheme, proofs *ProofsV1) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	if proofs == nil {
+		return nil, errors.New("no proofs provided")
+	}
+	return &g.SignedTransaction{
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
+		Proofs:      proofs.bytesNoCopy(),
+	}, nil
+}
+
+// marshalSignedWavesTx produces the same bytes as MarshalSignedTxDeterministic for a Waves transaction with
+// the given proofs, without copying the proofs.
+func marshalSignedWavesTx(tx Transaction, scheme Scheme, proofs *ProofsV1) ([]byte, error) {
+	pbTx, err := signedWavesTxToProtobufNoCopy(tx, scheme, proofs)
+	if err != nil {
+		return nil, err
+	}
+	return marshalVTStrictSized(pbTx, pbTx.SizeVT())
 }
 
 func TxFromProtobuf(data []byte) (Transaction, error) {
@@ -1703,7 +1742,8 @@ func (c *ProtobufConverter) signedTransaction(stx *g.SignedTransaction) (Transac
 			t.Proofs = proofs
 			return t, nil
 		default:
-			panic("unsupported transaction")
+			c.reset()
+			return nil, errors.Errorf("unsupported transaction type %T", tx)
 		}
 	case *g.SignedTransaction_EthereumTransaction:
 		tx, err := c.ethereumTransaction(wrappedTx.EthereumTransaction)
@@ -1711,11 +1751,10 @@ func (c *ProtobufConverter) signedTransaction(stx *g.SignedTransaction) (Transac
 			return nil, err
 		}
 		return tx, nil
+	case nil:
+		return nil, errors.New("empty signed transaction variant")
 	default:
-		panic(errors.Errorf(
-			"BUG, CREATE REPORT: unsupported protobuf signed transaction variant type %T.",
-			stx.Transaction,
-		))
+		return nil, errors.Errorf("unsupported protobuf signed transaction variant type %T", stx.Transaction)
 	}
 }
 

@@ -204,24 +204,55 @@ func WriteMessage(w io.Writer, contentID PeerMessageID, name string, payload io.
 	if payload == nil {
 		return writeEmptyMessage(w, contentID, name)
 	}
+	if bp, ok := payload.(*BytesPayload); ok { // Fast path: hash and write the payload slice without copying it.
+		return writeBytesMessageNamed(w, contentID, name, *bp)
+	}
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
 	if _, err := payload.WriteTo(buf); err != nil {
 		return 0, fmt.Errorf("%s: failed to write payload: %w", name, err)
 	}
-	h, err := NewHeader(contentID, buf.Bytes())
+	return writeBytesMessageNamed(w, contentID, name, buf.Bytes())
+}
+
+// writeBytesMessageNamed writes the header for the given payload and then the payload itself.
+// Errors are prefixed with the message name, if it is not empty, otherwise they are returned as is.
+func writeBytesMessageNamed(w io.Writer, contentID PeerMessageID, name string, payload []byte) (int64, error) {
+	wrap := func(err error, msg string) error {
+		if name == "" {
+			return err
+		}
+		return fmt.Errorf("%s: %s: %w", name, msg, err)
+	}
+	h, err := NewHeader(contentID, payload)
 	if err != nil {
-		return 0, fmt.Errorf("%s: failed to create header: %w", name, err)
+		return 0, wrap(err, "failed to create header")
 	}
 	n1, err := h.WriteTo(w)
 	if err != nil {
-		return n1, fmt.Errorf("%s: failed to write header: %w", name, err)
+		return n1, wrap(err, "failed to write header")
 	}
-	n2, err := buf.WriteTo(w)
+	n2, err := w.Write(payload)
 	if err != nil {
-		return n1 + n2, fmt.Errorf("%s: failed to write payload: %w", name, err)
+		return n1 + int64(n2), wrap(err, "failed to write payload")
 	}
-	return n1 + n2, nil
+	return n1 + int64(n2), nil
+}
+
+// marshalMessage returns the header for the payload followed by the payload, allocating the result once.
+// The bytes are the same as Header.MarshalBinary output with the payload appended.
+func marshalMessage(contentID PeerMessageID, payload []byte) ([]byte, error) {
+	h, err := NewHeader(contentID, payload)
+	if err != nil {
+		return nil, err
+	}
+	hl := h.HeaderLength()
+	out := make([]byte, int(hl)+len(payload))
+	if _, cErr := h.Copy(out[:hl]); cErr != nil {
+		return nil, cErr
+	}
+	copy(out[hl:], payload)
+	return out, nil
 }
 
 type messageTag interface {
@@ -1178,19 +1209,7 @@ func (m *GetSignaturesMessage) MarshalBinary() ([]byte, error) {
 		body = append(body, b[:]...)
 	}
 
-	h, err := NewHeader(ContentIDGetSignatures, body)
-	if err != nil {
-		return nil, err
-	}
-
-	hdr, err := h.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	body = append(hdr, body...)
-
-	return body, nil
+	return marshalMessage(ContentIDGetSignatures, body)
 }
 
 // UnmarshalBinary decodes GetSignaturesMessage from binary form
@@ -1262,19 +1281,7 @@ func (m *SignaturesMessage) MarshalBinary() ([]byte, error) {
 		body = append(body, b[:]...)
 	}
 
-	h, err := NewHeader(ContentIDSignatures, body)
-	if err != nil {
-		return nil, err
-	}
-
-	hdr, err := h.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	body = append(hdr, body...)
-
-	return body, nil
+	return marshalMessage(ContentIDSignatures, body)
 }
 
 // UnmarshalBinary decodes SignaturesMessage from binary form
@@ -1342,16 +1349,7 @@ type GetBlockMessage struct {
 func (m *GetBlockMessage) MarshalBinary() ([]byte, error) {
 	body := m.BlockID.Bytes()
 
-	h, err := NewHeader(ContentIDGetBlock, body)
-	if err != nil {
-		return nil, err
-	}
-	hdr, err := h.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	body = append(hdr, body...)
-	return body, nil
+	return marshalMessage(ContentIDGetBlock, body)
 }
 
 // UnmarshalBinary decodes GetBlockMessage from binary form
@@ -1404,16 +1402,7 @@ type BlockMessage struct {
 
 // MarshalBinary encodes BlockMessage to binary form
 func (m *BlockMessage) MarshalBinary() ([]byte, error) {
-	h, err := NewHeader(ContentIDBlock, m.BlockBytes)
-	if err != nil {
-		return nil, err
-	}
-	hdr, err := h.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	hdr = append(hdr, m.BlockBytes...)
-	return hdr, nil
+	return marshalMessage(ContentIDBlock, m.BlockBytes)
 }
 
 // UnmarshalBinary decodes BlockMessage from binary from
@@ -1465,16 +1454,7 @@ type ScoreMessage struct {
 
 // MarshalBinary encodes ScoreMessage to binary form
 func (m *ScoreMessage) MarshalBinary() ([]byte, error) {
-	h, err := NewHeader(ContentIDScore, m.Score)
-	if err != nil {
-		return nil, err
-	}
-	hdr, err := h.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	hdr = append(hdr, m.Score...)
-	return hdr, nil
+	return marshalMessage(ContentIDScore, m.Score)
 }
 
 // UnmarshalBinary decodes ScoreMessage from binary form
@@ -1525,16 +1505,7 @@ type TransactionMessage struct {
 
 // MarshalBinary encodes TransactionMessage to binary form
 func (m *TransactionMessage) MarshalBinary() ([]byte, error) {
-	h, err := NewHeader(ContentIDTransaction, m.Transaction)
-	if err != nil {
-		return nil, err
-	}
-	hdr, err := h.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	hdr = append(hdr, m.Transaction...)
-	return hdr, nil
+	return marshalMessage(ContentIDTransaction, m.Transaction)
 }
 
 // UnmarshalBinary decodes TransactionMessage from binary form
@@ -1590,16 +1561,7 @@ type PBBlockMessage struct {
 
 // MarshalBinary encodes PBBlockMessage to binary form
 func (m *PBBlockMessage) MarshalBinary() ([]byte, error) {
-	h, err := NewHeader(ContentIDPBBlock, m.PBBlockBytes)
-	if err != nil {
-		return nil, err
-	}
-	hdr, err := h.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	hdr = append(hdr, m.PBBlockBytes...)
-	return hdr, nil
+	return marshalMessage(ContentIDPBBlock, m.PBBlockBytes)
 }
 
 // UnmarshalBinary decodes PBBlockMessage from binary from
@@ -1651,16 +1613,7 @@ type PBTransactionMessage struct {
 
 // MarshalBinary encodes PBTransactionMessage to binary form
 func (m *PBTransactionMessage) MarshalBinary() ([]byte, error) {
-	h, err := NewHeader(ContentIDPBTransaction, m.Transaction)
-	if err != nil {
-		return nil, err
-	}
-	hdr, err := h.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	hdr = append(hdr, m.Transaction...)
-	return hdr, nil
+	return marshalMessage(ContentIDPBTransaction, m.Transaction)
 }
 
 // UnmarshalBinary decodes PBTransactionMessage from binary form
@@ -1754,19 +1707,7 @@ func (m *GetBlockIDsMessage) MarshalBinary() ([]byte, error) {
 		body = append(body, b...)
 	}
 
-	h, err := NewHeader(ContentIDGetBlockIDs, body)
-	if err != nil {
-		return nil, err
-	}
-
-	hdr, err := h.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	body = append(hdr, body...)
-
-	return body, nil
+	return marshalMessage(ContentIDGetBlockIDs, body)
 }
 
 func (m *GetBlockIDsMessage) UnmarshalBinary(data []byte) error {
@@ -1828,19 +1769,7 @@ func (m *BlockIDsMessage) MarshalBinary() ([]byte, error) {
 		body = append(body, b...)
 	}
 
-	h, err := NewHeader(ContentIDBlockIDs, body)
-	if err != nil {
-		return nil, err
-	}
-
-	hdr, err := h.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	body = append(hdr, body...)
-
-	return body, nil
+	return marshalMessage(ContentIDBlockIDs, body)
 }
 
 func (m *BlockIDsMessage) UnmarshalBinary(data []byte) error {
@@ -1910,16 +1839,7 @@ func (m *GetBlockSnapshotMessage) UnmarshalBinary(data []byte) error {
 func (m *GetBlockSnapshotMessage) MarshalBinary() ([]byte, error) {
 	body := m.BlockID.Bytes()
 
-	h, err := NewHeader(ContentIDGetBlockSnapshot, body)
-	if err != nil {
-		return nil, err
-	}
-	hdr, err := h.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	body = append(hdr, body...)
-	return body, nil
+	return marshalMessage(ContentIDGetBlockSnapshot, body)
 }
 
 func (m *GetBlockSnapshotMessage) IsMessage() {}
@@ -1971,17 +1891,7 @@ func (m *BlockSnapshotMessage) UnmarshalBinary(data []byte) error {
 func (m *BlockSnapshotMessage) MarshalBinary() ([]byte, error) {
 	body := m.Bytes
 
-	h, err := NewHeader(ContentIDBlockSnapshot, body)
-	if err != nil {
-		return nil, err
-	}
-
-	hdr, err := h.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	body = append(hdr, body...)
-	return body, nil
+	return marshalMessage(ContentIDBlockSnapshot, body)
 }
 
 func (m *BlockSnapshotMessage) IsMessage() {}
@@ -2033,17 +1943,7 @@ func (m *MicroBlockSnapshotMessage) UnmarshalBinary(data []byte) error {
 func (m *MicroBlockSnapshotMessage) MarshalBinary() ([]byte, error) {
 	body := m.Bytes
 
-	h, err := NewHeader(ContentIDMicroBlockSnapshot, body)
-	if err != nil {
-		return nil, err
-	}
-
-	hdr, err := h.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	body = append(hdr, body...)
-	return body, nil
+	return marshalMessage(ContentIDMicroBlockSnapshot, body)
 }
 
 func (m *MicroBlockSnapshotMessage) IsMessage() {}
@@ -2085,16 +1985,7 @@ func (m *MicroBlockSnapshotRequestMessage) UnmarshalBinary(data []byte) error {
 
 func (m *MicroBlockSnapshotRequestMessage) MarshalBinary() ([]byte, error) {
 	body := m.BlockID.Bytes()
-	h, err := NewHeader(ContentIDMicroBlockSnapshotRequest, body)
-	if err != nil {
-		return nil, err
-	}
-	hdr, err := h.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	body = append(hdr, body...)
-	return body, nil
+	return marshalMessage(ContentIDMicroBlockSnapshotRequest, body)
 }
 
 func (m *MicroBlockSnapshotRequestMessage) IsMessage() {}
@@ -2238,16 +2129,7 @@ type EndorseBlockMessage struct {
 
 // MarshalBinary encodes EndorseBlockMessage to binary form.
 func (m *EndorseBlockMessage) MarshalBinary() ([]byte, error) {
-	h, err := NewHeader(ContentIDEndorseBlock, m.Bytes)
-	if err != nil {
-		return nil, err
-	}
-	hdr, err := h.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	hdr = append(hdr, m.Bytes...)
-	return hdr, nil
+	return marshalMessage(ContentIDEndorseBlock, m.Bytes)
 }
 
 // UnmarshalBinary decodes EndorseBlockMessage from binary form.

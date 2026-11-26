@@ -169,9 +169,12 @@ func (a *WaitMicroSnapshotState) checkAndAppendMicroBlock(
 	if !ok {
 		return nil, errors.New("incorrect signature for applied microblock")
 	}
-	err = newBlock.GenerateBlockID(a.baseInfo.scheme)
-	if err != nil {
-		return nil, errors.Wrap(err, "NGState microBlockByID: failed generate block id")
+	// AppendMicroBlock has already generated the ID. The protobuf block ID does not depend on the signature,
+	// the legacy block ID is the signature itself, so only the latter has to be regenerated.
+	if newBlock.Version < proto.ProtobufBlockVersion {
+		if err = newBlock.GenerateBlockID(a.baseInfo.scheme); err != nil {
+			return nil, errors.Wrap(err, "NGState microBlockByID: failed generate block id")
+		}
 	}
 	snapshotsToApply := snapshot
 

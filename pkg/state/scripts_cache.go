@@ -122,3 +122,21 @@ func (l *lru) deleteIfExists(key []byte) (existed bool) {
 	}
 	return has
 }
+
+// lruReuseLimit is the maximum number of entries that clear removes one by one, keeping the map's memory.
+// A bigger cache is replaced with a new map, so the memory of a huge map is released.
+const lruReuseLimit = 4096
+
+// clear removes all entries. Small caches, like the ones filled during the UTX validation, are cleared without
+// reallocating the map, so the cache doesn't allocate a new map after every validation.
+func (l *lru) clear() {
+	if l.size > lruReuseLimit {
+		l.m = make(map[string]*element)
+		l.newest, l.oldest, l.removed = nil, nil, nil
+		l.size, l.bytesUsed = 0, 0
+		return
+	}
+	for l.oldest != nil {
+		l.del(l.oldest)
+	}
+}

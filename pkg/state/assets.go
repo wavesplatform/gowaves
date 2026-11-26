@@ -54,9 +54,17 @@ type assetConstInfo struct {
 	IssueSequenceInBlock uint32                      `cbor:"5,keyasint,omitempty"`
 }
 
-func (ai *assetConstInfo) marshalBinary() ([]byte, error) { return cbor.Marshal(ai) }
+func (ai *assetConstInfo) marshalBinary() ([]byte, error) {
+	var buf [cborRecordBufSize]byte
+	return cborClone(ai.appendCBOR(buf[:0])), nil
+}
 
-func (ai *assetConstInfo) unmarshalBinary(data []byte) error { return cbor.Unmarshal(data, ai) }
+func (ai *assetConstInfo) unmarshalBinary(data []byte) error {
+	if ai.decodeCBOR(data) {
+		return nil
+	}
+	return cbor.Unmarshal(data, ai)
+}
 
 // assetChangeableInfo is part of asset info which can change.
 type assetChangeableInfo struct {

@@ -253,7 +253,23 @@ func (p *BytesPayload) WriteTo(w io.Writer) (int64, error) {
 	return int64(n), err
 }
 
+// maxPresizedPayload limits the buffer that BytesPayload.ReadFrom allocates up front from the declared payload
+// length, so a forged header can not force a huge allocation. Larger payloads grow while being read, as before.
+const maxPresizedPayload = 4 << 20
+
 func (p *BytesPayload) ReadFrom(r io.Reader) (int64, error) {
+	if cr, ok := r.(*ChecksumReader); ok {
+		if lr, isLimited := cr.r.(*io.LimitedReader); isLimited && lr.N <= maxPresizedPayload {
+			n := lr.N
+			b := make([]byte, n)
+			rn, err := io.ReadFull(r, b)
+			if err != nil {
+				return int64(rn), err
+			}
+			*p = b
+			return int64(rn), nil
+		}
+	}
 	buf := new(bytes.Buffer)
 	n, err := buf.ReadFrom(r)
 	if err != nil {

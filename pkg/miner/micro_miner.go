@@ -269,25 +269,21 @@ func (a *MicroMiner) createNewBlock(
 		sh = &newSh
 	}
 
-	newTransactions := minedBlock.Transactions.Join(transactions)
 	fv := proto.CombineFinalizationVoting(minedBlock.FinalizationVoting, finalizationVoting)
-	newBlock, err := proto.CreateBlock(
-		newTransactions, minedBlock.Timestamp, minedBlock.Parent,
-		minedBlock.GeneratorPublicKey, minedBlock.NxtConsensus,
-		minedBlock.Version, minedBlock.Features, minedBlock.RewardVote,
-		a.scheme, sh, fv,
-	)
+	// The transactions root is calculated by AppendTransactionsToBlock, incrementally if possible.
+	newBlock, err := proto.AppendTransactionsToBlock(minedBlock, transactions, a.scheme, sh, fv)
 	if err != nil {
-		return nil, nil, err
-	}
-	if err = newBlock.SetTransactionsRootIfPossible(a.scheme); err != nil {
 		return nil, nil, err
 	}
 	if err = newBlock.Sign(a.scheme, keyPair.Secret); err != nil {
 		return nil, nil, err
 	}
-	if err = newBlock.GenerateBlockID(a.scheme); err != nil {
-		return nil, nil, err
+	// The protobuf block ID does not depend on the signature and is already generated,
+	// the legacy block ID is the signature itself.
+	if newBlock.Version < proto.ProtobufBlockVersion {
+		if err = newBlock.GenerateBlockID(a.scheme); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	return newBlock, sh, nil

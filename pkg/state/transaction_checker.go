@@ -19,7 +19,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
-	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -265,7 +264,7 @@ func (tc *transactionChecker) checkScript(
 	estimatorVersion int,
 	reducedVerifierComplexity bool,
 ) (ride.TreeEstimation, error) {
-	tree, err := serialization.Parse(script)
+	tree, err := tc.stor.scriptTrees.parse(script)
 	if err != nil {
 		return ride.TreeEstimation{}, errs.Extend(err, "failed to build AST")
 	}

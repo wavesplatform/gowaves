@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -176,27 +175,11 @@ type Block struct {
 type TransactionsField []proto.Transaction
 
 func (b *TransactionsField) UnmarshalJSON(data []byte) error {
-	var tt []*proto.TransactionTypeVersion
-	err := json.Unmarshal(data, &tt)
-	if err != nil {
-		return errors.Wrap(err, "TransactionTypeVersion unmarshal")
-	}
-
-	transactions := make([]proto.Transaction, len(tt))
-	for i, row := range tt {
-		realType, err := proto.GuessTransactionType(row)
-		if err != nil {
-			return err
-		}
-		transactions[i] = realType
-	}
-
-	err = json.Unmarshal(data, &transactions)
+	transactions, err := proto.UnmarshalTransactionsListJSON(data)
 	if err != nil {
 		return errors.Wrap(err, "transactions list unmarshal")
 	}
 	*b = transactions
-
 	return nil
 }
 

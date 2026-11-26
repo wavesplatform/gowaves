@@ -25,6 +25,7 @@ const (
 	burnWithSigBodyLen             = 1 + burnLen
 	burnWithSigLen                 = burnWithSigBodyLen + crypto.SignatureSize
 	exchangeWithSigFixedBodyLen    = 1 + 4 + 4 + 8 + 8 + 8 + 8 + 8 + 8
+	exchangeTailLen                = 8 + 8 + 8 + 8 + 8 + 8 // price, amount, buy and sell matcher fees, fee, timestamp
 	exchangeWithSigMinLen          = exchangeWithSigFixedBodyLen + orderV1MinLen + orderV1MinLen + crypto.SignatureSize
 	leaseWithSigBodyLen            = 1 + leaseLen
 	leaseWithSigMinLen             = leaseWithSigBodyLen + crypto.SignatureSize
@@ -117,14 +118,14 @@ func NewUnsignedIssueWithSig(senderPK crypto.PublicKey, name, description string
 }
 
 func (tx *IssueWithSig) BodyMarshalBinary(Scheme) ([]byte, error) {
-	b, err := tx.marshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal IssueWithSig body")
-	}
-	buf := make([]byte, 1+len(b))
-	buf[0] = byte(tx.Type)
-	copy(buf[1:], b)
-	return buf, nil
+	return tx.appendBody(make([]byte, 0, 1+tx.Issue.BinarySize()))
+}
+
+// appendBody appends the binary body of the transaction (type byte and Issue body) to dst.
+// It appends exactly 1+tx.Issue.BinarySize() bytes.
+func (tx *IssueWithSig) appendBody(dst []byte) ([]byte, error) {
+	dst = append(dst, byte(tx.Type))
+	return tx.appendBinary(dst), nil
 }
 
 func (tx *IssueWithSig) bodyUnmarshalBinary(data []byte) error {
@@ -177,21 +178,27 @@ func (tx *IssueWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool,
 
 // MarshalBinary saves transaction's binary representation to slice of bytes.
 func (tx *IssueWithSig) MarshalBinary(scheme Scheme) ([]byte, error) {
-	sl := crypto.SignatureSize
-	b, err := tx.BodyMarshalBinary(scheme)
+	return tx.appendTxBinary(make([]byte, 0, tx.BinarySize()), scheme)
+}
+
+// appendTxBinary appends the binary transaction to dst. It appends exactly the bytes MarshalBinary returns.
+func (tx *IssueWithSig) appendTxBinary(dst []byte, _ Scheme) ([]byte, error) {
+	if tx.Signature == nil {
+		return nil, errors.New("failed to marshal IssueWithSig transaction to bytes: no signature")
+	}
+	buf := dst
+	buf = append(buf, byte(tx.Type))
+	buf = append(buf, tx.Signature[:]...)
+	buf, err := tx.appendBody(buf)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal IssueWithSig transaction to bytes")
 	}
-	bl := len(b)
-	buf := make([]byte, 1+sl+bl)
-	buf[0] = byte(tx.Type)
-	copy(buf[1:], tx.Signature[:])
-	copy(buf[1+sl:], b)
 	return buf, nil
 }
 
 // UnmarshalBinary reads transaction from its binary representation.
 func (tx *IssueWithSig) UnmarshalBinary(data []byte, scheme Scheme) error {
+	input := data
 	if l := len(data); l < issueWithSigMinLen {
 		return errors.Errorf("%d is not enough data for IssueWithSig transaction, expected not less than %d",
 			l, issueWithSigMinLen,
@@ -209,9 +216,11 @@ func (tx *IssueWithSig) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal IssueWithSig transaction")
 	}
-	if err := tx.GenerateID(scheme); err != nil {
-		return err
+	id, err := idFromInputBody(tx, scheme, input, 1+crypto.SignatureSize, tx.BinarySize()-1-crypto.SignatureSize)
+	if err != nil {
+		return errors.Wrap(err, "failed to generate ID of IssueWithSig transaction")
 	}
+	tx.ID = id
 	return nil
 }
 
@@ -362,14 +371,18 @@ func NewUnsignedTransferWithSig(senderPK crypto.PublicKey, amountAsset, feeAsset
 }
 
 func (tx *TransferWithSig) BodyMarshalBinary(Scheme) ([]byte, error) {
-	b, err := tx.marshalBinary()
+	return tx.appendBody(make([]byte, 0, 1+tx.Transfer.BinarySize()))
+}
+
+// appendBody appends the binary body of the transaction (type byte and Transfer body) to dst.
+// It appends exactly 1+tx.Transfer.BinarySize() bytes.
+func (tx *TransferWithSig) appendBody(dst []byte) ([]byte, error) {
+	dst = append(dst, byte(tx.Type))
+	dst, err := tx.appendBinary(dst)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal TransferWithSig body")
 	}
-	buf := make([]byte, 1+len(b))
-	buf[0] = byte(tx.Type)
-	copy(buf[1:], b)
-	return buf, nil
+	return dst, nil
 }
 
 func (tx *TransferWithSig) BodySerialize(s *serializer.Serializer) error {
@@ -462,21 +475,27 @@ func (tx *TransferWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (bo
 
 // MarshalBinary saves transaction to its binary representation.
 func (tx *TransferWithSig) MarshalBinary(scheme Scheme) ([]byte, error) {
-	sl := crypto.SignatureSize
-	b, err := tx.BodyMarshalBinary(scheme)
+	return tx.appendTxBinary(make([]byte, 0, tx.BinarySize()), scheme)
+}
+
+// appendTxBinary appends the binary transaction to dst. It appends exactly the bytes MarshalBinary returns.
+func (tx *TransferWithSig) appendTxBinary(dst []byte, _ Scheme) ([]byte, error) {
+	if tx.Signature == nil {
+		return nil, errors.New("failed to marshal TransferWithSig transaction to bytes: no signature")
+	}
+	buf := dst
+	buf = append(buf, byte(tx.Type))
+	buf = append(buf, tx.Signature[:]...)
+	buf, err := tx.appendBody(buf)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal TransferWithSig transaction to bytes")
 	}
-	bl := len(b)
-	buf := make([]byte, 1+sl+bl)
-	buf[0] = byte(tx.Type)
-	copy(buf[1:], tx.Signature[:])
-	copy(buf[1+sl:], b)
 	return buf, nil
 }
 
 // UnmarshalBinary reads transaction from its binary representation.
 func (tx *TransferWithSig) UnmarshalBinary(data []byte, scheme Scheme) error {
+	input := data
 	if l := len(data); l < transferWithSigMinLen {
 		return errors.Errorf("not enough data for TransferWithSig transaction, expected not less than %d, received %d",
 			transferWithSigMinLen, l,
@@ -494,9 +513,11 @@ func (tx *TransferWithSig) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal TransferWithSig transaction")
 	}
-	if err := tx.GenerateID(scheme); err != nil {
-		return err
+	id, err := idFromInputBody(tx, scheme, input, 1+crypto.SignatureSize, tx.BinarySize()-1-crypto.SignatureSize)
+	if err != nil {
+		return errors.Wrap(err, "failed to generate ID of TransferWithSig transaction")
 	}
+	tx.ID = id
 	return nil
 }
 
@@ -664,14 +685,14 @@ func NewUnsignedReissueWithSig(senderPK crypto.PublicKey, assetID crypto.Digest,
 }
 
 func (tx *ReissueWithSig) BodyMarshalBinary(Scheme) ([]byte, error) {
-	buf := make([]byte, reissueWithSigBodyLen)
-	buf[0] = byte(tx.Type)
-	b, err := tx.marshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal ReissueWithSig transaction to bytes")
-	}
-	copy(buf[1:], b)
-	return buf, nil
+	return tx.appendBody(make([]byte, 0, reissueWithSigBodyLen))
+}
+
+// appendBody appends the binary body of the transaction (type byte and Reissue body) to dst.
+// It appends exactly reissueWithSigBodyLen bytes.
+func (tx *ReissueWithSig) appendBody(dst []byte) ([]byte, error) {
+	dst = append(dst, byte(tx.Type))
+	return tx.appendBinary(dst), nil
 }
 
 func (tx *ReissueWithSig) bodyUnmarshalBinary(data []byte) error {
@@ -728,21 +749,27 @@ func (tx *ReissueWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (boo
 
 // MarshalBinary saves the transaction to its binary representation.
 func (tx *ReissueWithSig) MarshalBinary(scheme Scheme) ([]byte, error) {
-	sl := crypto.SignatureSize
-	b, err := tx.BodyMarshalBinary(scheme)
+	return tx.appendTxBinary(make([]byte, 0, tx.BinarySize()), scheme)
+}
+
+// appendTxBinary appends the binary transaction to dst. It appends exactly the bytes MarshalBinary returns.
+func (tx *ReissueWithSig) appendTxBinary(dst []byte, _ Scheme) ([]byte, error) {
+	if tx.Signature == nil {
+		return nil, errors.New("failed to marshal ReissueWithSig transaction to bytes: no signature")
+	}
+	buf := dst
+	buf = append(buf, byte(tx.Type))
+	buf = append(buf, tx.Signature[:]...)
+	buf, err := tx.appendBody(buf)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal ReissueWithSig transaction to bytes")
 	}
-	bl := len(b)
-	buf := make([]byte, 1+sl+bl)
-	buf[0] = byte(tx.Type)
-	copy(buf[1:], tx.Signature[:])
-	copy(buf[1+sl:], b)
 	return buf, nil
 }
 
 // UnmarshalBinary reads transaction from its binary representation.
 func (tx *ReissueWithSig) UnmarshalBinary(data []byte, scheme Scheme) error {
+	input := data
 	if l := len(data); l < reissueWithSigMinLen {
 		return errors.Errorf("not enough data for ReissueWithSig transaction, expected not less than %d, received %d",
 			reissueWithSigMinLen, l,
@@ -760,9 +787,11 @@ func (tx *ReissueWithSig) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal ReissueWithSig transaction")
 	}
-	if err := tx.GenerateID(scheme); err != nil {
-		return err
+	id, err := idFromInputBody(tx, scheme, input, 1+crypto.SignatureSize, tx.BinarySize()-1-crypto.SignatureSize)
+	if err != nil {
+		return errors.Wrap(err, "failed to generate ID of ReissueWithSig transaction")
 	}
+	tx.ID = id
 	return nil
 }
 
@@ -908,14 +937,14 @@ func NewUnsignedBurnWithSig(senderPK crypto.PublicKey, assetID crypto.Digest, am
 }
 
 func (tx *BurnWithSig) BodyMarshalBinary(Scheme) ([]byte, error) {
-	buf := make([]byte, burnWithSigBodyLen)
-	buf[0] = byte(tx.Type)
-	b, err := tx.marshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal BurnWithSig transaction to bytes")
-	}
-	copy(buf[1:], b)
-	return buf, nil
+	return tx.appendBody(make([]byte, 0, burnWithSigBodyLen))
+}
+
+// appendBody appends the binary body of the transaction (type byte and Burn body) to dst.
+// It appends exactly burnWithSigBodyLen bytes.
+func (tx *BurnWithSig) appendBody(dst []byte) ([]byte, error) {
+	dst = append(dst, byte(tx.Type))
+	return tx.appendBinary(dst), nil
 }
 
 func (tx *BurnWithSig) bodyUnmarshalBinary(data []byte) error {
@@ -971,18 +1000,24 @@ func (tx *BurnWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, 
 
 // MarshalBinary saves transaction to
 func (tx *BurnWithSig) MarshalBinary(scheme Scheme) ([]byte, error) {
-	b, err := tx.BodyMarshalBinary(scheme)
+	return tx.appendTxBinary(make([]byte, 0, tx.BinarySize()), scheme)
+}
+
+// appendTxBinary appends the binary transaction to dst. It appends exactly the bytes MarshalBinary returns.
+func (tx *BurnWithSig) appendTxBinary(dst []byte, _ Scheme) ([]byte, error) {
+	if tx.Signature == nil {
+		return nil, errors.New("failed to marshal BurnWithSig transaction to bytes: no signature")
+	}
+	buf, err := tx.appendBody(dst)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal BurnWithSig transaction to bytes")
 	}
-	buf := make([]byte, burnWithSigLen)
-	copy(buf, b)
-	copy(buf[burnWithSigBodyLen:], tx.Signature[:])
-	return buf, nil
+	return append(buf, tx.Signature[:]...), nil
 }
 
 // UnmarshalBinary reads transaction form its binary representation.
 func (tx *BurnWithSig) UnmarshalBinary(data []byte, scheme Scheme) error {
+	input := data
 	if l := len(data); l < burnWithSigLen {
 		return errors.Errorf("not enough data for BurnWithSig transaction, expected not less than %d, received %d",
 			burnWithSigLen, l,
@@ -995,9 +1030,11 @@ func (tx *BurnWithSig) UnmarshalBinary(data []byte, scheme Scheme) error {
 	var s crypto.Signature
 	copy(s[:], data[burnWithSigBodyLen:burnWithSigBodyLen+crypto.SignatureSize])
 	tx.Signature = &s
-	if err := tx.GenerateID(scheme); err != nil {
-		return err
+	id, err := idFromInputBody(tx, scheme, input, 0, tx.BinarySize()-crypto.SignatureSize)
+	if err != nil {
+		return errors.Wrap(err, "failed to generate ID of BurnWithSig transaction")
 	}
+	tx.ID = id
 	return nil
 }
 
@@ -1270,40 +1307,46 @@ func (tx *ExchangeWithSig) checkOrders() error {
 }
 
 func (tx *ExchangeWithSig) BodyMarshalBinary(Scheme) ([]byte, error) {
-	bob, err := tx.Order1.MarshalBinary()
+	return tx.appendBody(make([]byte, 0, tx.bodySize()))
+}
+
+// bodySize returns the size of the binary body, or 0 if an order is not set (appendBody fails then).
+func (tx *ExchangeWithSig) bodySize() int {
+	if tx.Order1 == nil || tx.Order2 == nil {
+		return 0
+	}
+	return tx.BinarySize() - crypto.SignatureSize
+}
+
+// appendBody appends the binary body of the transaction to dst: the type byte, both order lengths, both orders and
+// the tail. The orders are written straight into dst and their lengths are back-filled.
+// It appends exactly BinarySize()-crypto.SignatureSize bytes.
+func (tx *ExchangeWithSig) appendBody(dst []byte) ([]byte, error) {
+	if tx.Order1 == nil || tx.Order2 == nil {
+		return nil, errors.New("failed to marshal ExchangeWithSig body to bytes: empty order")
+	}
+	lenPos := len(dst) + 1
+	dst = append(dst, byte(tx.Type), 0, 0, 0, 0, 0, 0, 0, 0) // Type and two order length placeholders.
+	start := len(dst)
+	dst, err := tx.Order1.appendBinary(dst)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to marshal ExchangeWithSig body to bytes")
 	}
-	bol := uint32(len(bob))
-	sob, err := tx.Order2.MarshalBinary()
+	bol := len(dst) - start
+	start = len(dst)
+	dst, err = tx.Order2.appendBinary(dst)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to marshal ExchangeWithSig body to bytes")
 	}
-	sol := uint32(len(sob))
-	var p uint32
-	buf := make([]byte, exchangeWithSigFixedBodyLen+bol+sol)
-	buf[0] = byte(tx.Type)
-	p++
-	binary.BigEndian.PutUint32(buf[p:], bol)
-	p += 4
-	binary.BigEndian.PutUint32(buf[p:], sol)
-	p += 4
-	copy(buf[p:], bob)
-	p += bol
-	copy(buf[p:], sob)
-	p += sol
-	binary.BigEndian.PutUint64(buf[p:], tx.Price)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], tx.Amount)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], tx.BuyMatcherFee)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], tx.SellMatcherFee)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], tx.Timestamp)
-	return buf, nil
+	sol := len(dst) - start
+	binary.BigEndian.PutUint32(dst[lenPos:], uint32(bol))   // #nosec G115 // An order is far smaller than 4 GiB.
+	binary.BigEndian.PutUint32(dst[lenPos+4:], uint32(sol)) // #nosec G115 // An order is far smaller than 4 GiB.
+	dst = binary.BigEndian.AppendUint64(dst, tx.Price)
+	dst = binary.BigEndian.AppendUint64(dst, tx.Amount)
+	dst = binary.BigEndian.AppendUint64(dst, tx.BuyMatcherFee)
+	dst = binary.BigEndian.AppendUint64(dst, tx.SellMatcherFee)
+	dst = binary.BigEndian.AppendUint64(dst, tx.Fee)
+	return binary.BigEndian.AppendUint64(dst, tx.Timestamp), nil
 }
 
 func (tx *ExchangeWithSig) BodySerialize(s *serializer.Serializer) error {
@@ -1385,6 +1428,9 @@ func (tx *ExchangeWithSig) bodyUnmarshalBinary(data []byte) (int, error) {
 	n += 4
 	sol := binary.BigEndian.Uint32(data[n:])
 	n += 4
+	if l, ol := len(data)-n, int(bol)+int(sol)+exchangeTailLen; l < ol {
+		return 0, errors.Errorf("not enough data for ExchangeWithSig orders and tail, expected %d, received %d", ol, l)
+	}
 	var bo OrderV1
 	err := bo.UnmarshalBinary(data[n:])
 	if err != nil {
@@ -1448,15 +1494,19 @@ func (tx *ExchangeWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (bo
 
 // MarshalBinary saves the transaction to its binary representation.
 func (tx *ExchangeWithSig) MarshalBinary(scheme Scheme) ([]byte, error) {
-	b, err := tx.BodyMarshalBinary(scheme)
+	return tx.appendTxBinary(make([]byte, 0, tx.bodySize()+crypto.SignatureSize), scheme)
+}
+
+// appendTxBinary appends the binary transaction to dst. It appends exactly the bytes MarshalBinary returns.
+func (tx *ExchangeWithSig) appendTxBinary(dst []byte, _ Scheme) ([]byte, error) {
+	if tx.Signature == nil {
+		return nil, errors.New("failed to marshal ExchangeWithSig transaction to bytes: no signature")
+	}
+	buf, err := tx.appendBody(dst)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal ExchangeWithSig transaction to bytes")
 	}
-	bl := len(b)
-	buf := make([]byte, bl+crypto.SignatureSize)
-	copy(buf[0:], b)
-	copy(buf[bl:], tx.Signature[:])
-	return buf, nil
+	return append(buf, tx.Signature[:]...), nil
 }
 
 // UnmarshalBinary loads the transaction from its binary representation.
@@ -1474,6 +1524,11 @@ func (tx *ExchangeWithSig) UnmarshalBinary(data []byte, scheme Scheme) error {
 		return errors.Wrap(err, "failed to unmarshal ExchangeWithSig transaction from bytes")
 	}
 	data = data[bl:]
+	if l := len(data); l < crypto.SignatureSize {
+		return errors.Errorf("not enough data for ExchangeWithSig signature, expected %d, received %d",
+			crypto.SignatureSize, l,
+		)
+	}
 	var s crypto.Signature
 	copy(s[:], data[:crypto.SignatureSize])
 	tx.Signature = &s
@@ -1632,15 +1687,18 @@ func NewUnsignedLeaseWithSig(senderPK crypto.PublicKey, recipient Recipient, amo
 }
 
 func (tx *LeaseWithSig) BodyMarshalBinary(Scheme) ([]byte, error) {
-	rl := tx.Recipient.BinarySize()
-	buf := make([]byte, leaseWithSigBodyLen+rl)
-	buf[0] = byte(tx.Type)
-	b, err := tx.marshalBinary()
+	return tx.appendBody(make([]byte, 0, leaseWithSigBodyLen+tx.Recipient.BinarySize()))
+}
+
+// appendBody appends the binary body of the transaction (type byte and Lease body) to dst.
+// It appends exactly leaseWithSigBodyLen+tx.Recipient.BinarySize() bytes.
+func (tx *LeaseWithSig) appendBody(dst []byte) ([]byte, error) {
+	dst = append(dst, byte(tx.Type))
+	dst, err := tx.appendBinary(dst)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal LeaseWithSig transaction to bytes")
 	}
-	copy(buf[1:], b)
-	return buf, nil
+	return dst, nil
 }
 
 func (tx *LeaseWithSig) bodyUnmarshalBinary(data []byte) error {
@@ -1696,19 +1754,24 @@ func (tx *LeaseWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool,
 
 // MarshalBinary saves the transaction to its binary representation.
 func (tx *LeaseWithSig) MarshalBinary(scheme Scheme) ([]byte, error) {
-	b, err := tx.BodyMarshalBinary(scheme)
+	return tx.appendTxBinary(make([]byte, 0, tx.BinarySize()), scheme)
+}
+
+// appendTxBinary appends the binary transaction to dst. It appends exactly the bytes MarshalBinary returns.
+func (tx *LeaseWithSig) appendTxBinary(dst []byte, _ Scheme) ([]byte, error) {
+	if tx.Signature == nil {
+		return nil, errors.New("failed to marshal LeaseWithSig transaction to bytes: no signature")
+	}
+	buf, err := tx.appendBody(dst)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal LeaseWithSig transaction to bytes")
 	}
-	bl := len(b)
-	buf := make([]byte, bl+crypto.SignatureSize)
-	copy(buf[0:], b)
-	copy(buf[bl:], tx.Signature[:])
-	return buf, nil
+	return append(buf, tx.Signature[:]...), nil
 }
 
 // UnmarshalBinary reads the transaction from bytes slice.
 func (tx *LeaseWithSig) UnmarshalBinary(data []byte, scheme Scheme) error {
+	input := data
 	if l := len(data); l < leaseWithSigMinLen {
 		return errors.Errorf("not enough data for LeaseWithSig transaction, expected not less than %d, received %d",
 			leaseWithSigMinLen, l,
@@ -1723,12 +1786,17 @@ func (tx *LeaseWithSig) UnmarshalBinary(data []byte, scheme Scheme) error {
 	}
 	bl := leaseWithSigBodyLen + tx.Recipient.BinarySize()
 	data = data[bl:]
+	if l := len(data); l < crypto.SignatureSize {
+		return errors.Errorf("not enough data for signature, expected %d, received %d", crypto.SignatureSize, l)
+	}
 	var s crypto.Signature
 	copy(s[:], data[:crypto.SignatureSize])
 	tx.Signature = &s
-	if err := tx.GenerateID(scheme); err != nil {
-		return err
+	id, err := idFromInputBody(tx, scheme, input, 0, tx.BinarySize()-crypto.SignatureSize)
+	if err != nil {
+		return errors.Wrap(err, "failed to generate ID of LeaseWithSig transaction")
 	}
+	tx.ID = id
 	return nil
 }
 
@@ -1874,14 +1942,14 @@ func NewUnsignedLeaseCancelWithSig(senderPK crypto.PublicKey, leaseID crypto.Dig
 }
 
 func (tx *LeaseCancelWithSig) BodyMarshalBinary(Scheme) ([]byte, error) {
-	buf := make([]byte, leaseCancelWithSigBodyLen)
-	buf[0] = byte(tx.Type)
-	b, err := tx.marshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal LeaseCancelWithSig to bytes")
-	}
-	copy(buf[1:], b)
-	return buf, nil
+	return tx.appendBody(make([]byte, 0, leaseCancelWithSigBodyLen))
+}
+
+// appendBody appends the binary body of the transaction (type byte and LeaseCancel body) to dst.
+// It appends exactly leaseCancelWithSigBodyLen bytes.
+func (tx *LeaseCancelWithSig) appendBody(dst []byte) ([]byte, error) {
+	dst = append(dst, byte(tx.Type))
+	return tx.appendBinary(dst), nil
 }
 
 func (tx *LeaseCancelWithSig) bodyUnmarshalBinary(data []byte) error {
@@ -1938,18 +2006,23 @@ func (tx *LeaseCancelWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) 
 
 // MarshalBinary saves transaction to its binary representation.
 func (tx *LeaseCancelWithSig) MarshalBinary(scheme Scheme) ([]byte, error) {
-	b, err := tx.BodyMarshalBinary(scheme)
+	return tx.appendTxBinary(make([]byte, 0, tx.BinarySize()), scheme)
+}
+
+// appendTxBinary appends the binary transaction to dst. It appends exactly the bytes MarshalBinary returns.
+func (tx *LeaseCancelWithSig) appendTxBinary(dst []byte, _ Scheme) ([]byte, error) {
+	if tx.Signature == nil {
+		return nil, errors.New("failed to marshal LeaseCancelWithSig transaction to bytes: no signature")
+	}
+	buf, err := tx.appendBody(dst)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal LeaseCancelWithSig transaction to bytes")
 	}
-	bl := len(b)
-	buf := make([]byte, bl+crypto.SignatureSize)
-	copy(buf[0:], b)
-	copy(buf[bl:], tx.Signature[:])
-	return buf, nil
+	return append(buf, tx.Signature[:]...), nil
 }
 
 func (tx *LeaseCancelWithSig) UnmarshalBinary(data []byte, scheme Scheme) error {
+	input := data
 	if l := len(data); l < leaseCancelWithSigMinLen {
 		return errors.Errorf(
 			"not enough data for LeaseCancelWithSig transaction, expected not less than %d, received %d",
@@ -1967,9 +2040,11 @@ func (tx *LeaseCancelWithSig) UnmarshalBinary(data []byte, scheme Scheme) error 
 	var s crypto.Signature
 	copy(s[:], data[:crypto.SignatureSize])
 	tx.Signature = &s
-	if err := tx.GenerateID(scheme); err != nil {
-		return err
+	id, err := idFromInputBody(tx, scheme, input, 0, tx.BinarySize()-crypto.SignatureSize)
+	if err != nil {
+		return errors.Wrap(err, "failed to generate ID of LeaseCancelWithSig transaction")
 	}
+	tx.ID = id
 	return nil
 }
 
@@ -2122,14 +2197,14 @@ func NewUnsignedCreateAliasWithSig(senderPK crypto.PublicKey, alias Alias, fee, 
 }
 
 func (tx *CreateAliasWithSig) BodyMarshalBinary(Scheme) ([]byte, error) {
-	buf := make([]byte, createAliasWithSigFixedBodyLen+len(tx.Alias.Alias))
-	buf[0] = byte(tx.Type)
-	b, err := tx.marshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal CreateAliasWithSig transaction body to bytes")
-	}
-	copy(buf[1:], b)
-	return buf, nil
+	return tx.appendBody(make([]byte, 0, createAliasWithSigFixedBodyLen+len(tx.Alias.Alias)))
+}
+
+// appendBody appends the binary body of the transaction (type byte and CreateAlias body) to dst.
+// It appends exactly createAliasWithSigFixedBodyLen+len(tx.Alias.Alias) bytes.
+func (tx *CreateAliasWithSig) appendBody(dst []byte) ([]byte, error) {
+	dst = append(dst, byte(tx.Type))
+	return tx.appendBinary(dst), nil
 }
 
 func (tx *CreateAliasWithSig) bodyUnmarshalBinary(data []byte) error {
@@ -2181,15 +2256,19 @@ func (tx *CreateAliasWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) 
 }
 
 func (tx *CreateAliasWithSig) MarshalBinary(scheme Scheme) ([]byte, error) {
-	b, err := tx.BodyMarshalBinary(scheme)
+	return tx.appendTxBinary(make([]byte, 0, tx.BinarySize()), scheme)
+}
+
+// appendTxBinary appends the binary transaction to dst. It appends exactly the bytes MarshalBinary returns.
+func (tx *CreateAliasWithSig) appendTxBinary(dst []byte, _ Scheme) ([]byte, error) {
+	if tx.Signature == nil {
+		return nil, errors.New("failed to marshal CreateAliasWithSig transaction to bytes: no signature")
+	}
+	buf, err := tx.appendBody(dst)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal CreateAliasWithSig transaction to bytes")
 	}
-	bl := len(b)
-	buf := make([]byte, bl+crypto.SignatureSize)
-	copy(buf[0:], b)
-	copy(buf[bl:], tx.Signature[:])
-	return buf, nil
+	return append(buf, tx.Signature[:]...), nil
 }
 
 func (tx *CreateAliasWithSig) UnmarshalBinary(data []byte, scheme Scheme) error {
@@ -2208,6 +2287,9 @@ func (tx *CreateAliasWithSig) UnmarshalBinary(data []byte, scheme Scheme) error 
 	}
 	bl := createAliasWithSigFixedBodyLen + len(tx.Alias.Alias)
 	data = data[bl:]
+	if l := len(data); l < crypto.SignatureSize {
+		return errors.Errorf("not enough data for signature, expected %d, received %d", crypto.SignatureSize, l)
+	}
 	var s crypto.Signature
 	copy(s[:], data[:crypto.SignatureSize])
 	tx.Signature = &s

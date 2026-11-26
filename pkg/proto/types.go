@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -405,6 +404,16 @@ func (a OptionalAsset) MarshalBinary() ([]byte, error) {
 		copy(buf[1:], a.ID[:])
 	}
 	return buf, nil
+}
+
+// appendBinary appends the binary representation of the optional asset to dst.
+// It appends exactly BinarySize() bytes, the same bytes as MarshalBinary.
+func (a *OptionalAsset) appendBinary(dst []byte) []byte {
+	dst = appendBool(dst, a.Present)
+	if a.Present {
+		dst = append(dst, a.ID[:]...)
+	}
+	return dst
 }
 
 // WriteTo writes its binary representation.
@@ -852,44 +861,21 @@ func (o *OrderBody) SpendAsset() OptionalAsset {
 }
 
 func (o *OrderBody) marshalBinary() ([]byte, error) {
-	var p int
-	aal := 0
-	if o.AssetPair.AmountAsset.Present {
-		aal += crypto.DigestSize
-	}
-	pal := 0
-	if o.AssetPair.PriceAsset.Present {
-		pal += crypto.DigestSize
-	}
-	buf := make([]byte, orderLen+aal+pal)
-	copy(buf[0:], o.SenderPK[:])
-	p += crypto.PublicKeySize
-	copy(buf[p:], o.MatcherPK[:])
-	p += crypto.PublicKeySize
-	aa, err := o.AssetPair.AmountAsset.MarshalBinary()
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed marshal OrderBody to bytes")
-	}
-	copy(buf[p:], aa)
-	p += 1 + aal
-	pa, err := o.AssetPair.PriceAsset.MarshalBinary()
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed marshal OrderBody to bytes")
-	}
-	copy(buf[p:], pa)
-	p += 1 + pal
-	buf[p] = byte(o.OrderType)
-	p++
-	binary.BigEndian.PutUint64(buf[p:], o.Price)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], o.Amount)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], o.Timestamp)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], o.Expiration)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], o.MatcherFee)
-	return buf, nil
+	return o.appendBinary(make([]byte, 0, o.BinarySize())), nil
+}
+
+// appendBinary appends the common order body to dst. It appends exactly BinarySize() bytes.
+func (o *OrderBody) appendBinary(dst []byte) []byte {
+	dst = append(dst, o.SenderPK[:]...)
+	dst = append(dst, o.MatcherPK[:]...)
+	dst = o.AssetPair.AmountAsset.appendBinary(dst)
+	dst = o.AssetPair.PriceAsset.appendBinary(dst)
+	dst = append(dst, byte(o.OrderType))
+	dst = binary.BigEndian.AppendUint64(dst, o.Price)
+	dst = binary.BigEndian.AppendUint64(dst, o.Amount)
+	dst = binary.BigEndian.AppendUint64(dst, o.Timestamp)
+	dst = binary.BigEndian.AppendUint64(dst, o.Expiration)
+	return binary.BigEndian.AppendUint64(dst, o.MatcherFee)
 }
 
 func (o *OrderBody) Serialize(s *serializer.Serializer) error {
@@ -955,6 +941,10 @@ func (o *OrderBody) UnmarshalBinary(data []byte) error {
 	data = data[1:]
 	if o.AssetPair.PriceAsset.Present {
 		data = data[crypto.DigestSize:]
+	}
+	const tailLen = 1 + 8 + 8 + 8 + 8 + 8 // type + price + amount + timestamp + expiration + matcher fee
+	if l := len(data); l < tailLen {
+		return errors.Errorf("not enough data for OrderBody tail, expected %d, received %d", tailLen, l)
 	}
 	o.OrderType = OrderType(data[0])
 	if o.OrderType > 1 {
@@ -1138,15 +1128,16 @@ func (o *OrderV1) Verify(_ Scheme) (bool, error) {
 
 // MarshalBinary writes order to its bytes representation.
 func (o *OrderV1) MarshalBinary() ([]byte, error) {
-	b, err := o.BodyMarshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal OrderV1 to bytes")
+	return o.appendBinary(make([]byte, 0, o.BinarySize()))
+}
+
+// appendBinary appends the order body followed by the signature to dst. It appends exactly BinarySize() bytes.
+func (o *OrderV1) appendBinary(dst []byte) ([]byte, error) {
+	if o.Signature == nil {
+		return nil, errors.New("failed to marshal OrderV1 to bytes: no signature")
 	}
-	bl := len(b)
-	buf := make([]byte, bl+crypto.SignatureSize)
-	copy(buf[0:], b)
-	copy(buf[bl:], o.Signature[:])
-	return buf, nil
+	dst = o.OrderBody.appendBinary(dst)
+	return append(dst, o.Signature[:]...), nil
 }
 
 // Serialize order to its bytes representation.
@@ -1177,6 +1168,9 @@ func (o *OrderV1) UnmarshalBinary(data []byte) error {
 	}
 	b := data[:bl]
 	data = data[bl:]
+	if l := len(data); l < crypto.SignatureSize {
+		return errors.Errorf("not enough data for OrderV1 signature, expected %d, received %d", crypto.SignatureSize, l)
+	}
 	var s crypto.Signature
 	copy(s[:], data[:crypto.SignatureSize])
 	o.Signature = &s
@@ -1305,22 +1299,20 @@ func (o *OrderV2) GenerateID(_ Scheme) error {
 }
 
 func (o OrderV2) BodyMarshalBinary() ([]byte, error) {
-	aal := 0
-	if o.AssetPair.AmountAsset.Present {
-		aal += crypto.DigestSize
+	return o.appendBody(make([]byte, 0, 1+o.OrderBody.BinarySize())), nil
+}
+
+// appendBody appends the version byte and the order body to dst. It appends exactly 1+OrderBody.BinarySize() bytes.
+func (o *OrderV2) appendBody(dst []byte) []byte {
+	return o.OrderBody.appendBinary(append(dst, byte(o.Version)))
+}
+
+// appendBinary appends the order body followed by the proofs to dst. It appends exactly BinarySize() bytes.
+func (o *OrderV2) appendBinary(dst []byte) ([]byte, error) {
+	if o.Proofs == nil {
+		return nil, errors.New("failed to marshal OrderV2 to bytes: no proofs")
 	}
-	pal := 0
-	if o.AssetPair.PriceAsset.Present {
-		pal += crypto.DigestSize
-	}
-	buf := make([]byte, orderV2FixedBodyLen+aal+pal)
-	buf[0] = byte(o.Version)
-	b, err := o.marshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal OrderV2 to bytes")
-	}
-	copy(buf[1:], b)
-	return buf, nil
+	return o.Proofs.appendBinary(o.appendBody(dst)), nil
 }
 
 func (o *OrderV2) bodyUnmarshalBinary(data []byte) error {
@@ -1372,19 +1364,7 @@ func (o *OrderV2) Verify(_ Scheme) (bool, error) {
 
 // MarshalBinary writes order to its bytes representation.
 func (o *OrderV2) MarshalBinary() ([]byte, error) {
-	bb, err := o.BodyMarshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal OrderV2 to bytes")
-	}
-	bl := len(bb)
-	pfb, err := o.Proofs.MarshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal OrderV2 to bytes")
-	}
-	buf := make([]byte, bl+len(pfb))
-	copy(buf, bb)
-	copy(buf[bl:], pfb)
-	return buf, nil
+	return o.appendBinary(make([]byte, 0, o.BinarySize()))
 }
 
 // UnmarshalBinary reads an order from its binary representation.
@@ -1538,34 +1518,27 @@ func (o *OrderV3) GenerateID(_ Scheme) error {
 }
 
 func (o *OrderV3) BodyMarshalBinary() ([]byte, error) {
-	aal := 0
-	if o.AssetPair.AmountAsset.Present {
-		aal += crypto.DigestSize
+	return o.appendBody(make([]byte, 0, o.bodySize())), nil
+}
+
+// bodySize returns the exact size of the binary body, so BodyMarshalBinary allocates the buffer only once.
+func (o *OrderV3) bodySize() int {
+	return 1 + o.OrderBody.BinarySize() + o.MatcherFeeAsset.BinarySize()
+}
+
+// appendBody appends the version byte, the order body and the matcher fee asset to dst.
+// It appends exactly bodySize() bytes.
+func (o *OrderV3) appendBody(dst []byte) []byte {
+	dst = o.OrderBody.appendBinary(append(dst, byte(o.Version)))
+	return o.MatcherFeeAsset.appendBinary(dst)
+}
+
+// appendBinary appends the order body followed by the proofs to dst. It appends exactly BinarySize() bytes.
+func (o *OrderV3) appendBinary(dst []byte) ([]byte, error) {
+	if o.Proofs == nil {
+		return nil, errors.New("failed to marshal OrderV3 to bytes: no proofs")
 	}
-	pal := 0
-	if o.AssetPair.PriceAsset.Present {
-		pal += crypto.DigestSize
-	}
-	mal := 0
-	if o.MatcherFeeAsset.Present {
-		mal += crypto.DigestSize
-	}
-	buf := make([]byte, orderV3FixedBodyLen+aal+pal+mal)
-	pos := 0
-	buf[pos] = byte(o.Version)
-	pos++
-	b, err := o.marshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal OrderV3 to bytes")
-	}
-	copy(buf[pos:], b)
-	pos += len(b)
-	mfa, err := o.MatcherFeeAsset.MarshalBinary()
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed marshal OrderV3 to bytes")
-	}
-	copy(buf[pos:], mfa)
-	return buf, nil
+	return o.Proofs.appendBinary(o.appendBody(dst)), nil
 }
 
 func (o *OrderV3) bodyUnmarshalBinary(data []byte) error {
@@ -1630,19 +1603,7 @@ func (o *OrderV3) Verify(_ Scheme) (bool, error) {
 
 // MarshalBinary writes order to its bytes representation.
 func (o *OrderV3) MarshalBinary() ([]byte, error) {
-	bb, err := o.BodyMarshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal OrderV3 to bytes")
-	}
-	bl := len(bb)
-	pfb, err := o.Proofs.MarshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal OrderV3 to bytes")
-	}
-	buf := make([]byte, bl+len(pfb))
-	copy(buf, bb)
-	copy(buf[bl:], pfb)
-	return buf, nil
+	return o.appendBinary(make([]byte, 0, o.BinarySize()))
 }
 
 // UnmarshalBinary reads an order from its binary representation.
@@ -2144,6 +2105,16 @@ func (p ProofsV1) Bytes() [][]byte {
 	return res
 }
 
+// bytesNoCopy returns the proofs as byte slices that alias the proofs storage. Only the outer slice is
+// allocated. The result is for marshal-only paths and must be neither modified nor retained.
+func (p *ProofsV1) bytesNoCopy() [][]byte {
+	res := make([][]byte, len(p.Proofs))
+	for i, proof := range p.Proofs {
+		res[i] = proof
+	}
+	return res
+}
+
 // String gives a string representation of the proofs collection.
 func (p ProofsV1) String() string {
 	var sb strings.Builder
@@ -2180,20 +2151,28 @@ func (p *ProofsV1) UnmarshalJSON(value []byte) error {
 
 // MarshalBinary writes the proofs to its binary form.
 func (p *ProofsV1) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, p.BinarySize())
-	pos := 0
-	buf[pos] = proofsVersion
-	pos++
-	binary.BigEndian.PutUint16(buf[pos:], uint16(len(p.Proofs)))
-	pos += 2
+	return p.appendBinary(make([]byte, 0, p.BinarySize())), nil
+}
+
+// appendBinary appends the binary form of the proofs to dst. It appends exactly BinarySize() bytes.
+// The version byte is always proofsVersion, as in MarshalBinary and Serialize.
+func (p *ProofsV1) appendBinary(dst []byte) []byte {
+	dst = append(dst, proofsVersion)
+	dst = binary.BigEndian.AppendUint16(dst, uint16(len(p.Proofs))) // #nosec G115 // Count is validated elsewhere.
 	for _, e := range p.Proofs {
-		el := len(e)
-		binary.BigEndian.PutUint16(buf[pos:], uint16(el))
-		pos += 2
-		copy(buf[pos:], e)
-		pos += el
+		dst = binary.BigEndian.AppendUint16(dst, uint16(len(e))) // #nosec G115 // Proof size is validated elsewhere.
+		dst = append(dst, e...)
 	}
-	return buf, nil
+	return dst
+}
+
+// appendProofsBinary appends the binary form of proofs to buf, the last part of a transaction with proofs.
+// It returns an error if the proofs are nil.
+func appendProofsBinary(buf []byte, proofs *ProofsV1, txName string) ([]byte, error) {
+	if proofs == nil {
+		return nil, errors.Errorf("failed to marshal %s transaction to bytes: no proofs", txName)
+	}
+	return proofs.appendBinary(buf), nil
 }
 
 // Serialize proofs to its binary form.
@@ -2235,16 +2214,43 @@ func (p *ProofsV1) UnmarshalBinary(data []byte) error {
 		return errors.Errorf("too many proofs in ProofsV1, expected no more than %d, received %d", proofsMaxCount, n)
 	}
 	data = data[2:]
-	for range n {
-		el := binary.BigEndian.Uint16(data)
+	// The first pass validates the proofs and sums their sizes, so all proofs are copied into one allocation.
+	total := 0
+	rest := data
+	for i := range n {
+		if l := len(rest); l < 2 {
+			return errors.Errorf("not enough data for length of proof #%d, expected %d, received %d", i, 2, l)
+		}
+		el := binary.BigEndian.Uint16(rest)
 		if el > proofMaxSize {
 			return errors.Errorf("proof size %d bytes exceeds maximum allowed %d", el, proofMaxSize)
 		}
+		rest = rest[2:]
+		if l := len(rest); l < int(el) {
+			return errors.Errorf("not enough data for proof #%d, expected %d, received %d", i, el, l)
+		}
+		rest = rest[el:]
+		total += int(el)
+	}
+	if n == 0 {
+		return nil
+	}
+	backing := make([]byte, total)
+	proofs := make([]B58Bytes, n)
+	for i := range n {
+		el := int(binary.BigEndian.Uint16(data))
 		data = data[2:]
-		pr := make([]byte, el)
-		copy(pr, data[0:el])
+		// The capacity is limited, so appending to a proof never overwrites the next one.
+		pr := backing[:el:el]
+		copy(pr, data[:el])
+		backing = backing[el:]
 		data = data[el:]
-		p.Proofs = append(p.Proofs, pr)
+		proofs[i] = pr
+	}
+	if p.Proofs == nil {
+		p.Proofs = proofs
+	} else {
+		p.Proofs = append(p.Proofs, proofs...)
 	}
 	return nil
 }
@@ -2373,25 +2379,31 @@ type DataEntry interface {
 	ToProtobuf() *g.DataEntry
 }
 
-var bytesToDataEntry = map[DataValueType]reflect.Type{
-	DataInteger: reflect.TypeFor[IntegerDataEntry](),
-	DataBoolean: reflect.TypeFor[BooleanDataEntry](),
-	DataString:  reflect.TypeFor[StringDataEntry](),
-	DataBinary:  reflect.TypeFor[BinaryDataEntry](),
-	DataDelete:  reflect.TypeFor[DeleteDataEntry](),
+// newDataEntryByType returns an empty data entry for the given value type, or nil if the type is unknown.
+func newDataEntryByType(t DataValueType) DataEntry {
+	switch t {
+	case DataInteger:
+		return new(IntegerDataEntry)
+	case DataBoolean:
+		return new(BooleanDataEntry)
+	case DataString:
+		return new(StringDataEntry)
+	case DataBinary:
+		return new(BinaryDataEntry)
+	case DataDelete:
+		return new(DeleteDataEntry)
+	default:
+		return nil
+	}
 }
 
 func NewDataEntryFromValueBytes(valueBytes []byte) (DataEntry, error) {
 	if len(valueBytes) < 1 {
 		return nil, errors.New("invalid data size")
 	}
-	entryType, ok := bytesToDataEntry[DataValueType(valueBytes[0])]
-	if !ok {
+	entry := newDataEntryByType(DataValueType(valueBytes[0]))
+	if entry == nil {
 		return nil, errors.New("invalid data entry type")
-	}
-	entry, ok := reflect.TypeAssert[DataEntry](reflect.New(entryType))
-	if !ok {
-		panic("This entry type does not implement DataEntry interface")
 	}
 	if err := entry.UnmarshalValue(valueBytes); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal entry")
@@ -2457,12 +2469,13 @@ func (e *IntegerDataEntry) MarshaledValueSize() int {
 
 // MarshalValue marshals the integer data entry value in its bytes representation.
 func (e IntegerDataEntry) MarshalValue() ([]byte, error) {
-	buf := make([]byte, e.MarshaledValueSize())
-	pos := 0
-	buf[pos] = byte(DataInteger)
-	pos++
-	binary.BigEndian.PutUint64(buf[pos:], uint64(e.Value))
-	return buf, nil
+	return e.appendValue(make([]byte, 0, e.MarshaledValueSize())), nil
+}
+
+// appendValue appends the value bytes of the entry to dst. It appends exactly MarshaledValueSize() bytes.
+func (e *IntegerDataEntry) appendValue(dst []byte) []byte {
+	dst = append(dst, byte(DataInteger))
+	return binary.BigEndian.AppendUint64(dst, uint64(e.Value)) // #nosec G115 // Two's complement as in MarshalValue.
 }
 
 func (e *IntegerDataEntry) WriteValueTo(w io.Writer) error {
@@ -2492,16 +2505,12 @@ func (e *IntegerDataEntry) UnmarshalValue(data []byte) error {
 
 // MarshalBinary marshals the integer data entry in its bytes representation.
 func (e IntegerDataEntry) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, e.BinarySize())
-	pos := 0
-	PutStringWithUInt16Len(buf[pos:], e.Key)
-	pos += 2 + len(e.Key)
-	valueBytes, err := e.MarshalValue()
-	if err != nil {
-		return nil, err
-	}
-	copy(buf[pos:], valueBytes)
-	return buf, nil
+	return e.appendBinary(make([]byte, 0, e.BinarySize())), nil
+}
+
+// appendBinary appends the key and the value bytes of the entry to dst. It appends exactly BinarySize() bytes.
+func (e *IntegerDataEntry) appendBinary(dst []byte) []byte {
+	return e.appendValue(appendStringWithUInt16Len(dst, e.Key))
 }
 
 // UnmarshalBinary reads binary representation of integer data entry to the structure.
@@ -2604,12 +2613,12 @@ func (e *BooleanDataEntry) MarshaledValueSize() int {
 
 // MarshalValue writes a byte representation of the boolean data entry value.
 func (e BooleanDataEntry) MarshalValue() ([]byte, error) {
-	buf := make([]byte, e.MarshaledValueSize())
-	pos := 0
-	buf[pos] = byte(DataBoolean)
-	pos++
-	PutBool(buf[pos:], e.Value)
-	return buf, nil
+	return e.appendValue(make([]byte, 0, e.MarshaledValueSize())), nil
+}
+
+// appendValue appends the value bytes of the entry to dst. It appends exactly MarshaledValueSize() bytes.
+func (e *BooleanDataEntry) appendValue(dst []byte) []byte {
+	return appendBool(append(dst, byte(DataBoolean)), e.Value)
 }
 
 func (e *BooleanDataEntry) WriteValueTo(w io.Writer) error {
@@ -2641,16 +2650,12 @@ func (e *BooleanDataEntry) UnmarshalValue(data []byte) error {
 
 // MarshalBinary writes a byte representation of the boolean data entry.
 func (e BooleanDataEntry) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, e.BinarySize())
-	pos := 0
-	PutStringWithUInt16Len(buf[pos:], e.Key)
-	pos += 2 + len(e.Key)
-	valueBytes, err := e.MarshalValue()
-	if err != nil {
-		return nil, err
-	}
-	copy(buf[pos:], valueBytes)
-	return buf, nil
+	return e.appendBinary(make([]byte, 0, e.BinarySize())), nil
+}
+
+// appendBinary appends the key and the value bytes of the entry to dst. It appends exactly BinarySize() bytes.
+func (e *BooleanDataEntry) appendBinary(dst []byte) []byte {
+	return e.appendValue(appendStringWithUInt16Len(dst, e.Key))
 }
 
 // UnmarshalBinary reads a byte representation of the data entry.
@@ -2756,14 +2761,17 @@ func (e *BinaryDataEntry) MarshaledValueSize() int {
 
 // MarshalValue writes an entry value to its byte representation.
 func (e BinaryDataEntry) MarshalValue() ([]byte, error) {
-	pos := 0
-	buf := make([]byte, e.MarshaledValueSize())
-	buf[pos] = byte(DataBinary)
-	pos++
-	if err := PutBytesWithUInt16Len(buf[pos:], e.Value); err != nil {
+	return e.appendValue(make([]byte, 0, e.MarshaledValueSize()))
+}
+
+// appendValue appends the value bytes of the entry to dst. It appends exactly MarshaledValueSize() bytes.
+// It rejects the same value lengths as PutBytesWithUInt16Len.
+func (e *BinaryDataEntry) appendValue(dst []byte) ([]byte, error) {
+	dst, err := appendBytesWithUInt16Len(append(dst, byte(DataBinary)), e.Value)
+	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal BinaryDataEntry value")
 	}
-	return buf, nil
+	return dst, nil
 }
 
 func (e *BinaryDataEntry) WriteValueTo(w io.Writer) error {
@@ -2795,16 +2803,12 @@ func (e *BinaryDataEntry) UnmarshalValue(data []byte) error {
 
 // MarshalBinary writes an entry to its byte representation.
 func (e BinaryDataEntry) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, e.BinarySize())
-	pos := 0
-	PutStringWithUInt16Len(buf[pos:], e.Key)
-	pos += 2 + len(e.Key)
-	valueBytes, err := e.MarshalValue()
-	if err != nil {
-		return nil, err
-	}
-	copy(buf[pos:], valueBytes)
-	return buf, nil
+	return e.appendBinary(make([]byte, 0, e.BinarySize()))
+}
+
+// appendBinary appends the key and the value bytes of the entry to dst. It appends exactly BinarySize() bytes.
+func (e *BinaryDataEntry) appendBinary(dst []byte) ([]byte, error) {
+	return e.appendValue(appendStringWithUInt16Len(dst, e.Key))
 }
 
 // UnmarshalBinary reads an entry from a binary representation.
@@ -2910,12 +2914,12 @@ func (e *StringDataEntry) MarshaledValueSize() int {
 
 // MarshalValue converts the data entry value to its byte representation.
 func (e StringDataEntry) MarshalValue() ([]byte, error) {
-	buf := make([]byte, e.MarshaledValueSize())
-	pos := 0
-	buf[pos] = byte(DataString)
-	pos++
-	PutStringWithUInt16Len(buf[pos:], e.Value)
-	return buf, nil
+	return e.appendValue(make([]byte, 0, e.MarshaledValueSize())), nil
+}
+
+// appendValue appends the value bytes of the entry to dst. It appends exactly MarshaledValueSize() bytes.
+func (e *StringDataEntry) appendValue(dst []byte) []byte {
+	return appendStringWithUInt16Len(append(dst, byte(DataString)), e.Value)
 }
 
 func (e *StringDataEntry) WriteValueTo(w io.Writer) error {
@@ -2947,16 +2951,12 @@ func (e *StringDataEntry) UnmarshalValue(data []byte) error {
 
 // MarshalBinary converts the data entry to its byte representation.
 func (e StringDataEntry) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, e.BinarySize())
-	pos := 0
-	PutStringWithUInt16Len(buf[pos:], e.Key)
-	pos += 2 + len(e.Key)
-	valueBytes, err := e.MarshalValue()
-	if err != nil {
-		return nil, err
-	}
-	copy(buf[pos:], valueBytes)
-	return buf, nil
+	return e.appendBinary(make([]byte, 0, e.BinarySize())), nil
+}
+
+// appendBinary appends the key and the value bytes of the entry to dst. It appends exactly BinarySize() bytes.
+func (e *StringDataEntry) appendBinary(dst []byte) []byte {
+	return e.appendValue(appendStringWithUInt16Len(dst, e.Key))
 }
 
 // UnmarshalBinary reads StringDataEntry structure from bytes.
@@ -3082,16 +3082,12 @@ func (e *DeleteDataEntry) UnmarshalValue(data []byte) error {
 
 // MarshalBinary converts the data entry to its byte representation.
 func (e DeleteDataEntry) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, e.BinarySize())
-	pos := 0
-	PutStringWithUInt16Len(buf[pos:], e.Key)
-	pos += 2 + len(e.Key)
-	valueBytes, err := e.MarshalValue()
-	if err != nil {
-		return nil, err
-	}
-	copy(buf[pos:], valueBytes)
-	return buf, nil
+	return e.appendBinary(make([]byte, 0, e.BinarySize())), nil
+}
+
+// appendBinary appends the key and the value type byte of the entry to dst. It appends exactly BinarySize() bytes.
+func (e *DeleteDataEntry) appendBinary(dst []byte) []byte {
+	return append(appendStringWithUInt16Len(dst, e.Key), byte(DataDelete))
 }
 
 // UnmarshalBinary reads StringDataEntry structure from bytes.
@@ -3207,6 +3203,29 @@ func (e DataEntries) BinarySize() int {
 		bs += e[i].BinarySize()
 	}
 	return bs
+}
+
+// appendDataEntryBinary appends the binary form of the entry to dst, the same bytes as e.MarshalBinary().
+// It appends exactly e.BinarySize() bytes. Implementations from outside the package fall back to MarshalBinary.
+func appendDataEntryBinary(dst []byte, e DataEntry) ([]byte, error) {
+	switch te := e.(type) {
+	case *IntegerDataEntry:
+		return te.appendBinary(dst), nil
+	case *BooleanDataEntry:
+		return te.appendBinary(dst), nil
+	case *BinaryDataEntry:
+		return te.appendBinary(dst)
+	case *StringDataEntry:
+		return te.appendBinary(dst), nil
+	case *DeleteDataEntry:
+		return te.appendBinary(dst), nil
+	default:
+		b, err := e.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		return append(dst, b...), nil
+	}
 }
 
 // Valid calls DataEntry.Valid for each entry.
@@ -3457,19 +3476,43 @@ func (a *Arguments) UnmarshalJSON(data []byte) error {
 }
 
 func (a Arguments) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, a.BinarySize())
-	p := 0
-	binary.BigEndian.PutUint32(buf, uint32(len(a)))
-	p += 4
+	return a.appendBinary(make([]byte, 0, a.BinarySize()))
+}
+
+// appendBinary appends the 4-byte count followed by every argument to dst. Nested lists are written in place.
+// It appends exactly BinarySize() bytes.
+func (a Arguments) appendBinary(dst []byte) ([]byte, error) {
+	dst = binary.BigEndian.AppendUint32(dst, uint32(len(a))) // #nosec G115 // Count is validated elsewhere.
 	for _, arg := range a {
-		b, err := arg.MarshalBinary()
-		if err != nil {
+		var err error
+		if dst, err = appendArgumentBinary(dst, arg); err != nil {
 			return nil, errors.Wrap(err, "failed to marshal Arguments to bytes")
 		}
-		copy(buf[p:], b)
-		p += len(b)
 	}
-	return buf, nil
+	return dst, nil
+}
+
+// appendArgumentBinary appends the binary form of the argument to dst, the same bytes as arg.MarshalBinary().
+// It appends exactly arg.BinarySize() bytes. Implementations from outside the package fall back to MarshalBinary.
+func appendArgumentBinary(dst []byte, arg Argument) ([]byte, error) {
+	switch ta := arg.(type) {
+	case *IntegerArgument:
+		return ta.appendBinary(dst), nil
+	case *BooleanArgument:
+		return ta.appendBinary(dst), nil
+	case *BinaryArgument:
+		return ta.appendBinary(dst)
+	case *StringArgument:
+		return ta.appendBinary(dst), nil
+	case *ListArgument:
+		return ta.appendBinary(dst)
+	default:
+		b, err := arg.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		return append(dst, b...), nil
+	}
 }
 
 func (a Arguments) Serialize(s *serializer.Serializer) error {
@@ -3492,10 +3535,13 @@ func (a *Arguments) UnmarshalBinary(data []byte) error {
 	}
 	n := binary.BigEndian.Uint32(data[:4])
 	data = data[4:]
-	for i := 0; i < int(n); i++ {
+	for i := range n {
+		if len(data) < 1 {
+			return errors.Errorf("not enough data for argument #%d of %d", i, n)
+		}
 		var arg Argument
 		var err error
-		switch ArgumentValueType(data[0]) {
+		switch t := ArgumentValueType(data[0]); t {
 		case ArgumentInteger:
 			var ia IntegerArgument
 			err = ia.UnmarshalBinary(data)
@@ -3520,6 +3566,8 @@ func (a *Arguments) UnmarshalBinary(data []byte) error {
 			var ba BooleanArgument
 			err = ba.UnmarshalBinary(data)
 			arg = &ba
+		default:
+			return errors.Errorf("unknown argument type %d", t)
 		}
 		if err != nil {
 			return errors.Wrap(err, "failed unmarshal Arguments from bytes")
@@ -3557,12 +3605,13 @@ func (a *IntegerArgument) BinarySize() int {
 
 // MarshalBinary marshals the integer argument in its bytes representation.
 func (a *IntegerArgument) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, a.BinarySize())
-	pos := 0
-	buf[pos] = byte(ArgumentInteger)
-	pos++
-	binary.BigEndian.PutUint64(buf[pos:], uint64(a.Value))
-	return buf, nil
+	return a.appendBinary(make([]byte, 0, a.BinarySize())), nil
+}
+
+// appendBinary appends the argument bytes to dst. It appends exactly BinarySize() bytes.
+func (a *IntegerArgument) appendBinary(dst []byte) []byte {
+	dst = append(dst, byte(ArgumentInteger))
+	return binary.BigEndian.AppendUint64(dst, uint64(a.Value)) // #nosec G115 // Two's complement as in MarshalBinary.
 }
 
 // Serialize the integer argument in its bytes representation.
@@ -3623,13 +3672,15 @@ func (a *BooleanArgument) BinarySize() int {
 
 // MarshalBinary writes a byte representation of the boolean data entry.
 func (a *BooleanArgument) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, a.BinarySize())
+	return a.appendBinary(make([]byte, 0, a.BinarySize())), nil
+}
+
+// appendBinary appends the argument byte to dst. It appends exactly BinarySize() bytes.
+func (a *BooleanArgument) appendBinary(dst []byte) []byte {
 	if a.Value {
-		buf[0] = byte(ArgumentValueTrue)
-	} else {
-		buf[0] = byte(ArgumentValueFalse)
+		return append(dst, byte(ArgumentValueTrue))
 	}
-	return buf, nil
+	return append(dst, byte(ArgumentValueFalse))
 }
 
 // Serialize argument to its byte representation.
@@ -3696,14 +3747,17 @@ func (a *BinaryArgument) BinarySize() int {
 
 // MarshalBinary writes an argument to its byte representation.
 func (a *BinaryArgument) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, a.BinarySize())
-	pos := 0
-	buf[pos] = byte(ArgumentBinary)
-	pos++
-	if err := PutBytesWithUInt32Len(buf[pos:], a.Value); err != nil {
+	return a.appendBinary(make([]byte, 0, a.BinarySize()))
+}
+
+// appendBinary appends the argument bytes to dst. It appends exactly BinarySize() bytes.
+// It rejects the same value lengths as PutBytesWithUInt32Len.
+func (a *BinaryArgument) appendBinary(dst []byte) ([]byte, error) {
+	dst, err := appendBytesWithUInt32Len(append(dst, byte(ArgumentBinary)), a.Value)
+	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal BinaryArgument")
 	}
-	return buf, nil
+	return dst, nil
 }
 
 // Serialize argument to its byte representation.
@@ -3772,12 +3826,12 @@ func (a *StringArgument) BinarySize() int {
 
 // MarshalBinary converts the argument to its byte representation.
 func (a *StringArgument) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, a.BinarySize())
-	pos := 0
-	buf[pos] = byte(ArgumentString)
-	pos++
-	PutStringWithUInt32Len(buf[pos:], a.Value)
-	return buf, nil
+	return a.appendBinary(make([]byte, 0, a.BinarySize())), nil
+}
+
+// appendBinary appends the argument bytes to dst. It appends exactly BinarySize() bytes.
+func (a *StringArgument) appendBinary(dst []byte) []byte {
+	return appendStringWithUInt32Len(append(dst, byte(ArgumentString)), a.Value)
 }
 
 // Serialize argument to its byte representation.
@@ -3841,16 +3895,12 @@ func (a *ListArgument) BinarySize() int {
 
 // MarshalBinary converts the argument to its byte representation.
 func (a *ListArgument) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, a.BinarySize())
-	pos := 0
-	buf[pos] = byte(ArgumentList)
-	pos++
-	b, err := a.Items.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	copy(buf[pos:], b)
-	return buf, nil
+	return a.appendBinary(make([]byte, 0, a.BinarySize()))
+}
+
+// appendBinary appends the list type byte and the items to dst. It appends exactly BinarySize() bytes.
+func (a *ListArgument) appendBinary(dst []byte) ([]byte, error) {
+	return a.Items.appendBinary(append(dst, byte(ArgumentList)))
 }
 
 // Serialize argument to its byte representation.
@@ -3941,11 +3991,15 @@ const (
 	tokenUserFunction = 1
 )
 
+// functionCallHeader is the non-default FunctionCall prefix. It is a package-level variable so that
+// passing it to an io.Writer does not allocate on every call.
+var functionCallHeader = [...]byte{1, tokenFunctionCall, tokenUserFunction} //nolint:gochecknoglobals // constant
+
 func (c FunctionCall) Serialize(s *serializer.Serializer) error {
 	if c.Default() {
 		return s.Byte(0)
 	}
-	err := s.Bytes([]byte{1, tokenFunctionCall, tokenUserFunction})
+	err := s.Bytes(functionCallHeader[:])
 	if err != nil {
 		return err
 	}
@@ -3961,20 +4015,22 @@ func (c FunctionCall) Serialize(s *serializer.Serializer) error {
 }
 
 func (c FunctionCall) MarshalBinary() ([]byte, error) {
+	return c.appendBinary(make([]byte, 0, c.BinarySize()))
+}
+
+// appendBinary appends the binary form of the function call to dst: a single zero byte for the default call,
+// otherwise the header, the name and the arguments. It appends exactly BinarySize() bytes.
+func (c *FunctionCall) appendBinary(dst []byte) ([]byte, error) {
 	if c.Default() {
-		return []byte{0}, nil
+		return append(dst, 0), nil
 	}
-	buf := make([]byte, c.BinarySize())
-	buf[0] = 1
-	buf[1] = tokenFunctionCall
-	buf[2] = tokenUserFunction
-	PutStringWithUInt32Len(buf[3:], c.name)
-	ab, err := c.arguments.MarshalBinary()
+	dst = append(dst, functionCallHeader[:]...)
+	dst = appendStringWithUInt32Len(dst, c.name)
+	dst, err := c.arguments.appendBinary(dst)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal FunctionCall to bytes")
 	}
-	copy(buf[3+4+len(c.name):], ab)
-	return buf, nil
+	return dst, nil
 }
 
 func (c *FunctionCall) UnmarshalBinary(data []byte) error {
@@ -4089,19 +4145,15 @@ type ScriptPayment struct {
 }
 
 func (p ScriptPayment) MarshalBinary() ([]byte, error) {
-	size := p.BinarySize()
-	buf := make([]byte, size)
-	pos := 0
-	binary.BigEndian.PutUint16(buf[pos:], uint16(size-2))
-	pos += 2
-	binary.BigEndian.PutUint64(buf[pos:], p.Amount)
-	pos += 8
-	ab, err := p.Asset.MarshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to serialize ScriptPayment to bytes")
-	}
-	copy(buf[pos:], ab)
-	return buf, nil
+	return p.appendBinary(make([]byte, 0, p.BinarySize())), nil
+}
+
+// appendBinary appends the 2-byte payment size, the amount and the asset to dst.
+// It appends exactly BinarySize() bytes.
+func (p *ScriptPayment) appendBinary(dst []byte) []byte {
+	dst = binary.BigEndian.AppendUint16(dst, uint16(p.BinarySize()-2)) // #nosec G115 // At most 41.
+	dst = binary.BigEndian.AppendUint64(dst, p.Amount)
+	return p.Asset.appendBinary(dst)
 }
 
 func (p ScriptPayment) Serialize(s *serializer.Serializer) error {
@@ -4126,7 +4178,7 @@ func (p *ScriptPayment) UnmarshalBinary(data []byte) error {
 		return errors.Errorf("%d is not enough bytes for ScriptPayment", l)
 	}
 	size := int(binary.BigEndian.Uint16(data[:2]))
-	if l := len(data[2:]); l < size {
+	if l := len(data[2:]); l < size || l < 8 {
 		return errors.Errorf("%d is not enough bytes for ScriptPayment", l)
 	}
 	p.Amount = binary.BigEndian.Uint64(data[2:10])
@@ -4151,19 +4203,16 @@ func (sps *ScriptPayments) Append(sp ScriptPayment) {
 }
 
 func (sps ScriptPayments) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, sps.BinarySize())
-	p := 0
-	binary.BigEndian.PutUint16(buf[p:], uint16(len(sps)))
-	p += 2
-	for _, sp := range sps {
-		b, err := sp.MarshalBinary()
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to marshal ScriptPayments to bytes")
-		}
-		copy(buf[p:], b)
-		p += len(b)
+	return sps.appendBinary(make([]byte, 0, sps.BinarySize())), nil
+}
+
+// appendBinary appends the 2-byte count followed by every payment to dst. It appends exactly BinarySize() bytes.
+func (sps ScriptPayments) appendBinary(dst []byte) []byte {
+	dst = binary.BigEndian.AppendUint16(dst, uint16(len(sps))) // #nosec G115 // Count is validated elsewhere.
+	for i := range sps {
+		dst = sps[i].appendBinary(dst)
 	}
-	return buf, nil
+	return dst
 }
 
 func (sps ScriptPayments) Serialize(s *serializer.Serializer) error {

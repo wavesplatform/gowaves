@@ -322,11 +322,18 @@ type txInfoKey struct {
 	txID []byte
 }
 
+const txInfoKeySize = 1 + crypto.DigestSize
+
 func (k *txInfoKey) bytes() []byte {
-	buf := make([]byte, 1+crypto.DigestSize)
-	buf[0] = txInfoKeyPrefix
-	copy(buf[1:], k.txID)
+	buf := make([]byte, txInfoKeySize)
+	k.put(buf)
 	return buf
+}
+
+// put writes exactly txInfoKeySize bytes of the key into buf, which must be at least txInfoKeySize bytes long.
+func (k *txInfoKey) put(buf []byte) {
+	buf[0] = txInfoKeyPrefix
+	copy(buf[1:txInfoKeySize], k.txID)
 }
 
 type scoreKey struct {

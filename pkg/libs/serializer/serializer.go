@@ -8,9 +8,13 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Serializer writes big-endian primitives to the underlying writer and counts written bytes.
+// Primitive writes go through the internal scratch array, so they do not allocate as long as the
+// underlying writer does not retain the passed slice (as required by the io.Writer contract).
 type Serializer struct {
-	w io.Writer
-	n int
+	w       io.Writer
+	n       int
+	scratch [8]byte
 }
 
 func New(w io.Writer) *Serializer {
@@ -74,41 +78,34 @@ func (a *Serializer) BytesWithUInt32Len(data []byte) error {
 	return a.Bytes(data)
 }
 
-func (a *Serializer) Uint16(v uint16) error {
-	buf := [2]byte{}
-	binary.BigEndian.PutUint16(buf[:], v)
-	n, err := a.w.Write(buf[:])
+func (a *Serializer) write(b []byte) error {
+	n, err := a.w.Write(b)
 	if err != nil {
 		return err
 	}
 	a.n += n
 	return nil
+}
+
+func (a *Serializer) Uint16(v uint16) error {
+	binary.BigEndian.PutUint16(a.scratch[:2], v)
+	return a.write(a.scratch[:2])
 }
 
 func (a *Serializer) Uint32(v uint32) error {
-	buf := [4]byte{}
-	binary.BigEndian.PutUint32(buf[:], v)
-	n, err := a.w.Write(buf[:])
-	if err != nil {
-		return err
-	}
-	a.n += n
-	return nil
+	binary.BigEndian.PutUint32(a.scratch[:4], v)
+	return a.write(a.scratch[:4])
 }
 
 func (a *Serializer) Uint64(v uint64) error {
-	buf := [8]byte{}
-	binary.BigEndian.PutUint64(buf[:], v)
-	n, err := a.w.Write(buf[:])
-	if err != nil {
-		return err
-	}
-	a.n += n
-	return nil
+	binary.BigEndian.PutUint64(a.scratch[:8], v)
+	return a.write(a.scratch[:8])
 }
 
+// String writes the string bytes using io.WriteString, avoiding the conversion to a byte slice
+// when the underlying writer implements io.StringWriter.
 func (a *Serializer) String(s string) error {
-	n, err := a.w.Write([]byte(s))
+	n, err := io.WriteString(a.w, s)
 	if err != nil {
 		return err
 	}
@@ -117,12 +114,8 @@ func (a *Serializer) String(s string) error {
 }
 
 func (a *Serializer) Byte(b byte) error {
-	n, err := a.w.Write([]byte{b})
-	if err != nil {
-		return err
-	}
-	a.n += n
-	return nil
+	a.scratch[0] = b
+	return a.write(a.scratch[:1])
 }
 
 func (a *Serializer) N() int64 {
@@ -134,19 +127,9 @@ func (a *Serializer) Bool(b bool) error {
 	if b {
 		v = 1
 	}
-	n, err := a.w.Write([]byte{v})
-	if err != nil {
-		return err
-	}
-	a.n += n
-	return nil
+	return a.Byte(v)
 }
 
 func (a *Serializer) Bytes(b []byte) error {
-	n, err := a.w.Write(b)
-	if err != nil {
-		return err
-	}
-	a.n += n
-	return nil
+	return a.write(b)
 }

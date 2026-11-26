@@ -108,10 +108,14 @@ type wavesBalanceRecord struct {
 }
 
 func (r *wavesBalanceRecord) marshalBinary() ([]byte, error) {
-	return cbor.Marshal(r)
+	var buf [cborRecordBufSize]byte
+	return cborClone(r.appendCBOR(buf[:0])), nil
 }
 
 func (r *wavesBalanceRecord) unmarshalBinary(data []byte) error {
+	if r.decodeCBOR(data) {
+		return nil
+	}
 	return cbor.Unmarshal(data, r)
 }
 
@@ -120,10 +124,14 @@ type assetBalanceRecord struct {
 }
 
 func (r *assetBalanceRecord) marshalBinary() ([]byte, error) {
-	return cbor.Marshal(r)
+	var buf [cborRecordBufSize]byte
+	return cborClone(r.appendCBOR(buf[:0])), nil
 }
 
 func (r *assetBalanceRecord) unmarshalBinary(data []byte) error {
+	if r.decodeCBOR(data) {
+		return nil
+	}
 	return cbor.Unmarshal(data, r)
 }
 
@@ -914,14 +922,13 @@ func (s *balances) calculateStateHashesAssetBalance(addr proto.AddressID, assetI
 func (s *balances) setAssetBalance(addr proto.AddressID, assetID proto.AssetID, balance uint64, blockID proto.BlockID) error {
 	key := assetBalanceKey{address: addr, asset: assetID}
 	keyBytes := key.bytes()
-	keyStr := string(keyBytes)
 	record := assetBalanceRecord{balance}
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return err
 	}
 	if s.calculateHashes {
-		shErr := s.calculateStateHashesAssetBalance(addr, assetID, balance, blockID, keyStr)
+		shErr := s.calculateStateHashesAssetBalance(addr, assetID, balance, blockID, string(keyBytes))
 		if shErr != nil {
 			return shErr
 		}
@@ -962,14 +969,13 @@ func (s *balances) calculateStateHashesWavesBalance(addr proto.AddressID, balanc
 func (s *balances) setWavesBalance(addr proto.AddressID, balance wavesValue, blockID proto.BlockID) error {
 	key := wavesBalanceKey{address: addr}
 	keyBytes := key.bytes()
-	keyStr := string(keyBytes)
 	rec := wavesBalanceRecord{balance.profile}
 	recordBytes, err := rec.marshalBinary()
 	if err != nil {
 		return err
 	}
 	if s.calculateHashes {
-		shErr := s.calculateStateHashesWavesBalance(addr, balance, blockID, keyStr, rec)
+		shErr := s.calculateStateHashesWavesBalance(addr, balance, blockID, string(keyBytes), rec)
 		if shErr != nil {
 			return shErr
 		}

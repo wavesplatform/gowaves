@@ -63,6 +63,7 @@ type blockchainEntitiesStorage struct {
 	accountsDataStor  *accountsDataStorage
 	sponsoredAssets   *sponsoredAssets
 	scriptsStorage    scriptStorageState
+	scriptTrees       *scriptTreeCache // Content-keyed cache of parsed scripts, shared with the scripts storage.
 	scriptsComplexity *scriptsComplexity
 	invokeResults     *invokeResults
 	stateHashes       *stateHashes
@@ -84,7 +85,8 @@ func newBlockchainEntitiesStorage(
 	if err != nil {
 		return nil, err
 	}
-	ss, err := newScriptsStorage(hs, sets.AddressSchemeCharacter, calcHashes)
+	scriptTrees := newDefaultScriptTreeCache()
+	ss, err := newScriptsStorage(hs, sets.AddressSchemeCharacter, calcHashes, scriptTrees)
 	if err != nil {
 		return nil, err
 	}
@@ -104,6 +106,7 @@ func newBlockchainEntitiesStorage(
 		accountsDataStor:  newAccountsDataStorage(hs.db, hs.dbBatch, hs, calcHashes),
 		sponsoredAssets:   newSponsoredAssets(rw, fts, hs, sets, calcHashes),
 		scriptsStorage:    ss,
+		scriptTrees:       scriptTrees,
 		scriptsComplexity: newScriptsComplexity(hs),
 		invokeResults:     newInvokeResults(hs),
 		stateHashes:       newStateHashes(hs, fts),

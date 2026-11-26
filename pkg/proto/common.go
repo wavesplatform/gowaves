@@ -64,6 +64,13 @@ func PutStringWithUInt16Len(buf []byte, s string) {
 	copy(buf[2:], s)
 }
 
+// appendStringWithUInt16Len appends two bytes of the string length followed by the string bytes.
+// It produces exactly the bytes of PutStringWithUInt16Len, including the silent uint16 truncation of the length.
+func appendStringWithUInt16Len(dst []byte, s string) []byte {
+	dst = binary.BigEndian.AppendUint16(dst, uint16(len(s))) // #nosec G115 // Same truncation as PutStringWithUInt16Len.
+	return append(dst, s...)
+}
+
 // WriteStringWithUInt16Len writes given data with 2 bytes of its length.
 func WriteStringWithUInt16Len(w io.Writer, data string) error {
 	l := len(data)
@@ -130,6 +137,17 @@ func PutBytesWithUInt16Len(buf []byte, data []byte) error {
 	return nil
 }
 
+// appendBytesWithUInt16Len appends two bytes of the data length followed by the data.
+// It produces exactly the bytes of PutBytesWithUInt16Len and rejects the same lengths.
+func appendBytesWithUInt16Len(dst []byte, data []byte) ([]byte, error) {
+	l := len(data)
+	if l > math.MaxInt16 {
+		return nil, errors.Errorf("invalid data length %d", l)
+	}
+	dst = binary.BigEndian.AppendUint16(dst, uint16(l))
+	return append(dst, data...), nil
+}
+
 // WriteBytesWithUInt16Len writes given data with 2 bytes of its length.
 func WriteBytesWithUInt16Len(w io.Writer, data []byte) error {
 	l := len(data)
@@ -189,6 +207,32 @@ func BytesWithUInt32Len(buf []byte) ([]byte, error) {
 	r := make([]byte, s)
 	copy(r, buf[:s])
 	return r, nil
+}
+
+// appendStringWithUInt32Len appends four bytes of the string length followed by the string bytes.
+// It produces exactly the bytes of PutStringWithUInt32Len, including the silent uint32 truncation of the length.
+func appendStringWithUInt32Len(dst []byte, s string) []byte {
+	dst = binary.BigEndian.AppendUint32(dst, uint32(len(s))) // #nosec G115 // Same truncation as PutStringWithUInt32Len.
+	return append(dst, s...)
+}
+
+// appendBytesWithUInt32Len appends four bytes of the data length followed by the data.
+// It produces exactly the bytes of PutBytesWithUInt32Len and rejects the same lengths.
+func appendBytesWithUInt32Len(dst []byte, data []byte) ([]byte, error) {
+	l := len(data)
+	if l > math.MaxInt32 {
+		return nil, errors.Errorf("invalid data length %d", l)
+	}
+	dst = binary.BigEndian.AppendUint32(dst, uint32(l))
+	return append(dst, data...), nil
+}
+
+// appendBool appends one byte with the value 1 for true and 0 for false, as PutBool does.
+func appendBool(dst []byte, b bool) []byte {
+	if b {
+		return append(dst, 1)
+	}
+	return append(dst, 0)
 }
 
 func PutBool(buf []byte, b bool) {

@@ -19,13 +19,16 @@ type subTree struct {
 	digest Digest
 }
 
+// initialStackCapacity is enough for trees of up to 2^16 leaves without reallocation.
+const initialStackCapacity = 16
+
 type MerkleTree struct {
 	stack []subTree
 }
 
 func NewMerkleTree() (*MerkleTree, error) {
 	return &MerkleTree{
-		stack: make([]subTree, 0, 16),
+		stack: make([]subTree, 0, initialStackCapacity),
 	}, nil
 }
 
@@ -109,4 +112,12 @@ func (t *MerkleTree) joinAllSubTrees() {
 		j := len(t.stack) - 2
 		t.stack = append(t.stack[:j], t.joinSubTrees(t.stack[j], t.stack[i]))
 	}
+}
+
+// Clone returns an independent copy of the tree state. Pushing into the copy does not affect the original tree.
+// The tree state is O(log N) subtree digests, so cloning is cheap regardless of the number of leaves.
+func (t *MerkleTree) Clone() *MerkleTree {
+	stack := make([]subTree, len(t.stack), max(cap(t.stack), initialStackCapacity))
+	copy(stack, t.stack)
+	return &MerkleTree{stack: stack}
 }

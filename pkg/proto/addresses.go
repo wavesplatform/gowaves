@@ -551,6 +551,12 @@ func (a *Alias) Bytes() []byte {
 	return buf
 }
 
+// appendBinary appends the bytes of the Alias to dst, the same bytes as Bytes(). It appends BinarySize() bytes.
+func (a *Alias) appendBinary(dst []byte) []byte {
+	dst = append(dst, a.Version, a.Scheme)
+	return appendStringWithUInt16Len(dst, a.Alias)
+}
+
 // UnmarshalBinary reads an Alias from its bytes representation. This function does not validate the result.
 func (a *Alias) UnmarshalBinary(data []byte) error {
 	dl := len(data)
@@ -866,6 +872,21 @@ func (r *Recipient) MarshalBinary() ([]byte, error) {
 	return r.inner.MarshalBinary()
 }
 
+// appendBinary appends the bytes of the Recipient to dst, the same bytes as MarshalBinary.
+// It appends BinarySize() bytes.
+func (r *Recipient) appendBinary(dst []byte) ([]byte, error) {
+	switch in := r.inner.(type) {
+	case nil:
+		return nil, errNilRecipient()
+	case *wavesAddressRecipient:
+		return append(dst, in.addr[:]...), nil
+	case *aliasRecipient:
+		return in.al.appendBinary(dst), nil
+	default:
+		return nil, errors.Errorf("unsupported recipient type %T", in)
+	}
+}
+
 func (r *Recipient) WriteTo(w io.Writer) (int64, error) {
 	s := serializer.New(w)
 	err := r.Serialize(s)
@@ -884,6 +905,9 @@ func (r *Recipient) Serialize(s *serializer.Serializer) error {
 
 // UnmarshalBinary reads the Recipient from bytes. Validates the result.
 func (r *Recipient) UnmarshalBinary(data []byte) error {
+	if len(data) == 0 {
+		return errors.New("not enough data to unmarshal Recipient from bytes")
+	}
 	switch v := data[0]; v {
 	case wavesAddressVersion:
 		a, err := NewAddressFromBytes(data)

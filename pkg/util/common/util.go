@@ -1,7 +1,6 @@
 package common
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
@@ -11,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/ccoveille/go-safecast/v2"
 	"github.com/mr-tron/base58/base58"
@@ -67,22 +67,19 @@ func GetStatePath() (string, error) {
 
 func ToBase58JSON(b []byte) []byte {
 	s := base58.Encode(b)
-	var sb bytes.Buffer
-	sb.Grow(2 + len(s))
-	sb.WriteRune('"')
-	sb.WriteString(s)
-	sb.WriteRune('"')
-	return sb.Bytes()
+	r := make([]byte, 0, len(s)+2)
+	r = append(r, '"')
+	r = append(r, s...)
+	return append(r, '"')
 }
 
 func ToBase64JSON(b []byte) []byte {
-	s := base64.StdEncoding.EncodeToString(b)
-	var sb bytes.Buffer
-	sb.Grow(2 + len(s))
-	sb.WriteRune('"')
-	sb.WriteString(s)
-	sb.WriteRune('"')
-	return sb.Bytes()
+	n := base64.StdEncoding.EncodedLen(len(b))
+	r := make([]byte, n+2)
+	r[0] = '"'
+	base64.StdEncoding.Encode(r[1:n+1], b)
+	r[n+1] = '"'
+	return r
 }
 
 func FromBase58JSONUnchecked(value []byte, name string) ([]byte, error) {
@@ -171,7 +168,11 @@ func UnixMillisFromTime(t time.Time) int64 {
 
 // ReplaceInvalidUtf8Chars replaces invalid utf8 characters with '?' to reproduce JVM behaviour.
 func ReplaceInvalidUtf8Chars(s string) string {
+	if utf8.ValidString(s) {
+		return s
+	}
 	var b strings.Builder
+	b.Grow(len(s))
 
 	// Ranging over a string in Go produces runes. When the range keyword
 	// encounters an invalid UTF-8 encoding, it returns REPLACEMENT CHARACTER.

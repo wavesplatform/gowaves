@@ -8,9 +8,13 @@ import (
 	"github.com/pkg/errors"
 )
 
+// NonFallableSerializer writes big-endian primitives to the underlying writer ignoring write errors.
+// Primitive writes go through the internal scratch array, so they do not allocate as long as the
+// underlying writer does not retain the passed slice (as required by the io.Writer contract).
 type NonFallableSerializer struct {
-	w io.Writer
-	n int
+	w       io.Writer
+	n       int
+	scratch [8]byte
 }
 
 func NewNonFallable(w io.Writer) *NonFallableSerializer {
@@ -39,41 +43,34 @@ func (a *NonFallableSerializer) StringWithUInt16Len(s string) error {
 }
 
 func (a *NonFallableSerializer) Uint16(v uint16) {
-	buf := make([]byte, 2)
-	binary.BigEndian.PutUint16(buf, v)
-	n, _ := a.w.Write(buf)
-	a.n += n
+	binary.BigEndian.PutUint16(a.scratch[:2], v)
+	a.Bytes(a.scratch[:2])
 }
 
 func (a *NonFallableSerializer) Uint32(v uint32) {
-	buf := make([]byte, 4)
-	binary.BigEndian.PutUint32(buf, v)
-	n, _ := a.w.Write(buf)
-	a.n += n
+	binary.BigEndian.PutUint32(a.scratch[:4], v)
+	a.Bytes(a.scratch[:4])
 }
 
 func (a *NonFallableSerializer) Uint64(v uint64) {
-	buf := make([]byte, 8)
-	binary.BigEndian.PutUint64(buf, v)
-	n, _ := a.w.Write(buf)
-	a.n += n
+	binary.BigEndian.PutUint64(a.scratch[:8], v)
+	a.Bytes(a.scratch[:8])
 }
 
 func (a *NonFallableSerializer) Int64(v int64) {
-	buf := make([]byte, 8)
-	binary.BigEndian.PutUint64(buf, uint64(v))
-	n, _ := a.w.Write(buf)
-	a.n += n
+	a.Uint64(uint64(v)) // #nosec G115: two's complement reinterpretation is intended.
 }
 
+// String writes the string bytes using io.WriteString, avoiding the conversion to a byte slice
+// when the underlying writer implements io.StringWriter.
 func (a *NonFallableSerializer) String(s string) {
-	n, _ := a.w.Write([]byte(s))
+	n, _ := io.WriteString(a.w, s)
 	a.n += n
 }
 
 func (a *NonFallableSerializer) Byte(b byte) {
-	n, _ := a.w.Write([]byte{b})
-	a.n += n
+	a.scratch[0] = b
+	a.Bytes(a.scratch[:1])
 }
 
 func (a *NonFallableSerializer) N() int64 {
@@ -85,8 +82,7 @@ func (a *NonFallableSerializer) Bool(b bool) {
 	if b {
 		v = 1
 	}
-	n, _ := a.w.Write([]byte{v})
-	a.n += n
+	a.Byte(v)
 }
 
 func (a *NonFallableSerializer) Bytes(b []byte) {

@@ -16,7 +16,7 @@ type scriptsStorageTestObjects struct {
 
 func createScriptsStorageTestObjects(t *testing.T) *scriptsStorageTestObjects {
 	stor := createStorageObjects(t, true)
-	scriptsStorage, err := newScriptsStorage(stor.hs, proto.TestNetScheme, true)
+	scriptsStorage, err := newScriptsStorage(stor.hs, proto.TestNetScheme, true, newDefaultScriptTreeCache())
 	require.NoError(t, err)
 	return &scriptsStorageTestObjects{stor, scriptsStorage}
 }

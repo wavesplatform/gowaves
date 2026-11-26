@@ -11,7 +11,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
-	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 )
 
 const (
@@ -23,8 +22,9 @@ const (
 
 var errEmptyScript = errors.New("empty script")
 
-func scriptBytesToTree(script proto.Script) (*ast.Tree, error) {
-	tree, err := serialization.Parse(script)
+// scriptBytesToTree parses the script using the content-keyed cache of trees. A nil cache parses every time.
+func scriptBytesToTree(trees *scriptTreeCache, script proto.Script) (*ast.Tree, error) {
+	tree, err := trees.parse(script)
 	if err != nil {
 		return nil, err
 	}
@@ -83,12 +83,14 @@ type scriptBasicInfoRecord struct {
 	IsDApp         bool               `cbor:"4,keyasint,omitempty"`
 }
 
-func newScriptBasicInfoRecord(pk crypto.PublicKey, script proto.Script) (scriptBasicInfoRecord, *ast.Tree, error) {
+func newScriptBasicInfoRecord(
+	trees *scriptTreeCache, pk crypto.PublicKey, script proto.Script,
+) (scriptBasicInfoRecord, *ast.Tree, error) {
 	scriptLen := uint32(len(script))
 	if scriptLen == 0 {
 		return scriptBasicInfoRecord{PK: pk, ScriptLen: scriptLen}, nil, nil
 	}
-	tree, err := scriptBytesToTree(script)
+	tree, err := scriptBytesToTree(trees, script)
 	if err != nil {
 		return scriptBasicInfoRecord{}, nil, errors.Wrapf(err, "failed to parse script bytes to tree for pk %q", pk.String())
 	}
@@ -107,27 +109,34 @@ func (r *scriptBasicInfoRecord) scriptExists() bool {
 }
 
 func (r *scriptBasicInfoRecord) marshalBinary() ([]byte, error) {
-	return cbor.Marshal(r)
+	var buf [cborRecordBufSize]byte
+	return cborClone(r.appendCBOR(buf[:0])), nil
 }
 
 func (r *scriptBasicInfoRecord) unmarshalBinary(data []byte) error {
+	if r.decodeCBOR(data) {
+		return nil
+	}
 	return cbor.Unmarshal(data, r)
 }
 
 func newAccountScriptBasicInfoRecord(
+	trees *scriptTreeCache,
 	pk crypto.PublicKey,
 	script proto.Script,
 ) (scriptBasicInfoRecord, *ast.Tree, error) {
-	info, tree, err := newScriptBasicInfoRecord(pk, script)
+	info, tree, err := newScriptBasicInfoRecord(trees, pk, script)
 	if err != nil {
 		return scriptBasicInfoRecord{}, nil, errors.Wrap(err, "failed to create new account script basic info record")
 	}
 	return info, tree, nil
 }
 
-func newAssetScriptBasicInfoRecord(script proto.Script) (scriptBasicInfoRecord, *ast.Tree, error) {
+func newAssetScriptBasicInfoRecord(
+	trees *scriptTreeCache, script proto.Script,
+) (scriptBasicInfoRecord, *ast.Tree, error) {
 	var emptyPKStub crypto.PublicKey
-	info, tree, err := newScriptBasicInfoRecord(emptyPKStub, script)
+	info, tree, err := newScriptBasicInfoRecord(trees, emptyPKStub, script)
 	if err != nil {
 		return scriptBasicInfoRecord{}, nil, errors.Wrap(err, "failed to create new asset script basic info record")
 	}
@@ -140,8 +149,8 @@ type scriptDBItem struct {
 	info   scriptBasicInfoRecord
 }
 
-func newAccountScriptDBItem(pk crypto.PublicKey, script proto.Script) (scriptDBItem, error) {
-	info, tree, err := newAccountScriptBasicInfoRecord(pk, script)
+func newAccountScriptDBItem(trees *scriptTreeCache, pk crypto.PublicKey, script proto.Script) (scriptDBItem, error) {
+	info, tree, err := newAccountScriptBasicInfoRecord(trees, pk, script)
 	if err != nil {
 		return scriptDBItem{}, errors.Wrap(err, "failed to create new account script basic info record")
 	}
@@ -153,8 +162,8 @@ func newAccountScriptDBItem(pk crypto.PublicKey, script proto.Script) (scriptDBI
 	return dbItem, nil
 }
 
-func newAssetScriptDBIterm(script proto.Script) (scriptDBItem, error) {
-	info, tree, err := newAssetScriptBasicInfoRecord(script)
+func newAssetScriptDBIterm(trees *scriptTreeCache, script proto.Script) (scriptDBItem, error) {
+	info, tree, err := newAssetScriptBasicInfoRecord(trees, script)
 	if err != nil {
 		return scriptDBItem{}, errors.Wrap(err, "failed to create new asset script basic info record")
 	}
@@ -171,13 +180,15 @@ type assetScriptRecordWithAssetIDTail struct {
 	assetIDTail  [proto.AssetIDTailSize]byte // this field doesn't have to be stored to db, because it is used only for state hash calculation
 }
 
-// TODO: LRU cache for script ASTs here only makes sense at the import stage.
-// It shouldn't be used at all when the node does rollbacks or validates UTX,
-// because it has to be cleared after each rollback or UTX validation,
-// which makes it inefficient.
+// scriptsStorage keeps two caches of script trees.
+// The address-keyed LRU cache is only a shortcut for the database reads, it has to be cleared after each rollback
+// or UTX validation, because the script of an address can change. The content-keyed cache of trees is never
+// cleared, so after the address-keyed cache is cleared the script bytes are read from the database, but the
+// script is not parsed again.
 type scriptsStorage struct {
 	hs    *historyStorage
 	cache *lru
+	trees *scriptTreeCache
 
 	accountScriptsHasher *stateHasher
 	assetScriptsHasher   *stateHasher
@@ -187,7 +198,9 @@ type scriptsStorage struct {
 	uncertainAssetScripts map[proto.AssetID]assetScriptRecordWithAssetIDTail
 }
 
-func newScriptsStorage(hs *historyStorage, scheme proto.Scheme, calcHashes bool) (*scriptsStorage, error) {
+func newScriptsStorage(
+	hs *historyStorage, scheme proto.Scheme, calcHashes bool, trees *scriptTreeCache,
+) (*scriptsStorage, error) {
 	cache, err := newLru(maxCacheSize, maxCacheBytes)
 	if err != nil {
 		return nil, err
@@ -195,6 +208,7 @@ func newScriptsStorage(hs *historyStorage, scheme proto.Scheme, calcHashes bool)
 	return &scriptsStorage{
 		hs:                    hs,
 		cache:                 cache,
+		trees:                 trees,
 		accountScriptsHasher:  newStateHasher(),
 		assetScriptsHasher:    newStateHasher(),
 		calculateHashes:       calcHashes,
@@ -252,7 +266,7 @@ func (ss *scriptsStorage) scriptAstFromRecordBytes(script proto.Script) (*ast.Tr
 		// Empty script = no script.
 		return nil, proto.ErrNotFound
 	}
-	return scriptBytesToTree(script)
+	return scriptBytesToTree(ss.trees, script)
 }
 
 func (ss *scriptsStorage) newestScriptAstByKey(key []byte) (*ast.Tree, error) {
@@ -291,7 +305,7 @@ func (ss *scriptsStorage) setAssetScriptUncertain(fullAssetID crypto.Digest, scr
 		assetID     = proto.AssetIDFromDigest(fullAssetID)
 		assetIDTail = proto.DigestTail(fullAssetID)
 	)
-	dbItem, err := newAccountScriptDBItem(pk, script)
+	dbItem, err := newAccountScriptDBItem(ss.trees, pk, script)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set uncertain asset script for asset %q with pk %q",
 			fullAssetID.String(), pk.String(),
@@ -317,7 +331,7 @@ func (ss *scriptsStorage) setAssetScript(fullAssetID crypto.Digest, script proto
 			return err
 		}
 	}
-	dbItem, err := newAssetScriptDBIterm(script)
+	dbItem, err := newAssetScriptDBIterm(ss.trees, script)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set asset script for asset %q with on block %q",
 			fullAssetID.String(), blockID.String(),
@@ -418,7 +432,7 @@ func (ss *scriptsStorage) setAccountScript(addr proto.WavesAddress, script proto
 			return err
 		}
 	}
-	dbItem, err := newAccountScriptDBItem(pk, script)
+	dbItem, err := newAccountScriptDBItem(ss.trees, pk, script)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set account script for account %q with pk %q on block %q",
 			addr.String(), pk.String(), blockID.String(),
@@ -625,10 +639,10 @@ func (ss *scriptsStorage) scriptBytesByAddr(addr proto.WavesAddress) (proto.Scri
 	return ss.scriptBytesByKey(key.bytes())
 }
 
+// clearCache clears the address-keyed cache of trees. The content-keyed cache is kept, its entries never go stale.
 func (ss *scriptsStorage) clearCache() error {
-	var err error
-	ss.cache, err = newLru(maxCacheSize, maxCacheBytes)
-	return err
+	ss.cache.clear()
+	return nil
 }
 
 func (ss *scriptsStorage) prepareHashes() error {

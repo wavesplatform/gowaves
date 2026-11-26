@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"math"
 
 	"github.com/ccoveille/go-safecast/v2"
 	"github.com/jinzhu/copier"
@@ -93,7 +94,12 @@ func (tx *IssueWithProofs) UnmarshalFromProtobuf(data []byte) error {
 }
 
 func (tx *IssueWithProofs) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
-	return MarshalSignedTxDeterministic(tx, scheme)
+	return marshalSignedWavesTx(tx, scheme, tx.Proofs)
+}
+
+// toProtobufSignedNoCopy is ToProtobufSigned with proofs aliasing tx.Proofs, see signedWavesTxToProtobufNoCopy.
+func (tx *IssueWithProofs) toProtobufSignedNoCopy(scheme Scheme) (*g.SignedTransaction, error) {
+	return signedWavesTxToProtobufNoCopy(tx, scheme, tx.Proofs)
 }
 
 func (tx *IssueWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
@@ -218,42 +224,30 @@ func (tx *IssueWithProofs) NonEmptyScript() bool {
 }
 
 func (tx *IssueWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
-	var p int
-	nl := len(tx.Name)
-	dl := len(tx.Description)
+	return tx.appendBody(make([]byte, 0, tx.bodySize()), scheme)
+}
+
+// bodySize returns the exact size of the binary body, so BodyMarshalBinary allocates the buffer only once.
+func (tx *IssueWithProofs) bodySize() int {
 	sl := len(tx.Script)
 	if sl > 0 {
 		sl += 2
 	}
-	buf := make([]byte, issueWithProofsFixedBodyLen+nl+dl+sl)
-	buf[0] = byte(tx.Type)
-	buf[1] = tx.Version
-	buf[2] = scheme
-	p = 3
-	copy(buf[p:], tx.SenderPK[:])
-	p += crypto.PublicKeySize
-	PutStringWithUInt16Len(buf[p:], tx.Name)
-	p += 2 + nl
-	PutStringWithUInt16Len(buf[p:], tx.Description)
-	p += 2 + dl
-	binary.BigEndian.PutUint64(buf[p:], tx.Quantity)
-	p += 8
-	buf[p] = tx.Decimals
-	p++
-	PutBool(buf[p:], tx.Reissuable)
-	p++
-	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], tx.Timestamp)
-	p += 8
-	PutBool(buf[p:], tx.NonEmptyScript())
-	p++
+	return 3 + tx.Issue.BinarySize() + 1 + sl
+}
+
+// appendBody appends the binary body of the transaction to dst. It appends exactly bodySize() bytes.
+func (tx *IssueWithProofs) appendBody(dst []byte, scheme Scheme) ([]byte, error) {
+	dst = append(dst, byte(tx.Type), tx.Version, scheme)
+	dst = tx.appendBinary(dst)
+	dst = appendBool(dst, tx.NonEmptyScript())
 	if tx.NonEmptyScript() {
-		if err := PutBytesWithUInt16Len(buf[p:], tx.Script); err != nil {
+		var err error
+		if dst, err = appendBytesWithUInt16Len(dst, tx.Script); err != nil {
 			return nil, errors.Wrap(err, "failed to marshal body of IssueWithProofs transaction")
 		}
 	}
-	return buf, nil
+	return dst, nil
 }
 
 func (tx *IssueWithProofs) bodyUnmarshalBinary(data []byte, scheme Scheme) error {
@@ -285,6 +279,10 @@ func (tx *IssueWithProofs) bodyUnmarshalBinary(data []byte, scheme Scheme) error
 		return errors.Wrapf(err, message, "Description")
 	}
 	data = data[2+len(tx.Description):]
+	const tailLen = 8 + 1 + 1 + 8 + 8 + 1 // quantity + decimals + reissuable + fee + timestamp + script flag
+	if l := len(data); l < tailLen {
+		return errors.Errorf("not enough data for IssueWithProofs tail, expected %d, received %d", tailLen, l)
+	}
 	tx.Quantity = binary.BigEndian.Uint64(data)
 	data = data[8:]
 	tx.Decimals = data[0]
@@ -340,35 +338,29 @@ func (tx *IssueWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (bo
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of IssueWithProofs transaction")
 	}
+	setIDFromBody(&tx.ID, b)
 	return tx.Proofs.Verify(publicKey, b)
 }
 
 // MarshalBinary converts transaction to its binary representation.
 func (tx *IssueWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
-	bb, err := tx.BodyMarshalBinary(scheme)
+	return tx.appendTxBinary(make([]byte, 0, tx.BinarySize()), scheme)
+}
+
+// appendTxBinary appends the binary transaction to dst. It appends exactly the bytes MarshalBinary returns.
+func (tx *IssueWithProofs) appendTxBinary(dst []byte, scheme Scheme) ([]byte, error) {
+	buf := dst
+	buf = append(buf, 0) // The first byte is always zero.
+	buf, err := tx.appendBody(buf, scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal IssueWithProofs transaction to bytes")
 	}
-	bl := len(bb)
-	if tx.Proofs == nil {
-		return nil, errors.New("failed to marshal IssueWithProofs transaction to bytes: no proofs")
-	}
-	pb, err := tx.Proofs.MarshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal IssueWithProofs transaction to bytes")
-	}
-	buf := make([]byte, 1+bl+len(pb))
-	var p int
-	buf[p] = 0
-	p++
-	copy(buf[p:], bb)
-	p += bl
-	copy(buf[p:], pb)
-	return buf, nil
+	return appendProofsBinary(buf, tx.Proofs, "IssueWithProofs")
 }
 
 // UnmarshalBinary reads transaction from its binary representation.
 func (tx *IssueWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
+	input := data
 	if l := len(data); l < issueWithProofsMinLen {
 		return errors.Errorf("not enough data for IssueWithProofs transaction, expected not less than %d, received %d",
 			issueWithProofsMinLen, l,
@@ -394,9 +386,11 @@ func (tx *IssueWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 		return errors.Wrap(err, "failed to unmarshal IssueWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	if err := tx.GenerateID(scheme); err != nil {
-		return err
+	id, err := idFromInputBody(tx, scheme, input, 1, tx.BinarySize()-1-tx.Proofs.BinarySize())
+	if err != nil {
+		return errors.Wrap(err, "failed to generate ID of IssueWithProofs transaction")
 	}
+	tx.ID = id
 	return nil
 }
 
@@ -435,7 +429,12 @@ func (tx *TransferWithProofs) UnmarshalFromProtobuf(data []byte) error {
 }
 
 func (tx *TransferWithProofs) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
-	return MarshalSignedTxDeterministic(tx, scheme)
+	return marshalSignedWavesTx(tx, scheme, tx.Proofs)
+}
+
+// toProtobufSignedNoCopy is ToProtobufSigned with proofs aliasing tx.Proofs, see signedWavesTxToProtobufNoCopy.
+func (tx *TransferWithProofs) toProtobufSignedNoCopy(scheme Scheme) (*g.SignedTransaction, error) {
+	return signedWavesTxToProtobufNoCopy(tx, scheme, tx.Proofs)
 }
 
 func (tx *TransferWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
@@ -554,25 +553,28 @@ func (tx *TransferWithProofs) Validate(params TransactionValidationParams) (Tran
 	return tx, nil
 }
 
-func (tx *TransferWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
-	b, err := tx.marshalBinary()
+func (tx *TransferWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
+	return tx.appendBody(make([]byte, 0, 2+tx.Transfer.BinarySize()))
+}
+
+// appendBody appends the binary body of the transaction to dst. It appends exactly 2+Transfer.BinarySize() bytes.
+func (tx *TransferWithProofs) appendBody(dst []byte) ([]byte, error) {
+	dst = append(dst, byte(tx.Type), tx.Version)
+	dst, err := tx.appendBinary(dst)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal TransferWithProofs body")
 	}
-	buf := make([]byte, 2+len(b))
-	buf[0] = byte(tx.Type)
-	buf[1] = tx.Version
-	copy(buf[2:], b)
-	return buf, nil
+	return dst, nil
 }
 
 func (tx *TransferWithProofs) BodySerialize(s *serializer.Serializer) error {
-	buf := [2]byte{byte(tx.Type), tx.Version}
-	err := s.Bytes(buf[:])
-	if err != nil {
+	if err := s.Byte(byte(tx.Type)); err != nil {
 		return err
 	}
-	err = tx.Transfer.Serialize(s)
+	if err := s.Byte(tx.Version); err != nil {
+		return err
+	}
+	err := tx.Transfer.Serialize(s)
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal TransferWithProofs body")
 	}
@@ -630,28 +632,24 @@ func (tx *TransferWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) 
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of TransferWithProofs transaction")
 	}
+	setIDFromBody(&tx.ID, b)
 	return tx.Proofs.Verify(publicKey, b)
 }
 
 // MarshalBinary writes TransferWithProofs transaction to its byte representation.
 func (tx *TransferWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
-	bb, err := tx.BodyMarshalBinary(scheme)
+	return tx.appendTxBinary(make([]byte, 0, tx.BinarySize()), scheme)
+}
+
+// appendTxBinary appends the binary transaction to dst. It appends exactly the bytes MarshalBinary returns.
+func (tx *TransferWithProofs) appendTxBinary(dst []byte, _ Scheme) ([]byte, error) {
+	buf := dst
+	buf = append(buf, 0) // The first byte is always zero.
+	buf, err := tx.appendBody(buf)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal TransferWithProofs transaction to bytes")
 	}
-	bl := len(bb)
-	if tx.Proofs == nil {
-		return nil, errors.New("failed to marshal TransferWithProofs transaction to bytes: no proofs")
-	}
-	pb, err := tx.Proofs.MarshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal TransferWithProofs transaction to bytes")
-	}
-	buf := make([]byte, 1+bl+len(pb))
-	buf[0] = 0
-	copy(buf[1:], bb)
-	copy(buf[1+bl:], pb)
-	return buf, nil
+	return appendProofsBinary(buf, tx.Proofs, "TransferWithProofs")
 }
 
 func (tx *TransferWithProofs) Serialize(s *serializer.Serializer) error {
@@ -675,6 +673,7 @@ func (tx *TransferWithProofs) Serialize(s *serializer.Serializer) error {
 
 // UnmarshalBinary reads TransferWithProofs from its byte representation.
 func (tx *TransferWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
+	input := data
 	if l := len(data); l < transferWithProofsMinLen {
 		return errors.Errorf(
 			"not enough data for TransferWithProofs transaction, expected not less than %d, received %d",
@@ -707,9 +706,11 @@ func (tx *TransferWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error 
 		return errors.Wrap(err, "failed to unmarshal TransferWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	if err := tx.GenerateID(scheme); err != nil {
-		return err
+	id, err := idFromInputBody(tx, scheme, input, 1, tx.BinarySize()-1-tx.Proofs.BinarySize())
+	if err != nil {
+		return errors.Wrap(err, "failed to generate ID of TransferWithProofs transaction")
 	}
+	tx.ID = id
 	return nil
 }
 
@@ -764,7 +765,12 @@ func (tx *ReissueWithProofs) UnmarshalFromProtobuf(data []byte) error {
 }
 
 func (tx *ReissueWithProofs) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
-	return MarshalSignedTxDeterministic(tx, scheme)
+	return marshalSignedWavesTx(tx, scheme, tx.Proofs)
+}
+
+// toProtobufSignedNoCopy is ToProtobufSigned with proofs aliasing tx.Proofs, see signedWavesTxToProtobufNoCopy.
+func (tx *ReissueWithProofs) toProtobufSignedNoCopy(scheme Scheme) (*g.SignedTransaction, error) {
+	return signedWavesTxToProtobufNoCopy(tx, scheme, tx.Proofs)
 }
 
 func (tx *ReissueWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
@@ -875,16 +881,13 @@ func (tx *ReissueWithProofs) Validate(params TransactionValidationParams) (Trans
 }
 
 func (tx *ReissueWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
-	buf := make([]byte, reissueWithProofsBodyLen)
-	buf[0] = byte(tx.Type)
-	buf[1] = tx.Version
-	buf[2] = scheme
-	b, err := tx.marshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal ReissueWithProofs body")
-	}
-	copy(buf[3:], b)
-	return buf, nil
+	return tx.appendBody(make([]byte, 0, reissueWithProofsBodyLen), scheme)
+}
+
+// appendBody appends the binary body of the transaction to dst. It appends exactly reissueWithProofsBodyLen bytes.
+func (tx *ReissueWithProofs) appendBody(dst []byte, scheme Scheme) ([]byte, error) {
+	dst = append(dst, byte(tx.Type), tx.Version, scheme)
+	return tx.appendBinary(dst), nil
 }
 
 func (tx *ReissueWithProofs) bodyUnmarshalBinary(data []byte, scheme Scheme) error {
@@ -941,32 +944,29 @@ func (tx *ReissueWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of ReissueWithProofs transaction")
 	}
+	setIDFromBody(&tx.ID, b)
 	return tx.Proofs.Verify(publicKey, b)
 }
 
 // MarshalBinary writes ReissueWithProofs transaction to its byte representation.
 func (tx *ReissueWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
-	bb, err := tx.BodyMarshalBinary(scheme)
+	return tx.appendTxBinary(make([]byte, 0, tx.BinarySize()), scheme)
+}
+
+// appendTxBinary appends the binary transaction to dst. It appends exactly the bytes MarshalBinary returns.
+func (tx *ReissueWithProofs) appendTxBinary(dst []byte, scheme Scheme) ([]byte, error) {
+	buf := dst
+	buf = append(buf, 0) // The first byte is always zero.
+	buf, err := tx.appendBody(buf, scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal ReissueWithProofs transaction to bytes")
 	}
-	bl := len(bb)
-	if tx.Proofs == nil {
-		return nil, errors.New("failed to marshal ReissueWithProofs transaction to bytes: no proofs")
-	}
-	pb, err := tx.Proofs.MarshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal ReissueWithProofs transaction to bytes")
-	}
-	buf := make([]byte, 1+bl+len(pb))
-	buf[0] = 0
-	copy(buf[1:], bb)
-	copy(buf[1+bl:], pb)
-	return buf, nil
+	return appendProofsBinary(buf, tx.Proofs, "ReissueWithProofs")
 }
 
 // UnmarshalBinary reads ReissueWithProofs from its byte representation.
 func (tx *ReissueWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
+	input := data
 	if l := len(data); l < reissueWithProofsMinLen {
 		return errors.Errorf(
 			"not enough data for ReissueWithProofs transaction, expected not less than %d, received %d",
@@ -988,9 +988,11 @@ func (tx *ReissueWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 		return errors.Wrap(err, "failed to unmarshal ReissueWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	if err := tx.GenerateID(scheme); err != nil {
-		return err
+	id, err := idFromInputBody(tx, scheme, input, 1, tx.BinarySize()-1-tx.Proofs.BinarySize())
+	if err != nil {
+		return errors.Wrap(err, "failed to generate ID of ReissueWithProofs transaction")
 	}
+	tx.ID = id
 	return nil
 }
 
@@ -1025,7 +1027,12 @@ func (tx *BurnWithProofs) UnmarshalFromProtobuf(data []byte) error {
 }
 
 func (tx *BurnWithProofs) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
-	return MarshalSignedTxDeterministic(tx, scheme)
+	return marshalSignedWavesTx(tx, scheme, tx.Proofs)
+}
+
+// toProtobufSignedNoCopy is ToProtobufSigned with proofs aliasing tx.Proofs, see signedWavesTxToProtobufNoCopy.
+func (tx *BurnWithProofs) toProtobufSignedNoCopy(scheme Scheme) (*g.SignedTransaction, error) {
+	return signedWavesTxToProtobufNoCopy(tx, scheme, tx.Proofs)
 }
 
 func (tx *BurnWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
@@ -1136,16 +1143,13 @@ func (tx *BurnWithProofs) Validate(params TransactionValidationParams) (Transact
 }
 
 func (tx *BurnWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
-	buf := make([]byte, burnWithProofsBodyLen)
-	buf[0] = byte(tx.Type)
-	buf[1] = tx.Version
-	buf[2] = scheme
-	b, err := tx.marshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal BurnWithProofs body")
-	}
-	copy(buf[3:], b)
-	return buf, nil
+	return tx.appendBody(make([]byte, 0, burnWithProofsBodyLen), scheme)
+}
+
+// appendBody appends the binary body of the transaction to dst. It appends exactly burnWithProofsBodyLen bytes.
+func (tx *BurnWithProofs) appendBody(dst []byte, scheme Scheme) ([]byte, error) {
+	dst = append(dst, byte(tx.Type), tx.Version, scheme)
+	return tx.appendBinary(dst), nil
 }
 
 func (tx *BurnWithProofs) bodyUnmarshalBinary(data []byte, scheme Scheme) error {
@@ -1201,32 +1205,29 @@ func (tx *BurnWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (boo
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of BurnWithProofs transaction")
 	}
+	setIDFromBody(&tx.ID, b)
 	return tx.Proofs.Verify(publicKey, b)
 }
 
 // MarshalBinary writes BurnWithProofs transaction to its byte representation.
 func (tx *BurnWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
-	bb, err := tx.BodyMarshalBinary(scheme)
+	return tx.appendTxBinary(make([]byte, 0, tx.BinarySize()), scheme)
+}
+
+// appendTxBinary appends the binary transaction to dst. It appends exactly the bytes MarshalBinary returns.
+func (tx *BurnWithProofs) appendTxBinary(dst []byte, scheme Scheme) ([]byte, error) {
+	buf := dst
+	buf = append(buf, 0) // The first byte is always zero.
+	buf, err := tx.appendBody(buf, scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal BurnWithProofs transaction to bytes")
 	}
-	bl := len(bb)
-	if tx.Proofs == nil {
-		return nil, errors.New("failed to marshal BurnWithProofs transaction to bytes: no proofs")
-	}
-	pb, err := tx.Proofs.MarshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal BurnWithProofs transaction to bytes")
-	}
-	buf := make([]byte, 1+bl+len(pb))
-	buf[0] = 0
-	copy(buf[1:], bb)
-	copy(buf[1+bl:], pb)
-	return buf, nil
+	return appendProofsBinary(buf, tx.Proofs, "BurnWithProofs")
 }
 
 // UnmarshalBinary reads BurnWithProofs from its byte representation.
 func (tx *BurnWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
+	input := data
 	if l := len(data); l < burnWithProofsLen {
 		return errors.Errorf("not enough data for BurnWithProofs transaction, expected not less than %d, received %d",
 			burnWithProofsBodyLen, l,
@@ -1247,9 +1248,11 @@ func (tx *BurnWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 		return errors.Wrap(err, "failed to unmarshal BurnWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	if err := tx.GenerateID(scheme); err != nil {
-		return err
+	id, err := idFromInputBody(tx, scheme, input, 1, tx.BinarySize()-1-tx.Proofs.BinarySize())
+	if err != nil {
+		return errors.Wrap(err, "failed to generate ID of BurnWithProofs transaction")
 	}
+	tx.ID = id
 	return nil
 }
 
@@ -1300,7 +1303,12 @@ func (tx *ExchangeWithProofs) UnmarshalFromProtobuf(data []byte) error {
 }
 
 func (tx *ExchangeWithProofs) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
-	return MarshalSignedTxDeterministic(tx, scheme)
+	return marshalSignedWavesTx(tx, scheme, tx.Proofs)
+}
+
+// toProtobufSignedNoCopy is ToProtobufSigned with proofs aliasing tx.Proofs, see signedWavesTxToProtobufNoCopy.
+func (tx *ExchangeWithProofs) toProtobufSignedNoCopy(scheme Scheme) (*g.SignedTransaction, error) {
+	return signedWavesTxToProtobufNoCopy(tx, scheme, tx.Proofs)
 }
 
 func (tx *ExchangeWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
@@ -1557,119 +1565,104 @@ func (tx *ExchangeWithProofs) checkOrders() error {
 	return nil
 }
 
-func (tx *ExchangeWithProofs) marshalAsOrderV1(order Order) ([]byte, error) {
-	o, ok := order.(*OrderV1)
-	if !ok {
-		return nil, errors.Errorf("failed to cast an order with version 1 to OrderV1, type %T", order)
+// appendExchangeOrder appends the order to dst in the layout of ExchangeWithProofs: the 4-byte order length,
+// then the order bytes. OrderV1 has no version byte of its own, so the byte 1 is written after the length and is not
+// counted in it. The length is back-filled after the order is written, so it always equals the written size.
+func appendExchangeOrder(dst []byte, order Order) ([]byte, error) {
+	v := order.GetVersion()
+	lenPos := len(dst)
+	dst = append(dst, 0, 0, 0, 0) // Order length placeholder.
+	if v == OrderVersionV1 {
+		dst = append(dst, 1)
 	}
-	b, err := o.MarshalBinary()
+	start := len(dst)
+	var err error
+	switch v {
+	case OrderVersionV1:
+		o, ok := order.(*OrderV1)
+		if !ok {
+			return nil, errors.Errorf("failed to cast an order with version 1 to OrderV1, type %T", order)
+		}
+		dst, err = o.appendBinary(dst)
+	case OrderVersionV2:
+		o, ok := order.(*OrderV2)
+		if !ok {
+			return nil, errors.New("failed to cast an order with version 2 to OrderV2")
+		}
+		dst, err = o.appendBinary(dst)
+	case OrderVersionV3:
+		o, ok := order.(*OrderV3)
+		if !ok {
+			return nil, errors.New("failed to cast an order with version 3 to OrderV3")
+		}
+		dst, err = o.appendBinary(dst)
+	case OrderVersionV4:
+		return nil, errors.New("order of version 4 is not supported")
+	default:
+		return nil, errors.Errorf("order of version %d is not supported", v)
+	}
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to marshal OrderV1 to bytes")
+		return nil, errors.Wrapf(err, "failed to marshal order of version %d to bytes", v)
 	}
-	l := len(b)
-	buf := make([]byte, 4+1+l)
-	binary.BigEndian.PutUint32(buf, uint32(l))
-	buf[4] = 1
-	copy(buf[5:], b)
-	return buf, nil
-}
-
-func (tx *ExchangeWithProofs) marshalAsOrderV2(order Order) ([]byte, error) {
-	o, ok := order.(*OrderV2)
-	if !ok {
-		return nil, errors.New("failed to cast an order with version 2 to OrderV2")
+	ol := len(dst) - start
+	if ol > math.MaxUint32 {
+		return nil, errors.Errorf("order length %d exceeds uint32", ol)
 	}
-	b, err := o.MarshalBinary()
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to marshal OrderV2 to bytes")
-	}
-	l := len(b)
-	buf := make([]byte, 4+l)
-	binary.BigEndian.PutUint32(buf, uint32(l))
-	copy(buf[4:], b)
-	return buf, nil
-}
-
-func (tx *ExchangeWithProofs) marshalAsOrderV3(order Order) ([]byte, error) {
-	o, ok := order.(*OrderV3)
-	if !ok {
-		return nil, errors.New("failed to cast an order with version 3 to OrderV3")
-	}
-	b, err := o.MarshalBinary()
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to marshal OrderV3 to bytes")
-	}
-	l := len(b)
-	buf := make([]byte, 4+l)
-	binary.BigEndian.PutUint32(buf, uint32(l))
-	copy(buf[4:], b)
-	return buf, nil
+	binary.BigEndian.PutUint32(dst[lenPos:], uint32(ol)) // #nosec G115 // Checked above.
+	return dst, nil
 }
 
 func (tx *ExchangeWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
-	var o1b []byte
-	var o2b []byte
-	var err error
-	switch tx.Order1.GetVersion() {
-	case OrderVersionV1:
-		o1b, err = tx.marshalAsOrderV1(tx.Order1)
-	case OrderVersionV2:
-		o1b, err = tx.marshalAsOrderV2(tx.Order1)
-	case OrderVersionV3:
-		o1b, err = tx.marshalAsOrderV3(tx.Order1)
-	case OrderVersionV4:
-		err = fmt.Errorf("first order of version 4 is not supported")
+	return tx.appendBody(make([]byte, 0, tx.bodySize()))
+}
+
+// bodySize returns the size of the binary body, or 0 if an order is not set (appendBody fails then).
+func (tx *ExchangeWithProofs) bodySize() int {
+	if tx.Order1 == nil || tx.Order2 == nil {
+		return 0
 	}
+	return tx.BinarySize() - tx.Proofs.BinarySize()
+}
+
+// appendBody appends the binary body of the transaction to dst, including the leading zero byte.
+// Both orders are written straight into dst. It appends exactly BinarySize()-Proofs.BinarySize() bytes.
+func (tx *ExchangeWithProofs) appendBody(dst []byte) ([]byte, error) {
+	if tx.Order1 == nil || tx.Order2 == nil {
+		return nil, errors.New("failed to marshal ExchangeWithProofs body: empty order")
+	}
+	dst = append(dst, 0, byte(tx.Type), tx.Version)
+	dst, err := appendExchangeOrder(dst, tx.Order1)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal buy order to bytes")
 	}
-	o1l, err := safecast.Convert[uint32](len(o1b))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to convert buy order length to uint32")
-	}
-	switch tx.Order2.GetVersion() {
-	case OrderVersionV1:
-		o2b, err = tx.marshalAsOrderV1(tx.Order2)
-	case OrderVersionV2:
-		o2b, err = tx.marshalAsOrderV2(tx.Order2)
-	case OrderVersionV3:
-		o2b, err = tx.marshalAsOrderV3(tx.Order2)
-	case OrderVersionV4:
-		err = fmt.Errorf("second order of version 4 is not supported")
-	}
+	dst, err = appendExchangeOrder(dst, tx.Order2)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal sell order to bytes")
 	}
-	o2l := uint32(len(o2b))
-	var p uint32
-	buf := make([]byte, exchangeWithProofsFixedBodyLen+(o1l-4)+(o2l-4))
-	buf[0] = 0
-	buf[1] = byte(tx.Type)
-	buf[2] = tx.Version
-	p += 3
-	copy(buf[p:], o1b)
-	p += o1l
-	copy(buf[p:], o2b)
-	p += o2l
-	binary.BigEndian.PutUint64(buf[p:], tx.Price)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], tx.Amount)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], tx.BuyMatcherFee)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], tx.SellMatcherFee)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], tx.Timestamp)
-	return buf, nil
+	dst = binary.BigEndian.AppendUint64(dst, tx.Price)
+	dst = binary.BigEndian.AppendUint64(dst, tx.Amount)
+	dst = binary.BigEndian.AppendUint64(dst, tx.BuyMatcherFee)
+	dst = binary.BigEndian.AppendUint64(dst, tx.SellMatcherFee)
+	dst = binary.BigEndian.AppendUint64(dst, tx.Fee)
+	return binary.BigEndian.AppendUint64(dst, tx.Timestamp), nil
 }
 
 func (tx *ExchangeWithProofs) unmarshalOrder(data []byte) (int, Order, error) {
 	var r Order
 	n := 0
+	const minLen = 4 + 1 // order length + order version
+	if l := len(data); l < minLen {
+		return 0, nil, errors.Errorf("not enough data for order, expected not less than %d, received %d", minLen, l)
+	}
 	ol := binary.BigEndian.Uint32(data)
 	n += 4
+	end := n + int(ol)
+	if data[n] == 1 {
+		end++ // Version byte of OrderV1 is not included in the order length.
+	}
+	if l := len(data); end > l {
+		return 0, nil, errors.Errorf("order length %d exceeds available data %d", ol, l-n)
+	}
 	switch data[n] {
 	case 1:
 		n++
@@ -1732,6 +1725,11 @@ func (tx *ExchangeWithProofs) bodyUnmarshalBinary(data []byte) (int, error) {
 	}
 	tx.Order2 = o
 	n += l
+	if dl := len(data) - n; dl < exchangeTailLen {
+		return 0, errors.Errorf("not enough data for ExchangeWithProofs tail, expected %d, received %d",
+			exchangeTailLen, dl,
+		)
+	}
 	tx.Price = binary.BigEndian.Uint64(data[n:])
 	n += 8
 	tx.Amount = binary.BigEndian.Uint64(data[n:])
@@ -1775,27 +1773,22 @@ func (tx *ExchangeWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) 
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of ExchangeWithProofs transaction")
 	}
+	setIDFromBody(&tx.ID, b)
 	return tx.Proofs.Verify(publicKey, b)
 }
 
 // MarshalBinary saves the transaction to its binary representation.
 func (tx *ExchangeWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
-	bb, err := tx.BodyMarshalBinary(scheme)
+	return tx.appendTxBinary(make([]byte, 0, tx.bodySize()+tx.Proofs.BinarySize()), scheme)
+}
+
+// appendTxBinary appends the binary transaction to dst. It appends exactly the bytes MarshalBinary returns.
+func (tx *ExchangeWithProofs) appendTxBinary(dst []byte, _ Scheme) ([]byte, error) {
+	buf, err := tx.appendBody(dst)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal ExchangeWithProofs transaction to bytes")
 	}
-	bl := len(bb)
-	if tx.Proofs == nil {
-		return nil, errors.New("failed to marshal ExchangeWithProofs transaction to bytes: no proofs")
-	}
-	pb, err := tx.Proofs.MarshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal ExchangeWithProofs transaction to bytes")
-	}
-	buf := make([]byte, bl+len(pb))
-	copy(buf, bb)
-	copy(buf[bl:], pb)
-	return buf, nil
+	return appendProofsBinary(buf, tx.Proofs, "ExchangeWithProofs")
 }
 
 // UnmarshalBinary loads the transaction from its binary representation.
@@ -1954,7 +1947,12 @@ func (tx *LeaseWithProofs) UnmarshalFromProtobuf(data []byte) error {
 }
 
 func (tx *LeaseWithProofs) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
-	return MarshalSignedTxDeterministic(tx, scheme)
+	return marshalSignedWavesTx(tx, scheme, tx.Proofs)
+}
+
+// toProtobufSignedNoCopy is ToProtobufSigned with proofs aliasing tx.Proofs, see signedWavesTxToProtobufNoCopy.
+func (tx *LeaseWithProofs) toProtobufSignedNoCopy(scheme Scheme) (*g.SignedTransaction, error) {
+	return signedWavesTxToProtobufNoCopy(tx, scheme, tx.Proofs)
 }
 
 func (tx *LeaseWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
@@ -2053,18 +2051,19 @@ func NewUnsignedLeaseWithProofs(v byte, senderPK crypto.PublicKey, recipient Rec
 	return &LeaseWithProofs{Type: LeaseTransaction, Version: v, Lease: l}
 }
 
-func (tx *LeaseWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
-	rl := tx.Recipient.BinarySize()
-	buf := make([]byte, leaseWithProofsBodyLen+rl)
-	buf[0] = byte(tx.Type)
-	buf[1] = tx.Version
-	buf[2] = 0 //Always zero, reserved for future extension of leasing assets.
-	b, err := tx.marshalBinary()
+func (tx *LeaseWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
+	return tx.appendBody(make([]byte, 0, leaseWithProofsBodyLen+tx.Recipient.BinarySize()))
+}
+
+// appendBody appends the binary body of the transaction to dst.
+// It appends exactly leaseWithProofsBodyLen+Recipient.BinarySize() bytes.
+func (tx *LeaseWithProofs) appendBody(dst []byte) ([]byte, error) {
+	dst = append(dst, byte(tx.Type), tx.Version, 0) // Always zero, reserved for future extension of leasing assets.
+	dst, err := tx.appendBinary(dst)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal LeaseWithSig transaction to bytes")
 	}
-	copy(buf[3:], b)
-	return buf, nil
+	return dst, nil
 }
 
 func (tx *LeaseWithProofs) bodyUnmarshalBinary(data []byte) error {
@@ -2114,32 +2113,29 @@ func (tx *LeaseWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (bo
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of LeaseWithProofs transaction")
 	}
+	setIDFromBody(&tx.ID, b)
 	return tx.Proofs.Verify(publicKey, b)
 }
 
 // MarshalBinary saves the transaction to its binary representation.
 func (tx *LeaseWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
-	bb, err := tx.BodyMarshalBinary(scheme)
+	return tx.appendTxBinary(make([]byte, 0, tx.BinarySize()), scheme)
+}
+
+// appendTxBinary appends the binary transaction to dst. It appends exactly the bytes MarshalBinary returns.
+func (tx *LeaseWithProofs) appendTxBinary(dst []byte, _ Scheme) ([]byte, error) {
+	buf := dst
+	buf = append(buf, 0) // The first byte is always zero.
+	buf, err := tx.appendBody(buf)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal LeaseWithProofs transaction to bytes")
 	}
-	bl := len(bb)
-	if tx.Proofs == nil {
-		return nil, errors.New("failed to marshal LeaseWithProofs transaction to bytes: no proofs")
-	}
-	pb, err := tx.Proofs.MarshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal LeaseWithProofs transaction to bytes")
-	}
-	buf := make([]byte, 1+bl+len(pb))
-	buf[0] = 0
-	copy(buf[1:], bb)
-	copy(buf[1+bl:], pb)
-	return buf, nil
+	return appendProofsBinary(buf, tx.Proofs, "LeaseWithProofs")
 }
 
 // UnmarshalBinary reads the transaction from bytes slice.
 func (tx *LeaseWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
+	input := data
 	if l := len(data); l < leaseWithProofsMinLen {
 		return errors.Errorf("not enough data for LeaseWithProofs transaction, expected not less than %d, received %d",
 			leaseWithProofsMinLen, l,
@@ -2161,9 +2157,18 @@ func (tx *LeaseWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 		return errors.Wrap(err, "failed to unmarshal LeaseWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	if err := tx.GenerateID(scheme); err != nil {
-		return err
+	// The binary parser ignores the reserved asset flag byte (body byte 2), which is always marshalled as zero.
+	// If it is not zero in the input, the input body is not canonical, so the ID is computed from the re-marshalled
+	// body, as before.
+	if input[3] != 0 {
+		tx.ID = nil
+		return tx.GenerateID(scheme)
 	}
+	id, err := idFromInputBody(tx, scheme, input, 1, tx.BinarySize()-1-tx.Proofs.BinarySize())
+	if err != nil {
+		return errors.Wrap(err, "failed to generate ID of LeaseWithProofs transaction")
+	}
+	tx.ID = id
 	return nil
 }
 
@@ -2198,7 +2203,12 @@ func (tx *LeaseCancelWithProofs) UnmarshalFromProtobuf(data []byte) error {
 }
 
 func (tx *LeaseCancelWithProofs) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
-	return MarshalSignedTxDeterministic(tx, scheme)
+	return marshalSignedWavesTx(tx, scheme, tx.Proofs)
+}
+
+// toProtobufSignedNoCopy is ToProtobufSigned with proofs aliasing tx.Proofs, see signedWavesTxToProtobufNoCopy.
+func (tx *LeaseCancelWithProofs) toProtobufSignedNoCopy(scheme Scheme) (*g.SignedTransaction, error) {
+	return signedWavesTxToProtobufNoCopy(tx, scheme, tx.Proofs)
 }
 
 func (tx *LeaseCancelWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
@@ -2308,16 +2318,13 @@ func (tx *LeaseCancelWithProofs) Validate(params TransactionValidationParams) (T
 }
 
 func (tx *LeaseCancelWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
-	buf := make([]byte, leaseCancelWithProofsBodyLen)
-	buf[0] = byte(tx.Type)
-	buf[1] = tx.Version
-	buf[2] = scheme
-	b, err := tx.marshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal LeaseCancelWithProofs to bytes")
-	}
-	copy(buf[3:], b)
-	return buf, nil
+	return tx.appendBody(make([]byte, 0, leaseCancelWithProofsBodyLen), scheme)
+}
+
+// appendBody appends the binary body of the transaction to dst. It appends exactly leaseCancelWithProofsBodyLen bytes.
+func (tx *LeaseCancelWithProofs) appendBody(dst []byte, scheme Scheme) ([]byte, error) {
+	dst = append(dst, byte(tx.Type), tx.Version, scheme)
+	return tx.appendBinary(dst), nil
 }
 
 func (tx *LeaseCancelWithProofs) bodyUnmarshalBinary(data []byte, scheme Scheme) error {
@@ -2372,32 +2379,29 @@ func (tx *LeaseCancelWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKe
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of LeaseCancelWithProofs transaction")
 	}
+	setIDFromBody(&tx.ID, b)
 	return tx.Proofs.Verify(publicKey, b)
 }
 
 // MarshalBinary saves the transaction to its binary representation.
 func (tx *LeaseCancelWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
-	bb, err := tx.BodyMarshalBinary(scheme)
+	return tx.appendTxBinary(make([]byte, 0, tx.BinarySize()), scheme)
+}
+
+// appendTxBinary appends the binary transaction to dst. It appends exactly the bytes MarshalBinary returns.
+func (tx *LeaseCancelWithProofs) appendTxBinary(dst []byte, scheme Scheme) ([]byte, error) {
+	buf := dst
+	buf = append(buf, 0) // The first byte is always zero.
+	buf, err := tx.appendBody(buf, scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal LeaseCancelWithProofs transaction to bytes")
 	}
-	bl := len(bb)
-	if tx.Proofs == nil {
-		return nil, errors.New("failed to marshal LeaseCancelWithProofs transaction to bytes: no proofs")
-	}
-	pb, err := tx.Proofs.MarshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal LeaseCancelWithProofs transaction to bytes")
-	}
-	buf := make([]byte, 1+bl+len(pb))
-	buf[0] = 0
-	copy(buf[1:], bb)
-	copy(buf[1+bl:], pb)
-	return buf, nil
+	return appendProofsBinary(buf, tx.Proofs, "LeaseCancelWithProofs")
 }
 
 // UnmarshalBinary reads the transaction from bytes slice.
 func (tx *LeaseCancelWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
+	input := data
 	if l := len(data); l < leaseCancelWithProofsMinLen {
 		return errors.Errorf(
 			"not enough data for LeaseCancelWithProofs transaction, expected not less than %d, received %d",
@@ -2419,9 +2423,11 @@ func (tx *LeaseCancelWithProofs) UnmarshalBinary(data []byte, scheme Scheme) err
 		return errors.Wrap(err, "failed to unmarshal LeaseCancelWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	if err := tx.GenerateID(scheme); err != nil {
-		return err
+	id, err := idFromInputBody(tx, scheme, input, 1, tx.BinarySize()-1-tx.Proofs.BinarySize())
+	if err != nil {
+		return errors.Wrap(err, "failed to generate ID of LeaseCancelWithProofs transaction")
 	}
+	tx.ID = id
 	return nil
 }
 
@@ -2467,7 +2473,12 @@ func (tx *CreateAliasWithProofs) UnmarshalFromProtobuf(data []byte) error {
 }
 
 func (tx *CreateAliasWithProofs) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
-	return MarshalSignedTxDeterministic(tx, scheme)
+	return marshalSignedWavesTx(tx, scheme, tx.Proofs)
+}
+
+// toProtobufSignedNoCopy is ToProtobufSigned with proofs aliasing tx.Proofs, see signedWavesTxToProtobufNoCopy.
+func (tx *CreateAliasWithProofs) toProtobufSignedNoCopy(scheme Scheme) (*g.SignedTransaction, error) {
+	return signedWavesTxToProtobufNoCopy(tx, scheme, tx.Proofs)
 }
 
 func (tx *CreateAliasWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
@@ -2573,16 +2584,15 @@ func NewUnsignedCreateAliasWithProofs(v byte, senderPK crypto.PublicKey, alias A
 	return &CreateAliasWithProofs{Type: CreateAliasTransaction, Version: v, CreateAlias: ca}
 }
 
-func (tx *CreateAliasWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
-	buf := make([]byte, createAliasWithProofsFixedBodyLen+len(tx.Alias.Alias))
-	buf[0] = byte(tx.Type)
-	buf[1] = tx.Version
-	b, err := tx.marshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal CreateAliasWithProofs transaction body to bytes")
-	}
-	copy(buf[2:], b)
-	return buf, nil
+func (tx *CreateAliasWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
+	return tx.appendBody(make([]byte, 0, createAliasWithProofsFixedBodyLen+len(tx.Alias.Alias)))
+}
+
+// appendBody appends the binary body of the transaction to dst.
+// It appends exactly createAliasWithProofsFixedBodyLen+len(Alias.Alias) bytes.
+func (tx *CreateAliasWithProofs) appendBody(dst []byte) ([]byte, error) {
+	dst = append(dst, byte(tx.Type), tx.Version)
+	return tx.appendBinary(dst), nil
 }
 
 func (tx *CreateAliasWithProofs) bodyUnmarshalBinary(data []byte) error {
@@ -2636,23 +2646,18 @@ func (tx *CreateAliasWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKe
 
 // MarshalBinary saves the transaction to its binary representation.
 func (tx *CreateAliasWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
-	bb, err := tx.BodyMarshalBinary(scheme)
+	return tx.appendTxBinary(make([]byte, 0, tx.BinarySize()), scheme)
+}
+
+// appendTxBinary appends the binary transaction to dst. It appends exactly the bytes MarshalBinary returns.
+func (tx *CreateAliasWithProofs) appendTxBinary(dst []byte, _ Scheme) ([]byte, error) {
+	buf := dst
+	buf = append(buf, 0) // The first byte is always zero.
+	buf, err := tx.appendBody(buf)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal CreateAliasWithProofs transaction to bytes")
 	}
-	bl := len(bb)
-	if tx.Proofs == nil {
-		return nil, errors.New("failed to marshal CreateAliasWithProofs transaction to bytes: no proofs")
-	}
-	pb, err := tx.Proofs.MarshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal CreateAliasWithProofs transaction to bytes")
-	}
-	buf := make([]byte, 1+bl+len(pb))
-	buf[0] = 0
-	copy(buf[1:], bb)
-	copy(buf[1+bl:], pb)
-	return buf, nil
+	return appendProofsBinary(buf, tx.Proofs, "CreateAliasWithProofs")
 }
 
 // UnmarshalBinary reads the transaction from bytes slice.
@@ -2741,15 +2746,16 @@ func (e *MassTransferEntry) ToProtobuf() (*g.MassTransferTransactionData_Transfe
 }
 
 func (e *MassTransferEntry) MarshalBinary() ([]byte, error) {
-	rb, err := e.Recipient.MarshalBinary()
+	return e.appendBinary(make([]byte, 0, e.BinarySize()))
+}
+
+// appendBinary appends the recipient and the amount to dst. It appends exactly BinarySize() bytes.
+func (e *MassTransferEntry) appendBinary(dst []byte) ([]byte, error) {
+	dst, err := e.Recipient.appendBinary(dst)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal MassTransferEntry")
 	}
-	rl := e.Recipient.BinarySize()
-	buf := make([]byte, massTransferEntryLen+rl)
-	copy(buf, rb)
-	binary.BigEndian.PutUint64(buf[rl:], e.Amount)
-	return buf, nil
+	return binary.BigEndian.AppendUint64(dst, e.Amount), nil
 }
 
 func (e *MassTransferEntry) UnmarshalBinary(data []byte) error {
@@ -2762,7 +2768,13 @@ func (e *MassTransferEntry) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal MassTransferEntry from bytes")
 	}
-	e.Amount = binary.BigEndian.Uint64(data[e.Recipient.BinarySize():])
+	rs := e.Recipient.BinarySize()
+	if l := len(data); l < rs+massTransferEntryLen {
+		return errors.Errorf("not enough data to unmarshal MassTransferEntry amount, expected %d, received %d bytes",
+			rs+massTransferEntryLen, l,
+		)
+	}
+	e.Amount = binary.BigEndian.Uint64(data[rs:])
 	return nil
 }
 
@@ -2923,51 +2935,40 @@ func (tx *MassTransferWithProofs) bodyAndAssetLen() (int, int) {
 }
 
 func (tx *MassTransferWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
-	var p int
-	n := len(tx.Transfers)
-	bl, al := tx.bodyAndAssetLen()
-	buf := make([]byte, bl)
-	buf[p] = byte(tx.Type)
-	p++
-	buf[p] = tx.Version
-	p++
-	copy(buf[p:], tx.SenderPK[:])
-	p += crypto.PublicKeySize
-	ab, err := tx.Asset.MarshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal MassTransferWithProofs transaction body to bytes")
-	}
-	copy(buf[p:], ab)
-	p += 1 + al
-	binary.BigEndian.PutUint16(buf[p:], uint16(n))
-	p += 2
-	for _, t := range tx.Transfers {
-		tb, err := t.MarshalBinary()
-		if err != nil {
+	bl, _ := tx.bodyAndAssetLen()
+	return tx.appendBody(make([]byte, 0, bl))
+}
+
+// appendBody appends the binary body of the transaction to dst. It appends exactly the body length returned by
+// bodyAndAssetLen.
+func (tx *MassTransferWithProofs) appendBody(dst []byte) ([]byte, error) {
+	dst = append(dst, byte(tx.Type), tx.Version)
+	dst = append(dst, tx.SenderPK[:]...)
+	dst = tx.Asset.appendBinary(dst)
+	dst = binary.BigEndian.AppendUint16(dst, uint16(len(tx.Transfers))) // #nosec G115 // Count is validated elsewhere.
+	var err error
+	for i := range tx.Transfers {
+		if dst, err = tx.Transfers[i].appendBinary(dst); err != nil {
 			return nil, errors.Wrap(err, "failed to marshal MassTransferWithProofs transaction body to bytes")
 		}
-		copy(buf[p:], tb)
-		p += massTransferEntryLen + t.Recipient.BinarySize()
 	}
-	binary.BigEndian.PutUint64(buf[p:], tx.Timestamp)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
-	p += 8
-	if err := PutBytesWithUInt16Len(buf[p:], tx.Attachment); err != nil {
+	dst = binary.BigEndian.AppendUint64(dst, tx.Timestamp)
+	dst = binary.BigEndian.AppendUint64(dst, tx.Fee)
+	if dst, err = appendBytesWithUInt16Len(dst, tx.Attachment); err != nil {
 		return nil, errors.Wrap(err, "failed to marshal MassTransferWithProofs transaction body to bytes")
 	}
-	return buf, nil
+	return dst, nil
 }
 
 func (tx *MassTransferWithProofs) bodyUnmarshalBinary(data []byte) error {
-	tx.Type = TransactionType(data[0])
-	tx.Version = data[1]
 	if l := len(data); l < massTransferWithProofsMinLen {
 		return errors.Errorf(
 			"not enough data for MassTransferWithProofs transaction, expected not less than %d, received %d",
 			massTransferWithProofsMinLen, l,
 		)
 	}
+	tx.Type = TransactionType(data[0])
+	tx.Version = data[1]
 	if tx.Type != MassTransferTransaction {
 		return errors.Errorf("unexpected transaction type %d for MassTransferWithProofs transaction", tx.Type)
 	}
@@ -2982,6 +2983,9 @@ func (tx *MassTransferWithProofs) bodyUnmarshalBinary(data []byte) error {
 	if tx.Asset.Present {
 		data = data[crypto.DigestSize:]
 	}
+	if l := len(data); l < 2 {
+		return errors.Errorf("not enough data for MassTransferWithProofs transfers count, expected 2, received %d", l)
+	}
 	n := int(binary.BigEndian.Uint16(data))
 	data = data[2:]
 	var entries []MassTransferEntry
@@ -2995,6 +2999,12 @@ func (tx *MassTransferWithProofs) bodyUnmarshalBinary(data []byte) error {
 		entries = append(entries, e)
 	}
 	tx.Transfers = entries
+	const tailLen = 8 + 8 // timestamp + fee
+	if l := len(data); l < tailLen {
+		return errors.Errorf("not enough data for MassTransferWithProofs timestamp and fee, expected %d, received %d",
+			tailLen, l,
+		)
+	}
 	tx.Timestamp = binary.BigEndian.Uint64(data)
 	data = data[8:]
 	tx.Fee = binary.BigEndian.Uint64(data)
@@ -3034,32 +3044,27 @@ func (tx *MassTransferWithProofs) Verify(scheme Scheme, publicKey crypto.PublicK
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of MassTransferWithProofs transaction")
 	}
+	setIDFromBody(&tx.ID, b)
 	return tx.Proofs.Verify(publicKey, b)
 }
 
 // MarshalBinary saves the transaction to its binary representation.
 func (tx *MassTransferWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
-	bb, err := tx.BodyMarshalBinary(scheme)
+	return tx.appendTxBinary(make([]byte, 0, tx.BinarySize()), scheme)
+}
+
+// appendTxBinary appends the binary transaction to dst. It appends exactly the bytes MarshalBinary returns.
+func (tx *MassTransferWithProofs) appendTxBinary(dst []byte, _ Scheme) ([]byte, error) {
+	buf, err := tx.appendBody(dst)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal MassTransferWithProofs transaction to bytes")
 	}
-	bl := len(bb)
-	if tx.Proofs == nil {
-		return nil, errors.New("failed to marshal MassTransferWithProofs transaction to bytes: no proofs")
-	}
-	pb, err := tx.Proofs.MarshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal MassTransferWithProofs transaction to bytes")
-	}
-	pl := len(pb)
-	buf := make([]byte, bl+pl)
-	copy(buf[0:], bb)
-	copy(buf[bl:], pb)
-	return buf, nil
+	return appendProofsBinary(buf, tx.Proofs, "MassTransferWithProofs")
 }
 
 // UnmarshalBinary loads transaction from its binary representation.
 func (tx *MassTransferWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
+	input := data
 	if l := len(data); l < massTransferWithProofsMinLen {
 		return errors.Errorf(
 			"not enough data for MassTransferWithProofs transaction, expected not less than %d, received %d",
@@ -3081,9 +3086,11 @@ func (tx *MassTransferWithProofs) UnmarshalBinary(data []byte, scheme Scheme) er
 		return errors.Wrap(err, "failed to unmarshal MassTransferWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	if err := tx.GenerateID(scheme); err != nil {
-		return err
+	id, err := idFromInputBody(tx, scheme, input, 0, tx.BinarySize()-tx.Proofs.BinarySize())
+	if err != nil {
+		return errors.Wrap(err, "failed to generate ID of MassTransferWithProofs transaction")
 	}
+	tx.ID = id
 	return nil
 }
 
@@ -3105,7 +3112,12 @@ func (tx *MassTransferWithProofs) UnmarshalFromProtobuf(data []byte) error {
 }
 
 func (tx *MassTransferWithProofs) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
-	return MarshalSignedTxDeterministic(tx, scheme)
+	return marshalSignedWavesTx(tx, scheme, tx.Proofs)
+}
+
+// toProtobufSignedNoCopy is ToProtobufSigned with proofs aliasing tx.Proofs, see signedWavesTxToProtobufNoCopy.
+func (tx *MassTransferWithProofs) toProtobufSignedNoCopy(scheme Scheme) (*g.SignedTransaction, error) {
+	return signedWavesTxToProtobufNoCopy(tx, scheme, tx.Proofs)
 }
 
 func (tx *MassTransferWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
@@ -3307,6 +3319,34 @@ func (tx *DataWithProofs) Validate(params TransactionValidationParams) (Transact
 	return tx, nil
 }
 
+const (
+	// dataEntryMinBinarySize is the smallest binary data entry: 2 bytes of key length, 1 byte of key
+	// (empty keys are rejected), 1 byte of value type and 1 byte of a boolean value.
+	dataEntryMinBinarySize = 2 + 1 + 1 + 1
+	// dataEntriesLinearScanMax is the entry count up to which duplicate keys are found with a linear scan,
+	// which is cheaper than a map for a few entries.
+	dataEntriesLinearScanMax = 16
+)
+
+// appendUniqueEntry adds the entry to the transaction with the same checks and errors as AppendEntry.
+// If keys is not nil, it must hold the keys of all entries already in the transaction; it's used instead of
+// the linear scan and is updated with the new key.
+func (tx *DataWithProofs) appendUniqueEntry(entry DataEntry, keys map[string]struct{}) error {
+	if keys == nil {
+		return tx.AppendEntry(entry)
+	}
+	key := entry.GetKey()
+	if len(key) == 0 {
+		return errors.Errorf("empty keys are not allowed")
+	}
+	if _, ok := keys[key]; ok {
+		return errors.Errorf("key '%s' already exist", key)
+	}
+	keys[key] = struct{}{}
+	tx.Entries = append(tx.Entries, entry)
+	return nil
+}
+
 // AppendEntry adds the entry to the transaction.
 func (tx *DataWithProofs) AppendEntry(entry DataEntry) error {
 	if len(entry.GetKey()) == 0 {
@@ -3323,40 +3363,33 @@ func (tx *DataWithProofs) AppendEntry(entry DataEntry) error {
 }
 
 func (tx *DataWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
-	var p int
-	n := len(tx.Entries)
-	el := tx.Entries.BinarySize()
-	buf := make([]byte, dataWithProofsFixedBodyLen+el)
-	buf[p] = byte(tx.Type)
-	p++
-	buf[p] = tx.Version
-	p++
-	copy(buf[p:], tx.SenderPK[:])
-	p += crypto.PublicKeySize
-	binary.BigEndian.PutUint16(buf[p:], uint16(n))
-	p += 2
+	return tx.appendBody(make([]byte, 0, dataWithProofsFixedBodyLen+tx.Entries.BinarySize()))
+}
+
+// appendBody appends the binary body of the transaction to dst, writing every entry in place.
+// It appends exactly dataWithProofsFixedBodyLen+Entries.BinarySize() bytes.
+func (tx *DataWithProofs) appendBody(dst []byte) ([]byte, error) {
+	dst = append(dst, byte(tx.Type), tx.Version)
+	dst = append(dst, tx.SenderPK[:]...)
+	dst = binary.BigEndian.AppendUint16(dst, uint16(len(tx.Entries))) // #nosec G115 // Count is validated elsewhere.
 	for _, e := range tx.Entries {
-		eb, err := e.MarshalBinary()
-		if err != nil {
+		var err error
+		if dst, err = appendDataEntryBinary(dst, e); err != nil {
 			return nil, errors.Wrap(err, "failed to marshal DataWithProofs transaction body to bytes")
 		}
-		copy(buf[p:], eb)
-		p += e.BinarySize()
 	}
-	binary.BigEndian.PutUint64(buf[p:], tx.Timestamp)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
-	return buf, nil
+	dst = binary.BigEndian.AppendUint64(dst, tx.Timestamp)
+	return binary.BigEndian.AppendUint64(dst, tx.Fee), nil
 }
 
 func (tx *DataWithProofs) bodyUnmarshalBinary(data []byte) error {
-	tx.Type = TransactionType(data[0])
-	tx.Version = data[1]
 	if l := len(data); l < dataWithProofsFixedBodyLen {
 		return errors.Errorf("not enough data for DataWithProofs transaction, expected not less than %d, received %d",
 			dataWithProofsFixedBodyLen, l,
 		)
 	}
+	tx.Type = TransactionType(data[0])
+	tx.Version = data[1]
 	if tx.Type != DataTransaction {
 		return errors.Errorf("unexpected transaction type %d for DataWithProofs transaction", tx.Type)
 	}
@@ -3365,6 +3398,12 @@ func (tx *DataWithProofs) bodyUnmarshalBinary(data []byte) error {
 	data = data[crypto.PublicKeySize:]
 	n := int(binary.BigEndian.Uint16(data))
 	data = data[2:]
+	// Every entry takes at least dataEntryMinBinarySize bytes, so a forged count can't make us over-allocate.
+	tx.Entries = make(DataEntries, 0, min(n, len(data)/dataEntryMinBinarySize))
+	var keys map[string]struct{} // Built only for large transactions, small ones use a linear scan.
+	if n > dataEntriesLinearScanMax {
+		keys = make(map[string]struct{}, cap(tx.Entries))
+	}
 	for range n {
 		var e DataEntry
 		t, err := extractValueType(data)
@@ -3390,15 +3429,20 @@ func (tx *DataWithProofs) bodyUnmarshalBinary(data []byte) error {
 			e = &se
 		case DataDelete:
 			return errors.New("value of type DataDelete is not supported")
+		default:
+			return errors.Errorf("unknown data entry value type %d", t)
 		}
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal DataWithProofs transaction body from bytes")
 		}
 		data = data[e.BinarySize():]
-		err = tx.AppendEntry(e)
-		if err != nil {
+		if err = tx.appendUniqueEntry(e, keys); err != nil {
 			return errors.Wrap(err, "failed to unmarshal DataWithProofs transaction body from bytes")
 		}
+	}
+	const tailLen = 8 + 8 // timestamp + fee
+	if l := len(data); l < tailLen {
+		return errors.Errorf("not enough data for DataWithProofs timestamp and fee, expected %d, received %d", tailLen, l)
 	}
 	tx.Timestamp = binary.BigEndian.Uint64(data)
 	data = data[8:]
@@ -3444,33 +3488,29 @@ func (tx *DataWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (boo
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of DataWithProofs transaction")
 	}
+	setIDFromBody(&tx.ID, b)
 	return tx.Proofs.Verify(publicKey, b)
 }
 
 // MarshalBinary saves the transaction to bytes.
 func (tx *DataWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
-	bb, err := tx.BodyMarshalBinary(scheme)
+	return tx.appendTxBinary(make([]byte, 0, tx.BinarySize()), scheme)
+}
+
+// appendTxBinary appends the binary transaction to dst. It appends exactly the bytes MarshalBinary returns.
+func (tx *DataWithProofs) appendTxBinary(dst []byte, _ Scheme) ([]byte, error) {
+	buf := dst
+	buf = append(buf, 0) // The first byte is always zero.
+	buf, err := tx.appendBody(buf)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal DataWithProofs transaction to bytes")
 	}
-	bl := len(bb)
-	if tx.Proofs == nil {
-		return nil, errors.New("failed to marshal DataWithProofs transaction to bytes: no proofs")
-	}
-	pb, err := tx.Proofs.MarshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal DataWithProofs transaction to bytes")
-	}
-	pl := len(pb)
-	buf := make([]byte, 1+bl+pl)
-	buf[0] = 0
-	copy(buf[1:], bb)
-	copy(buf[1+bl:], pb)
-	return buf, nil
+	return appendProofsBinary(buf, tx.Proofs, "DataWithProofs")
 }
 
 // UnmarshalBinary reads the transaction from the bytes.
 func (tx *DataWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
+	input := data
 	if len(data) > maxDataWithProofsTxBytes {
 		return errors.Errorf("total size of DataWithProofs transaction is bigger than %d bytes", maxDataWithProofsTxBytes)
 	}
@@ -3494,9 +3534,11 @@ func (tx *DataWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 		return errors.Wrap(err, "failed to unmarshal DataWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	if err := tx.GenerateID(scheme); err != nil {
-		return err
+	id, err := idFromInputBody(tx, scheme, input, 1, tx.BinarySize()-1-tx.Proofs.BinarySize())
+	if err != nil {
+		return errors.Wrap(err, "failed to generate ID of DataWithProofs transaction")
 	}
+	tx.ID = id
 	return nil
 }
 
@@ -3523,7 +3565,12 @@ func (tx *DataWithProofs) UnmarshalFromProtobuf(data []byte) error {
 }
 
 func (tx *DataWithProofs) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
-	return MarshalSignedTxDeterministic(tx, scheme)
+	return marshalSignedWavesTx(tx, scheme, tx.Proofs)
+}
+
+// toProtobufSignedNoCopy is ToProtobufSigned with proofs aliasing tx.Proofs, see signedWavesTxToProtobufNoCopy.
+func (tx *DataWithProofs) toProtobufSignedNoCopy(scheme Scheme) (*g.SignedTransaction, error) {
+	return signedWavesTxToProtobufNoCopy(tx, scheme, tx.Proofs)
 }
 
 func (tx *DataWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
@@ -3745,6 +3792,12 @@ func (tx *SetScriptWithProofs) bodyUnmarshalBinary(data []byte, scheme Scheme) e
 		tx.Script = s
 		data = data[2+len(s):]
 	}
+	const tailLen = 8 + 8 // fee + timestamp
+	if l := len(data); l < tailLen {
+		return errors.Errorf("not enough data for SetScriptWithProofs fee and timestamp, expected %d, received %d",
+			tailLen, l,
+		)
+	}
 	tx.Fee = binary.BigEndian.Uint64(data)
 	data = data[8:]
 	tx.Timestamp = binary.BigEndian.Uint64(data)
@@ -3778,6 +3831,7 @@ func (tx *SetScriptWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of SetScriptWithProofs transaction")
 	}
+	setIDFromBody(&tx.ID, b)
 	return tx.Proofs.Verify(publicKey, b)
 }
 
@@ -3803,6 +3857,7 @@ func (tx *SetScriptWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
 
 // UnmarshalBinary reads SetScriptWithProofs transaction from its binary representation.
 func (tx *SetScriptWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
+	input := data
 	if l := len(data); l < setScriptWithProofsMinLen {
 		return errors.Errorf(
 			"not enough data for SetScriptWithProofs transaction, expected not less than %d, received %d",
@@ -3829,9 +3884,18 @@ func (tx *SetScriptWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error
 		return errors.Wrap(err, "failed to unmarshal SetScriptWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	if err := tx.GenerateID(scheme); err != nil {
-		return err
+	// A present script flag with a zero-length script is marshalled back as an absent script, so such an input body
+	// is not canonical and the ID is computed from the re-marshalled body, as before.
+	const scriptFlagPos = 1 + 3 + crypto.PublicKeySize // leading zero byte + type, version, scheme + sender PK
+	if input[scriptFlagPos] != 0 && !tx.NonEmptyScript() {
+		tx.ID = nil
+		return tx.GenerateID(scheme)
 	}
+	id, err := idFromInputBody(tx, scheme, input, 1, tx.BinarySize()-1-tx.Proofs.BinarySize())
+	if err != nil {
+		return errors.Wrap(err, "failed to generate ID of SetScriptWithProofs transaction")
+	}
+	tx.ID = id
 	return nil
 }
 
@@ -3853,7 +3917,12 @@ func (tx *SetScriptWithProofs) UnmarshalFromProtobuf(data []byte) error {
 }
 
 func (tx *SetScriptWithProofs) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
-	return MarshalSignedTxDeterministic(tx, scheme)
+	return marshalSignedWavesTx(tx, scheme, tx.Proofs)
+}
+
+// toProtobufSignedNoCopy is ToProtobufSigned with proofs aliasing tx.Proofs, see signedWavesTxToProtobufNoCopy.
+func (tx *SetScriptWithProofs) toProtobufSignedNoCopy(scheme Scheme) (*g.SignedTransaction, error) {
+	return signedWavesTxToProtobufNoCopy(tx, scheme, tx.Proofs)
 }
 
 func (tx *SetScriptWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
@@ -4069,6 +4138,7 @@ func (tx *SponsorshipWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKe
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of SponsorshipWithProofs transaction")
 	}
+	setIDFromBody(&tx.ID, b)
 	return tx.Proofs.Verify(publicKey, b)
 }
 
@@ -4097,6 +4167,7 @@ func (tx *SponsorshipWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
 
 // UnmarshalBinary reads SponsorshipWithProofs from its byte representation.
 func (tx *SponsorshipWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
+	input := data
 	if l := len(data); l < sponsorshipWithProofsMinLen {
 		return errors.Errorf(
 			"not enough data for SponsorshipWithProofs transaction, expected not less than %d, received %d",
@@ -4127,9 +4198,11 @@ func (tx *SponsorshipWithProofs) UnmarshalBinary(data []byte, scheme Scheme) err
 		return errors.Wrap(err, "failed to unmarshal SponsorshipWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	if err := tx.GenerateID(scheme); err != nil {
-		return err
+	id, err := idFromInputBody(tx, scheme, input, 1, tx.BinarySize()-1-tx.Proofs.BinarySize())
+	if err != nil {
+		return errors.Wrap(err, "failed to generate ID of SponsorshipWithProofs transaction")
 	}
+	tx.ID = id
 	return nil
 }
 
@@ -4151,7 +4224,12 @@ func (tx *SponsorshipWithProofs) UnmarshalFromProtobuf(data []byte) error {
 }
 
 func (tx *SponsorshipWithProofs) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
-	return MarshalSignedTxDeterministic(tx, scheme)
+	return marshalSignedWavesTx(tx, scheme, tx.Proofs)
+}
+
+// toProtobufSignedNoCopy is ToProtobufSigned with proofs aliasing tx.Proofs, see signedWavesTxToProtobufNoCopy.
+func (tx *SponsorshipWithProofs) toProtobufSignedNoCopy(scheme Scheme) (*g.SignedTransaction, error) {
+	return signedWavesTxToProtobufNoCopy(tx, scheme, tx.Proofs)
 }
 
 func (tx *SponsorshipWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
@@ -4401,6 +4479,7 @@ func (tx *SetAssetScriptWithProofs) Verify(scheme Scheme, publicKey crypto.Publi
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of SetAssetScriptWithProofs transaction")
 	}
+	setIDFromBody(&tx.ID, b)
 	return tx.Proofs.Verify(publicKey, b)
 }
 
@@ -4426,6 +4505,7 @@ func (tx *SetAssetScriptWithProofs) MarshalBinary(scheme Scheme) ([]byte, error)
 
 // UnmarshalBinary reads SetAssetScriptWithProofs transaction from its binary representation.
 func (tx *SetAssetScriptWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
+	input := data
 	if l := len(data); l < setAssetScriptWithProofsMinLen {
 		return errors.Errorf(
 			"not enough data for SetAssetScriptWithProofs transaction, expected not less than %d, received %d",
@@ -4452,9 +4532,11 @@ func (tx *SetAssetScriptWithProofs) UnmarshalBinary(data []byte, scheme Scheme) 
 		return errors.Wrap(err, "failed to unmarshal SetAssetScriptWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	if err := tx.GenerateID(scheme); err != nil {
-		return err
+	id, err := idFromInputBody(tx, scheme, input, 1, tx.BinarySize()-1-tx.Proofs.BinarySize())
+	if err != nil {
+		return errors.Wrap(err, "failed to generate ID of SetAssetScriptWithProofs transaction")
 	}
+	tx.ID = id
 	return nil
 }
 
@@ -4476,7 +4558,12 @@ func (tx *SetAssetScriptWithProofs) UnmarshalFromProtobuf(data []byte) error {
 }
 
 func (tx *SetAssetScriptWithProofs) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
-	return MarshalSignedTxDeterministic(tx, scheme)
+	return marshalSignedWavesTx(tx, scheme, tx.Proofs)
+}
+
+// toProtobufSignedNoCopy is ToProtobufSigned with proofs aliasing tx.Proofs, see signedWavesTxToProtobufNoCopy.
+func (tx *SetAssetScriptWithProofs) toProtobufSignedNoCopy(scheme Scheme) (*g.SignedTransaction, error) {
+	return signedWavesTxToProtobufNoCopy(tx, scheme, tx.Proofs)
 }
 
 func (tx *SetAssetScriptWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
@@ -4644,50 +4731,31 @@ func (tx *InvokeScriptWithProofs) Validate(params TransactionValidationParams) (
 }
 
 func (tx *InvokeScriptWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
-	p := 0
-	buf := make([]byte, invokeScriptWithProofsFixedBodyLen+tx.ScriptRecipient.BinarySize()+tx.FunctionCall.BinarySize()+tx.Payments.BinarySize()+tx.FeeAsset.BinarySize())
-	buf[p] = byte(tx.Type)
-	p++
-	buf[p] = tx.Version
-	p++
-	buf[p] = scheme
-	p++
-	copy(buf[p:], tx.SenderPK[:])
-	p += crypto.PublicKeySize
-	rb, err := tx.ScriptRecipient.MarshalBinary()
+	return tx.appendBody(make([]byte, 0, tx.bodySize()), scheme)
+}
+
+// bodySize returns the exact size of the binary body, so BodyMarshalBinary allocates the buffer only once.
+func (tx *InvokeScriptWithProofs) bodySize() int {
+	return invokeScriptWithProofsFixedBodyLen + tx.ScriptRecipient.BinarySize() + tx.FunctionCall.BinarySize() +
+		tx.Payments.BinarySize() + tx.FeeAsset.BinarySize()
+}
+
+// appendBody appends the binary body of the transaction to dst. The function call, including nested list arguments,
+// and the payments are written in place. It appends exactly bodySize() bytes.
+func (tx *InvokeScriptWithProofs) appendBody(dst []byte, scheme Scheme) ([]byte, error) {
+	dst = append(dst, byte(tx.Type), tx.Version, scheme)
+	dst = append(dst, tx.SenderPK[:]...)
+	dst, err := tx.ScriptRecipient.appendBinary(dst)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal InvokeScriptWithProofs body")
 	}
-	copy(buf[p:], rb)
-	p += tx.ScriptRecipient.BinarySize()
-	fcb, err := tx.FunctionCall.MarshalBinary()
-	if err != nil {
+	if dst, err = tx.FunctionCall.appendBinary(dst); err != nil {
 		return nil, err
 	}
-	copy(buf[p:], fcb)
-	if len(fcb) != tx.FunctionCall.BinarySize() {
-		panic("INVALID FUNCTION CALL")
-	}
-	p += len(fcb)
-	psb, err := tx.Payments.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	copy(buf[p:], psb)
-	if len(psb) != tx.Payments.BinarySize() {
-		panic("INVALID PAYMENTS")
-	}
-	p += len(psb)
-	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
-	p += 8
-	fab, err := tx.FeeAsset.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	copy(buf[p:], fab)
-	p += len(fab)
-	binary.BigEndian.PutUint64(buf[p:], tx.Timestamp)
-	return buf, nil
+	dst = tx.Payments.appendBinary(dst)
+	dst = binary.BigEndian.AppendUint64(dst, tx.Fee)
+	dst = tx.FeeAsset.appendBinary(dst)
+	return binary.BigEndian.AppendUint64(dst, tx.Timestamp), nil
 }
 
 func (tx *InvokeScriptWithProofs) bodyUnmarshalBinary(data []byte, scheme Scheme) error {
@@ -4729,6 +4797,9 @@ func (tx *InvokeScriptWithProofs) bodyUnmarshalBinary(data []byte, scheme Scheme
 	}
 	tx.Payments = payments
 	data = data[payments.BinarySize():]
+	if l := len(data); l < uint64Size {
+		return errors.Errorf("not enough data for InvokeScriptWithProofs fee, expected 8, received %d", l)
+	}
 	tx.Fee = binary.BigEndian.Uint64(data)
 	data = data[8:]
 	var asset OptionalAsset
@@ -4738,6 +4809,9 @@ func (tx *InvokeScriptWithProofs) bodyUnmarshalBinary(data []byte, scheme Scheme
 	}
 	tx.FeeAsset = asset
 	data = data[asset.BinarySize():]
+	if l := len(data); l < uint64Size {
+		return errors.Errorf("not enough data for InvokeScriptWithProofs timestamp, expected 8, received %d", l)
+	}
 	tx.Timestamp = binary.BigEndian.Uint64(data)
 	return nil
 }
@@ -4769,27 +4843,24 @@ func (tx *InvokeScriptWithProofs) Verify(scheme Scheme, publicKey crypto.PublicK
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of InvokeScriptWithProofs transaction")
 	}
+	setIDFromBody(&tx.ID, b)
 	return tx.Proofs.Verify(publicKey, b)
 }
 
 // MarshalBinary writes InvokeScriptWithProofs transaction to its byte representation.
 func (tx *InvokeScriptWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
-	bb, err := tx.BodyMarshalBinary(scheme)
+	return tx.appendTxBinary(make([]byte, 0, tx.BinarySize()), scheme)
+}
+
+// appendTxBinary appends the binary transaction to dst. It appends exactly the bytes MarshalBinary returns.
+func (tx *InvokeScriptWithProofs) appendTxBinary(dst []byte, scheme Scheme) ([]byte, error) {
+	buf := dst
+	buf = append(buf, 0) // The first byte is always zero.
+	buf, err := tx.appendBody(buf, scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal InvokeScriptWithProofs transaction to bytes")
 	}
-	bl := len(bb)
-	if tx.Proofs == nil {
-		return nil, errors.New("failed to marshal InvokeScriptWithProofs transaction to bytes: no proofs")
-	}
-	pb, err := tx.Proofs.MarshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal InvokeScriptWithProofs transaction to bytes")
-	}
-	buf := make([]byte, 1+bl+len(pb))
-	copy(buf[1:], bb)
-	copy(buf[1+bl:], pb)
-	return buf, nil
+	return appendProofsBinary(buf, tx.Proofs, "InvokeScriptWithProofs")
 }
 
 // UnmarshalBinary reads InvokeScriptWithProofs transaction from its binary representation.
@@ -4850,7 +4921,12 @@ func (tx *InvokeScriptWithProofs) UnmarshalFromProtobuf(data []byte) error {
 }
 
 func (tx *InvokeScriptWithProofs) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
-	return MarshalSignedTxDeterministic(tx, scheme)
+	return marshalSignedWavesTx(tx, scheme, tx.Proofs)
+}
+
+// toProtobufSignedNoCopy is ToProtobufSigned with proofs aliasing tx.Proofs, see signedWavesTxToProtobufNoCopy.
+func (tx *InvokeScriptWithProofs) toProtobufSignedNoCopy(scheme Scheme) (*g.SignedTransaction, error) {
+	return signedWavesTxToProtobufNoCopy(tx, scheme, tx.Proofs)
 }
 
 func (tx *InvokeScriptWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
@@ -5046,6 +5122,7 @@ func (tx *UpdateAssetInfoWithProofs) Verify(scheme Scheme, publicKey crypto.Publ
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of UpdateAssetInfoWithProofs transaction")
 	}
+	setIDFromBody(&tx.ID, b)
 	return tx.Proofs.Verify(publicKey, b)
 }
 
@@ -5097,7 +5174,12 @@ func (tx *UpdateAssetInfoWithProofs) UnmarshalFromProtobuf(data []byte) error {
 }
 
 func (tx *UpdateAssetInfoWithProofs) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
-	return MarshalSignedTxDeterministic(tx, scheme)
+	return marshalSignedWavesTx(tx, scheme, tx.Proofs)
+}
+
+// toProtobufSignedNoCopy is ToProtobufSigned with proofs aliasing tx.Proofs, see signedWavesTxToProtobufNoCopy.
+func (tx *UpdateAssetInfoWithProofs) toProtobufSignedNoCopy(scheme Scheme) (*g.SignedTransaction, error) {
+	return signedWavesTxToProtobufNoCopy(tx, scheme, tx.Proofs)
 }
 
 func (tx *UpdateAssetInfoWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
@@ -5168,6 +5250,7 @@ func (tx *InvokeExpressionTransactionWithProofs) Verify(scheme Scheme, publicKey
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of InvokeExpressionTransactionWithProofs")
 	}
+	setIDFromBody(&tx.ID, b)
 	return tx.Proofs.Verify(publicKey, b)
 }
 
@@ -5300,7 +5383,12 @@ func (tx *InvokeExpressionTransactionWithProofs) UnmarshalFromProtobuf(data []by
 }
 
 func (tx *InvokeExpressionTransactionWithProofs) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
-	return MarshalSignedTxDeterministic(tx, scheme)
+	return marshalSignedWavesTx(tx, scheme, tx.Proofs)
+}
+
+// toProtobufSignedNoCopy is ToProtobufSigned with proofs aliasing tx.Proofs, see signedWavesTxToProtobufNoCopy.
+func (tx *InvokeExpressionTransactionWithProofs) toProtobufSignedNoCopy(scheme Scheme) (*g.SignedTransaction, error) {
+	return signedWavesTxToProtobufNoCopy(tx, scheme, tx.Proofs)
 }
 
 func (tx *InvokeExpressionTransactionWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
@@ -5381,6 +5469,7 @@ func (tx *CommitToGenerationWithProofs) Verify(scheme Scheme, publicKey crypto.P
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of CommitToGenerationWithProofs")
 	}
+	setIDFromBody(&tx.ID, b)
 	return tx.Proofs.Verify(publicKey, b)
 }
 
@@ -5524,7 +5613,12 @@ func (tx *CommitToGenerationWithProofs) UnmarshalFromProtobuf(data []byte) error
 }
 
 func (tx *CommitToGenerationWithProofs) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
-	return MarshalSignedTxDeterministic(tx, scheme)
+	return marshalSignedWavesTx(tx, scheme, tx.Proofs)
+}
+
+// toProtobufSignedNoCopy is ToProtobufSigned with proofs aliasing tx.Proofs, see signedWavesTxToProtobufNoCopy.
+func (tx *CommitToGenerationWithProofs) toProtobufSignedNoCopy(scheme Scheme) (*g.SignedTransaction, error) {
+	return signedWavesTxToProtobufNoCopy(tx, scheme, tx.Proofs)
 }
 
 func (tx *CommitToGenerationWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {

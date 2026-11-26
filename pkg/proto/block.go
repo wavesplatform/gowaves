@@ -7,6 +7,7 @@ import (
 	stderrs "errors"
 	"fmt"
 	"io"
+	"slices"
 
 	"github.com/ccoveille/go-safecast/v2"
 	"github.com/jinzhu/copier"
@@ -1040,14 +1041,22 @@ func (b *Block) transactionsRoot(scheme Scheme) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, tx := range b.Transactions {
-		b, err := tx.MerkleBytes(scheme)
-		if err != nil {
-			return nil, err
-		}
-		tree.Push(b)
+	if pErr := pushTransactionsToMerkleTree(tree, b.Transactions, scheme); pErr != nil {
+		return nil, pErr
 	}
 	return tree.Root().Bytes(), nil
+}
+
+// pushTransactionsToMerkleTree pushes the Merkle leaves of the given transactions into the tree.
+func pushTransactionsToMerkleTree(tree *crypto.MerkleTree, txs Transactions, scheme Scheme) error {
+	for _, tx := range txs {
+		mb, err := tx.MerkleBytes(scheme)
+		if err != nil {
+			return err
+		}
+		tree.Push(mb)
+	}
+	return nil
 }
 
 func CreateBlock(
@@ -1062,6 +1071,72 @@ func CreateBlock(
 	scheme Scheme,
 	stateHash *crypto.Digest,
 	blockFinalizationVoting *FinalizationVoting,
+) (*Block, error) {
+	return createBlock(transactions, timestamp, parentID, publicKey, nxtConsensus, version, features, rewardVote,
+		scheme, stateHash, blockFinalizationVoting, nil, 0)
+}
+
+// AppendTransactionsToBlock creates a new block with the transactions of the given block followed by the given
+// transactions. All other header fields except the state hash and the finalization voting are taken from the
+// given block. The new block is not signed, but its ID is generated (for protobuf blocks the ID does not depend
+// on the signature).
+//
+// For protobuf blocks the transactions root is computed incrementally: if the Merkle tree state of the given
+// block is known (the block was created by CreateBlock or AppendTransactionsToBlock recently), only the leaves
+// of the new transactions are hashed, so the cost does not grow with the size of the liquid block.
+func AppendTransactionsToBlock(
+	block *Block,
+	transactions Transactions,
+	scheme Scheme,
+	stateHash *crypto.Digest,
+	blockFinalizationVoting *FinalizationVoting,
+) (*Block, error) {
+	if block == nil {
+		return nil, errors.New("no block provided")
+	}
+	var tree *crypto.MerkleTree
+	if block.Version >= ProtobufBlockVersion {
+		tree = block.cachedTransactionsTree(scheme)
+	}
+	treeCount := 0
+	if tree != nil {
+		treeCount = len(block.Transactions)
+	}
+	txs := block.Transactions.Join(transactions)
+	return createBlock(txs, block.Timestamp, block.Parent, block.GeneratorPublicKey, block.NxtConsensus,
+		block.Version, block.Features, block.RewardVote, scheme, stateHash, blockFinalizationVoting, tree, treeCount)
+}
+
+// cachedTransactionsTree returns a copy of the cached Merkle tree state of the block transactions or nil.
+// The cached state is used only if its root matches the block transactions root.
+func (b *Block) cachedTransactionsTree(scheme Scheme) *crypto.MerkleTree {
+	tree := liquidMerkleStates.get(b.ID, scheme, len(b.Transactions))
+	if tree == nil {
+		return nil
+	}
+	root := tree.Root()
+	if !bytes.Equal(root[:], b.TransactionsRoot) {
+		return nil
+	}
+	return tree
+}
+
+// createBlock creates a new block. If the tree is not nil, it must hold the Merkle state of the first treeCount
+// transactions; only the remaining transactions are pushed into it to calculate the transactions root.
+func createBlock(
+	transactions Transactions,
+	timestamp Timestamp,
+	parentID BlockID,
+	publicKey crypto.PublicKey,
+	nxtConsensus NxtConsensus,
+	version BlockVersion,
+	features []int16,
+	rewardVote int64,
+	scheme Scheme,
+	stateHash *crypto.Digest,
+	blockFinalizationVoting *FinalizationVoting,
+	tree *crypto.MerkleTree,
+	treeCount int,
 ) (*Block, error) {
 	consensusLength := nxtConsensus.BinarySize()
 	b := &Block{
@@ -1085,13 +1160,23 @@ func CreateBlock(
 	case version <= RewardBlockVersion:
 		b.TransactionBlockLength = uint32(transactions.BinarySize() + 4) // add extra sizeof(int) == 4 bytes for version
 	case version >= ProtobufBlockVersion:
-		err := b.SetTransactionsRoot(scheme)
-		if err != nil {
+		if tree == nil {
+			t, err := crypto.NewMerkleTree()
+			if err != nil {
+				return nil, err
+			}
+			tree, treeCount = t, 0
+		}
+		if err := pushTransactionsToMerkleTree(tree, transactions[treeCount:], scheme); err != nil {
 			return nil, err
 		}
+		b.TransactionsRoot = tree.Root().Bytes()
 	}
 	if err := b.GenerateBlockID(scheme); err != nil {
 		return nil, errors.Wrap(err, "failed to generate block ID")
+	}
+	if version >= ProtobufBlockVersion {
+		liquidMerkleStates.put(b.ID, scheme, len(transactions), tree)
 	}
 	return b, nil
 }
@@ -1134,15 +1219,104 @@ func (a Transactions) BinarySize() int {
 }
 
 func (a Transactions) MarshalBinary(scheme Scheme) ([]byte, error) {
-	buf := bytebufferpool.Get()
-	defer bytebufferpool.Put(buf)
-	_, err := a.WriteToBinary(buf, scheme)
-	if err != nil {
-		return nil, err
+	return a.appendBinary(make([]byte, 0, a.BinarySize()), scheme)
+}
+
+// txBinaryAppender is implemented by the transactions that can write their binary form (the same bytes as
+// MarshalBinary) straight into a caller's buffer.
+type txBinaryAppender interface {
+	appendTxBinary(dst []byte, scheme Scheme) ([]byte, error)
+}
+
+// signedTxNoCopyConverter is implemented by the Waves transactions that can build their signed protobuf form
+// without copying the proofs. The result is only for marshalling, it must not be retained.
+type signedTxNoCopyConverter interface {
+	toProtobufSignedNoCopy(scheme Scheme) (*g.SignedTransaction, error)
+}
+
+// appendBinary appends every transaction as a 4-byte big-endian length followed by its MarshalBinary bytes.
+// The result is byte-identical to WriteToBinary; when dst has BinarySize() spare capacity it does not grow.
+func (a Transactions) appendBinary(dst []byte, scheme Scheme) ([]byte, error) {
+	for _, tx := range a {
+		if ap, ok := tx.(txBinaryAppender); ok {
+			pos := len(dst)
+			dst = append(dst, 0, 0, 0, 0)
+			var err error
+			dst, err = ap.appendTxBinary(dst, scheme)
+			if err != nil {
+				return nil, err
+			}
+			binary.BigEndian.PutUint32(dst[pos:], uint32(len(dst)-pos-uint32Size)) // #nosec G115 // As before.
+			continue
+		}
+		bts, err := tx.MarshalBinary(scheme)
+		if err != nil {
+			return nil, err
+		}
+		dst = binary.BigEndian.AppendUint32(dst, uint32(len(bts))) // #nosec G115 // As before.
+		dst = append(dst, bts...)
 	}
-	out := make([]byte, buf.Len())
-	copy(out, buf.Bytes())
-	return out, nil
+	return dst, nil
+}
+
+// signedProtobufs returns the signed protobuf messages of the transactions and the total size of their
+// length-prefixed encoding. Transactions without a non-copying converter are returned as raw bytes in raw.
+// The messages alias the transactions' proofs and must only be used for marshalling.
+func (a Transactions) signedProtobufs(scheme Scheme) ([]*g.SignedTransaction, [][]byte, int, error) {
+	pbs := make([]*g.SignedTransaction, len(a))
+	var raw [][]byte
+	size := 0
+	for i, tx := range a {
+		if c, ok := tx.(signedTxNoCopyConverter); ok {
+			pb, err := c.toProtobufSignedNoCopy(scheme)
+			if err != nil {
+				return nil, nil, 0, err
+			}
+			pbs[i] = pb
+			size += uint32Size + pb.SizeVT()
+			continue
+		}
+		bts, err := tx.MarshalSignedToProtobuf(scheme)
+		if err != nil {
+			return nil, nil, 0, err
+		}
+		if raw == nil {
+			raw = make([][]byte, len(a))
+		}
+		raw[i] = bts
+		size += uint32Size + len(bts)
+	}
+	return pbs, raw, size, nil
+}
+
+// putSignedProtobufs writes the length-prefixed messages prepared by signedProtobufs into buf, which must be
+// exactly the size returned by signedProtobufs. The bytes equal the protobuf branch of Transactions.WriteTo.
+func putSignedProtobufs(buf []byte, pbs []*g.SignedTransaction, raw [][]byte) error {
+	pos := 0
+	for i, pb := range pbs {
+		if pb == nil {
+			bts := raw[i]
+			binary.BigEndian.PutUint32(buf[pos:], uint32(len(bts))) // #nosec G115 // As before.
+			pos += uint32Size
+			pos += copy(buf[pos:], bts)
+			continue
+		}
+		l := pb.SizeVT()
+		binary.BigEndian.PutUint32(buf[pos:], uint32(l)) // #nosec G115 // As before.
+		pos += uint32Size
+		n, err := pb.MarshalToSizedBufferVTStrict(buf[pos : pos+l])
+		if err != nil {
+			return err
+		}
+		if n != l {
+			return errors.Errorf("unexpected protobuf transaction size %d, expected %d", n, l)
+		}
+		pos += l
+	}
+	if pos != len(buf) {
+		return errors.Errorf("unexpected protobuf transactions size %d, expected %d", pos, len(buf))
+	}
+	return nil
 }
 
 func (a Transactions) WriteTo(proto bool, scheme Scheme, w io.Writer) (int64, error) {
@@ -1170,24 +1344,15 @@ func (a Transactions) WriteTo(proto bool, scheme Scheme, w io.Writer) (int64, er
 }
 
 func (a Transactions) WriteToBinary(w io.Writer, scheme Scheme) (int64, error) {
-	s := serializer.New(w)
-	for _, t := range a {
-		bts, err := t.MarshalBinary(scheme)
-		if err != nil {
-			return 0, err
-		}
-
-		err = s.Uint32(uint32(len(bts)))
-		if err != nil {
-			return 0, err
-		}
-
-		err = s.Bytes(bts)
-		if err != nil {
-			return 0, err
-		}
+	buf := bytebufferpool.Get()
+	defer bytebufferpool.Put(buf)
+	b, err := a.appendBinary(slices.Grow(buf.B[:0], a.BinarySize()), scheme)
+	if err != nil {
+		return 0, err
 	}
-	return s.N(), nil
+	buf.B = b
+	n, err := w.Write(b)
+	return int64(n), err
 }
 
 func (a Transactions) ToProtobuf(scheme Scheme) ([]*g.SignedTransaction, error) {
@@ -1240,24 +1405,59 @@ func (a Transactions) MarshalJSON() ([]byte, error) {
 }
 
 func (a *Transactions) UnmarshalJSON(data []byte) error {
-	var tt []*TransactionTypeVersion
-	err := json.Unmarshal(data, &tt)
-	if err != nil {
-		return errors.Wrap(err, "TransactionType unmarshal")
-	}
-	transactions := make([]Transaction, len(tt))
-	for i, row := range tt {
-		realType, err := GuessTransactionType(row)
-		if err != nil {
-			return err
-		}
-		transactions[i] = realType
-	}
-	err = json.Unmarshal(data, &transactions)
+	transactions, err := UnmarshalTransactionsListJSON(data)
 	if err != nil {
 		return err
 	}
-
 	*a = transactions
+	return nil
+}
+
+// UnmarshalTransactionsListJSON decodes a JSON array of transactions of mixed types in a single pass.
+// Each array element is handed to txListElementJSON as a sub-slice of data (without copying), probed for its type and
+// version and then decoded exactly once into the guessed concrete transaction type.
+// A JSON null input yields a nil slice; a null element is reported as an error.
+func UnmarshalTransactionsListJSON(data []byte) ([]Transaction, error) {
+	var elements []txListElementJSON
+	if err := json.Unmarshal(data, &elements); err != nil {
+		return nil, errors.Wrap(err, "TransactionType unmarshal")
+	}
+	if elements == nil {
+		return nil, nil
+	}
+	transactions := make([]Transaction, len(elements))
+	for i := range elements {
+		transactions[i] = elements[i].tx
+	}
+	return transactions, nil
+}
+
+// txListElementJSON decodes one element of a transactions JSON array. The input slice is not retained.
+type txListElementJSON struct {
+	tx Transaction
+}
+
+func (e *txListElementJSON) UnmarshalJSON(raw []byte) error {
+	if string(raw) == jsonNull {
+		return errors.New("null transaction")
+	}
+	var tv TransactionTypeVersion
+	if err := json.Unmarshal(raw, &tv); err != nil {
+		return err
+	}
+	tx, err := GuessTransactionType(&tv)
+	if err != nil {
+		return err
+	}
+	// The element was already validated by the array decode, so a custom unmarshaler is called directly.
+	if u, ok := tx.(json.Unmarshaler); ok {
+		err = u.UnmarshalJSON(raw)
+	} else {
+		err = json.Unmarshal(raw, tx)
+	}
+	if err != nil {
+		return err
+	}
+	e.tx = tx
 	return nil
 }

@@ -47,19 +47,24 @@ func (dr *dataEntryRecordForHashes) writeTo(w io.Writer) error {
 	return nil
 }
 
+// dataEntryRecord is the stored form of a data entry: the record bytes are exactly the value bytes
+// of the entry (proto.DataEntry.MarshalValue).
+//
+// Buffer ownership: marshalBinary returns the value slice itself and unmarshalBinary keeps the given slice,
+// no copies are made. It is safe because the value bytes are freshly allocated by MarshalValue and are not
+// modified after that, and because all value decoders (proto.DataEntry.UnmarshalValue) copy the variable
+// length parts they keep. The record bytes passed to unmarshalBinary must not be modified while the record
+// is in use; iterator values must be copied first (keyvalue.SafeValue).
 type dataEntryRecord struct {
 	value []byte
 }
 
 func (r *dataEntryRecord) marshalBinary() ([]byte, error) {
-	res := make([]byte, len(r.value))
-	copy(res, r.value)
-	return res, nil
+	return r.value, nil
 }
 
 func (r *dataEntryRecord) unmarshalBinary(data []byte) error {
-	r.value = make([]byte, len(data))
-	copy(r.value, data)
+	r.value = data
 	return nil
 }
 
@@ -182,7 +187,6 @@ func (s *accountsDataStorage) appendEntry(addr proto.Address, entry proto.DataEn
 	}
 	key := accountsDataStorKey{addrNum, entry.GetKey()}
 	keyBytes := key.bytes()
-	keyStr := string(keyBytes)
 	valueBytes, err := entry.MarshalValue()
 	if err != nil {
 		return err
@@ -198,8 +202,8 @@ func (s *accountsDataStorage) appendEntry(addr proto.Address, entry proto.DataEn
 			key:   []byte(entry.GetKey()),
 			value: valueBytes,
 		}
-		if err := s.hasher.push(keyStr, r, blockID); err != nil {
-			return err
+		if pErr := s.hasher.push(string(keyBytes), r, blockID); pErr != nil {
+			return pErr
 		}
 	}
 	if err := s.hs.addNewEntry(dataEntry, keyBytes, recordBytes, blockID); err != nil {

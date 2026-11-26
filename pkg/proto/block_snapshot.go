@@ -21,21 +21,33 @@ func (bs *BlockSnapshot) AppendTxSnapshots(txSnapshots [][]AtomicSnapshot) {
 	bs.TxSnapshots = append(bs.TxSnapshots, txSnapshots...)
 }
 
+// MarshallBinary encodes the snapshot as a 4-byte count followed by 4-byte length-prefixed protobuf transaction
+// snapshots. The total size is summed from SizeVT first, so the result is allocated once and every transaction
+// snapshot is marshalled in place.
 func (bs BlockSnapshot) MarshallBinary() ([]byte, error) {
-	result := binary.BigEndian.AppendUint32([]byte{}, uint32(len(bs.TxSnapshots)))
-	for _, ts := range bs.TxSnapshots {
-		var res g.TransactionStateSnapshot
-		for _, atomicSnapshot := range ts {
-			if err := atomicSnapshot.AppendToProtobuf(&res); err != nil {
-				return nil, errors.Wrap(err, "failed to marshall TransactionSnapshot to proto")
-			}
+	pbs, err := bs.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
+	size := uint32Size
+	for _, ts := range pbs {
+		size += uint32Size + ts.SizeVT()
+	}
+	result := make([]byte, size)
+	binary.BigEndian.PutUint32(result, uint32(len(pbs))) // #nosec G115 // As before.
+	pos := uint32Size
+	for _, ts := range pbs {
+		l := ts.SizeVT()
+		binary.BigEndian.PutUint32(result[pos:], uint32(l)) // #nosec G115 // As before.
+		pos += uint32Size
+		n, mErr := ts.MarshalToSizedBufferVTStrict(result[pos : pos+l])
+		if mErr != nil {
+			return nil, mErr
 		}
-		tsBytes, err := res.MarshalVTStrict()
-		if err != nil {
-			return nil, err
+		if n != l {
+			return nil, errors.Errorf("unexpected transaction snapshot size %d, expected %d", n, l)
 		}
-		result = binary.BigEndian.AppendUint32(result, uint32(len(tsBytes)))
-		result = append(result, tsBytes...)
+		pos += l
 	}
 	return result, nil
 }
@@ -47,6 +59,10 @@ func (bs *BlockSnapshot) UnmarshalBinary(data []byte, scheme Scheme) error {
 	txSnCnt := binary.BigEndian.Uint32(data[0:uint32Size])
 	data = data[uint32Size:]
 	var txSnapshots [][]AtomicSnapshot
+	if txSnCnt > 0 {
+		// Every transaction snapshot takes at least its 4-byte length, which bounds the capacity for bogus counts.
+		txSnapshots = make([][]AtomicSnapshot, 0, min(int(txSnCnt), len(data)/uint32Size))
+	}
 	for range txSnCnt {
 		if len(data) < uint32Size {
 			return errors.Errorf("BlockSnapshot UnmarshallBinary: invalid data size")

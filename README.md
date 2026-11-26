@@ -50,6 +50,8 @@ By default, the node is run as a MainNet node. To run a TestNet node put `testne
 
 Read more about [running the node as Linux service](https://github.com/wavesplatform/gowaves/tree/master/cmd/node#readme).
 
+When upgrading a node to a version with a newer state storage format, stop the node, back up the state directory and convert it with the [`migrate`](cmd/migrate/README.md) utility (`./migrate -state-path [path to node state directory]`). The node refuses to start on a state of another version. A state older than the oldest supported migration must be re-imported.
+
 ### How to set block generation
 
 Go Node has two parameters which allow the loading of private keys from a wallet file.

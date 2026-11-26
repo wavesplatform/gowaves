@@ -110,3 +110,31 @@ func TestMerkleTreeRootMatchesReference(t *testing.T) {
 		assert.Equal(t, level[0], tree.Root())
 	}
 }
+
+func TestMerkleTreeClone(t *testing.T) {
+	rnd := rand.New(rand.NewPCG(13, 17))
+	for n := range 70 {
+		tree, err := crypto.NewMerkleTree()
+		require.NoError(t, err)
+		full, err := crypto.NewMerkleTree()
+		require.NoError(t, err)
+		leaves := make([][]byte, n+5)
+		for i := range leaves {
+			d := randomDigest(rnd)
+			leaves[i] = d[:]
+		}
+		for _, l := range leaves[:n] {
+			tree.Push(l)
+		}
+		before := tree.Root()
+		clone := tree.Clone()
+		for _, l := range leaves[n:] {
+			clone.Push(l)
+		}
+		for _, l := range leaves {
+			full.Push(l)
+		}
+		assert.Equal(t, full.Root(), clone.Root())
+		assert.Equal(t, before, tree.Root(), "the original tree is unchanged")
+	}
+}

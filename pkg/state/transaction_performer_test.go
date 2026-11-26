@@ -542,7 +542,7 @@ func TestPerformSetScriptWithProofs(t *testing.T) {
 	const scriptWithVerifierAndDApp = "BgIECAISAAABAWkBBGNhbGwABQNuaWwBAnR4AQZ2ZXJpZnkACQD0AwMIBQJ0eAlib2R5Qnl0ZXMJAJEDAggFAnR4BnByb29mcwAACAUCdHgPc2VuZGVyUHVibGljS2V5HBD+0Q=="
 	scriptBytes, err := base64.StdEncoding.DecodeString(scriptWithVerifierAndDApp)
 	require.NoError(t, err)
-	expectedScriptAST, err := scriptBytesToTree(scriptBytes)
+	expectedScriptAST, err := scriptBytesToTree(nil, scriptBytes)
 	require.NoError(t, err)
 
 	tx := createSetScriptWithProofs(t, scriptBytes)

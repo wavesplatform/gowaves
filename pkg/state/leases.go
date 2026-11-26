@@ -62,10 +62,14 @@ func (l *leasing) isActive() bool {
 }
 
 func (l *leasing) marshalBinary() ([]byte, error) {
-	return cbor.Marshal(l)
+	var buf [cborRecordBufSize]byte
+	return cborClone(l.appendCBOR(buf[:0])), nil
 }
 
 func (l *leasing) unmarshalBinary(data []byte) error {
+	if l.decodeCBOR(data) {
+		return nil
+	}
 	return cbor.Unmarshal(data, l)
 }
 
